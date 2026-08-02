@@ -1,0 +1,82 @@
+{
+  "runtime-langgraph": {
+    "depthBeforeMax": 4,
+    "depthAfterMax": 3,
+    "surfacesBefore": 20,
+    "surfacesAfter": 15,
+    "panelsBefore": 8,
+    "panelsAfter": 3,
+    "badgesBefore": 72,
+    "badgesAfter": 16
+  },
+  "runtime-repositories": {
+    "depthBeforeMax": 3,
+    "depthAfterMax": 2,
+    "surfacesBefore": 13,
+    "surfacesAfter": 10,
+    "panelsBefore": 3,
+    "panelsAfter": 0,
+    "badgesBefore": 135,
+    "badgesAfter": 8
+  },
+  "runtime-providers": {
+    "depthBeforeMax": 3,
+    "depthAfterMax": 2,
+    "surfacesBefore": 13,
+    "surfacesAfter": 10,
+    "panelsBefore": 3,
+    "panelsAfter": 0,
+    "badgesBefore": 18,
+    "badgesAfter": 12
+  },
+  "runtime-tools": {
+    "depthBeforeMax": 3,
+    "depthAfterMax": 2,
+    "surfacesBefore": 12,
+    "surfacesAfter": 10,
+    "panelsBefore": 2,
+    "panelsAfter": 0,
+    "badgesBefore": 136,
+    "badgesAfter": 44
+  },
+  "runtime-models": {
+    "depthBeforeMax": 3,
+    "depthAfterMax": 2,
+    "surfacesBefore": 12,
+    "surfacesAfter": 10,
+    "panelsBefore": 2,
+    "panelsAfter": 0,
+    "badgesBefore": 8,
+    "badgesAfter": 4
+  },
+  "home": {
+    "depthBeforeMax": 2,
+    "depthAfterMax": 1,
+    "surfacesBefore": 25,
+    "surfacesAfter": 2,
+    "panelsBefore": 1,
+    "panelsAfter": 0,
+    "badgesBefore": 7,
+    "badgesAfter": 7
+  },
+  "projects": {
+    "depthBeforeMax": 1,
+    "depthAfterMax": 1,
+    "surfacesBefore": 2,
+    "surfacesAfter": 1,
+    "panelsBefore": 1,
+    "panelsAfter": 0,
+    "badgesBefore": 10,
+    "badgesAfter": 0
+  },
+  "agents-[id]": {
+    "depthBeforeMax": 2,
+    "depthAfterMax": 2,
+    "surfacesBefore": 11,
+    "surfacesAfter": 9,
+    "panelsBefore": 3,
+    "panelsAfter": 1,
+    "badgesBefore": 37,
+    "badgesAfter": 26
+  }
+}

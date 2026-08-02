@@ -26,7 +26,7 @@ import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Link } from '@/components/ui/link'
 import { Badge } from '@/components/ui/badge'
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
@@ -36,8 +36,7 @@ import ActivityGraph from './activity-graph'
 import { StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
-import ProjectCarousel from './project-carousel'
-import { Unavailable } from './primitives'
+import { Unavailable, initialsOf } from './primitives'
 
 const ENTRY = navEntry('/')
 
@@ -91,6 +90,58 @@ function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode
     return <Unavailable reason="no-data" detail="Aucun run sur les dernières 24 heures." />
   }
   return <RunStream runs={runs} nowMs={nowMs} />
+}
+
+/**
+ * Les projets de l'Aperçu — une LISTE, la même grammaire que `/projects`.
+ *
+ * Un carrousel de cartes vivait ici : trois projets visibles sur dix, deux
+ * flèches de pagination, et une carte par projet portant son propre fond, son
+ * liseré et son rayon. Le même objet métier se lisait donc de deux façons selon
+ * l'écran — cartes paginées ici, liste dense sur `/projects` — et la version
+ * paginée en montrait strictement moins pour strictement plus de surface.
+ *
+ * Une collection homogène est une liste. Les lignes reprennent l'ordre déjà
+ * classé par l'appelant et se contentent de la valeur : le creux qui les porte
+ * suffit à les situer, aucune boîte par élément.
+ */
+function ProjectList({ cards }: Readonly<{ cards: ProjectCard[] }>) {
+  return (
+    <ul className="min-w-0">
+      {cards.map((card) => {
+        const empty = card.copilotCount === 0
+        return (
+          <li key={card.id} className="aig-line-soft border-b last:border-b-0">
+            <Link
+              href={`/projects/${card.id}`}
+              className="flex items-center gap-2 px-1 py-2 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
+            >
+              <span className="aig-text-faint w-6 shrink-0 text-2xs font-medium tabular-nums">
+                {initialsOf(card.name)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <Strong className="block truncate text-sm">{card.name}</Strong>
+                <Text className="aig-text-faint block truncate text-2xs">
+                  {card.repoFullName ?? 'aucun dépôt lié'}
+                </Text>
+              </span>
+              {/* Un projet vide ne réclame pas l'attention : il porte un tiret,
+                  pas un compteur à zéro qui se lirait comme une mesure. */}
+              <span className="shrink-0 text-right">
+                <Text className="block text-2xs tabular-nums">
+                  {empty ? (
+                    <span className="aig-text-faint">—</span>
+                  ) : (
+                    `${card.activeCount}/${card.copilotCount}`
+                  )}
+                </Text>
+              </span>
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 function actionTone(status: string): 'amber' | 'red' | 'emerald' | 'zinc' {
@@ -237,10 +288,16 @@ export default function CockpitOverview({
               </Link>
             </header>
             <div className="aig-hairline mb-3" />
+            {/* La BOÎTE est bornée, la DONNÉE défile dedans. Le carrousel bornait
+                sa hauteur en ne montrant que trois cartes ; une liste complète
+                pousserait la colonne et volerait sa hauteur au bandeau KPI
+                au-dessus — mesuré : les cellules se faisaient couper. */}
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
-              <ProjectCarousel cards={rankedProjects} />
+              <div className="scroll-thin min-h-0 max-h-64 shrink overflow-y-auto">
+                <ProjectList cards={rankedProjects} />
+              </div>
             )}
 
             <div className="aig-hairline my-3" />

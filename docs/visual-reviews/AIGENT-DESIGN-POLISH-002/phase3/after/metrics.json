@@ -1,0 +1,571 @@
+{
+  "mission": "AIGENT-DESIGN-POLISH-002",
+  "phase": "phase3",
+  "snapshot": "after",
+  "mode": "development",
+  "generatedAtUtc": "2026-08-02T15:49:16.707Z",
+  "baseUrl": "http://127.0.0.1:3987",
+  "git": {
+    "branch": "mission/aigent-design-polish-002-phase3",
+    "sha": "5acc11b0c6107eddd2af7bae904a57fe0f47ee29"
+  },
+  "dynamic": {
+    "agentId": "copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8"
+  },
+  "captures": [
+    {
+      "file": "runtime-langgraph-1440x900-development.png",
+      "key": "runtime-langgraph",
+      "route": "/runtime?tab=langgraph",
+      "templateRoute": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 3,
+          "visibleSurfaces": 15,
+          "visiblePanels": 3
+        },
+        "badges": {
+          "visible": 16
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-repositories-1440x900-development.png",
+      "key": "runtime-repositories",
+      "route": "/runtime?tab=repositories",
+      "templateRoute": "/runtime?tab=repositories",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 8
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-providers-1440x900-development.png",
+      "key": "runtime-providers",
+      "route": "/runtime?tab=providers",
+      "templateRoute": "/runtime?tab=providers",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 12
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-tools-1440x900-development.png",
+      "key": "runtime-tools",
+      "route": "/runtime?tab=tools",
+      "templateRoute": "/runtime?tab=tools",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 44
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-models-1440x900-development.png",
+      "key": "runtime-models",
+      "route": "/runtime?tab=models",
+      "templateRoute": "/runtime?tab=models",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 4
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "home-1440x900-development.png",
+      "key": "home",
+      "route": "/",
+      "templateRoute": "/",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 1,
+          "visibleSurfaces": 2,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 7
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "projects-1440x900-development.png",
+      "key": "projects",
+      "route": "/projects",
+      "templateRoute": "/projects",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 1,
+          "visibleSurfaces": 1,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 0
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "agents-[id]-1440x900-development.png",
+      "key": "agents-[id]",
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "templateRoute": "/agents/[id]",
+      "viewport": "1440x900",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 900,
+          "scrollHeight": 900
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 1
+        },
+        "badges": {
+          "visible": 26
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-langgraph-1280x800-development.png",
+      "key": "runtime-langgraph",
+      "route": "/runtime?tab=langgraph",
+      "templateRoute": "/runtime?tab=langgraph",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 3,
+          "visibleSurfaces": 15,
+          "visiblePanels": 3
+        },
+        "badges": {
+          "visible": 16
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-repositories-1280x800-development.png",
+      "key": "runtime-repositories",
+      "route": "/runtime?tab=repositories",
+      "templateRoute": "/runtime?tab=repositories",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 8
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-providers-1280x800-development.png",
+      "key": "runtime-providers",
+      "route": "/runtime?tab=providers",
+      "templateRoute": "/runtime?tab=providers",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 12
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-tools-1280x800-development.png",
+      "key": "runtime-tools",
+      "route": "/runtime?tab=tools",
+      "templateRoute": "/runtime?tab=tools",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 44
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-models-1280x800-development.png",
+      "key": "runtime-models",
+      "route": "/runtime?tab=models",
+      "templateRoute": "/runtime?tab=models",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 10,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 4
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "home-1280x800-development.png",
+      "key": "home",
+      "route": "/",
+      "templateRoute": "/",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 1,
+          "visibleSurfaces": 2,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 7
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "projects-1280x800-development.png",
+      "key": "projects",
+      "route": "/projects",
+      "templateRoute": "/projects",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 1,
+          "visibleSurfaces": 1,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 0
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "agents-[id]-1280x800-development.png",
+      "key": "agents-[id]",
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "templateRoute": "/agents/[id]",
+      "viewport": "1280x800",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 800,
+          "scrollHeight": 800
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 1
+        },
+        "badges": {
+          "visible": 26
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-langgraph-375x812-development.png",
+      "key": "runtime-langgraph",
+      "route": "/runtime?tab=langgraph",
+      "templateRoute": "/runtime?tab=langgraph",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 3,
+          "visibleSurfaces": 14,
+          "visiblePanels": 3
+        },
+        "badges": {
+          "visible": 16
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-repositories-375x812-development.png",
+      "key": "runtime-repositories",
+      "route": "/runtime?tab=repositories",
+      "templateRoute": "/runtime?tab=repositories",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 8
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-providers-375x812-development.png",
+      "key": "runtime-providers",
+      "route": "/runtime?tab=providers",
+      "templateRoute": "/runtime?tab=providers",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 12
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-tools-375x812-development.png",
+      "key": "runtime-tools",
+      "route": "/runtime?tab=tools",
+      "templateRoute": "/runtime?tab=tools",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 44
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "runtime-models-375x812-development.png",
+      "key": "runtime-models",
+      "route": "/runtime?tab=models",
+      "templateRoute": "/runtime?tab=models",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 9,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 4
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "home-375x812-development.png",
+      "key": "home",
+      "route": "/",
+      "templateRoute": "/",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 1,
+          "visibleSurfaces": 1,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 7
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "projects-375x812-development.png",
+      "key": "projects",
+      "route": "/projects",
+      "templateRoute": "/projects",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 0,
+          "visibleSurfaces": 0,
+          "visiblePanels": 0
+        },
+        "badges": {
+          "visible": 0
+        },
+        "consoleErrorsOnPage": 0
+      }
+    },
+    {
+      "file": "agents-[id]-375x812-development.png",
+      "key": "agents-[id]",
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "templateRoute": "/agents/[id]",
+      "viewport": "375x812",
+      "mode": "development",
+      "metrics": {
+        "document": {
+          "clientHeight": 812,
+          "scrollHeight": 812
+        },
+        "depth": {
+          "max": 2,
+          "visibleSurfaces": 8,
+          "visiblePanels": 1
+        },
+        "badges": {
+          "visible": 26
+        },
+        "consoleErrorsOnPage": 0
+      }
+    }
+  ],
+  "consoleEvents": [],
+  "networkErrors": []
+}

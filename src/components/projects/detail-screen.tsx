@@ -30,7 +30,6 @@ import {
   AbsentMark,
   Fact,
   FactValue,
-  Panel,
   Rail,
   SEVERITY,
   Unavailable,
@@ -396,17 +395,16 @@ export default function ProjectDetailScreen({
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[1.3fr_1fr]">
             {/* ── Colonne gauche : l'équipe et ses relations ── */}
             <div className="grid min-h-0 grid-rows-[1.4fr_1fr] gap-3">
-              <Panel
-                title="Équipe"
-                hint={
-                  summary
-                    ? agentTeamHint(agents.length, summary.unavailableAgents)
-                    : agentTeamHint(agents.length, 0)
-                }
-                className="min-h-0"
-                padded={false}
-                bodyClassName="overflow-y-auto"
-              >
+              <section className="min-h-0 overflow-y-auto">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Équipe</h2>
+                  <Text className="aig-text-faint text-xs">
+                    {summary
+                      ? agentTeamHint(agents.length, summary.unavailableAgents)
+                      : agentTeamHint(agents.length, 0)}
+                  </Text>
+                </div>
+                <div className="aig-hairline my-2" />
                 {agents.length === 0 ? (
                   <div className="p-4">
                     <Unavailable
@@ -421,15 +419,14 @@ export default function ProjectDetailScreen({
                     ))}
                   </ul>
                 )}
-              </Panel>
+              </section>
 
-              <Panel
-                title="Relations"
-                hint={relationCountHint(relations.length)}
-                className="min-h-0"
-                padded={false}
-                bodyClassName="overflow-y-auto"
-              >
+              <section className="min-h-0 overflow-y-auto">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Relations</h2>
+                  <Text className="aig-text-faint text-xs">{relationCountHint(relations.length)}</Text>
+                </div>
+                <div className="aig-hairline my-2" />
                 {relations.length === 0 ? (
                   <div className="p-4">
                     <Unavailable
@@ -457,34 +454,39 @@ export default function ProjectDetailScreen({
                     ))}
                   </ul>
                 )}
-              </Panel>
+              </section>
             </div>
 
             {/* ── Colonne droite : le dépôt et la livraison ── */}
             <div className="grid min-h-0 grid-rows-[1fr_1fr_auto] gap-3">
-              <Panel
-                title="Dépôt"
-                hint={repo.deeperEntries > 0 ? `+${repo.deeperEntries} plus profond` : undefined}
-                className="min-h-0"
-                padded={false}
-                bodyClassName="overflow-auto px-4 py-2"
-              >
-                {repoPanelBody(repo)}
-              </Panel>
+              <section className="min-h-0 overflow-auto px-1">
+                <div className="flex items-center justify-between gap-2 px-3">
+                  <h2 className="text-sm font-semibold">Dépôt</h2>
+                  <Text className="aig-text-faint text-xs">
+                    {repo.deeperEntries > 0 ? `+${repo.deeperEntries} plus profond` : ''}
+                  </Text>
+                </div>
+                <div className="aig-hairline mx-3 my-2" />
+                <div className="px-3 pb-2">{repoPanelBody(repo)}</div>
+              </section>
 
-              <Panel
-                title="Intelligence de dépôt"
-                hint={intel.scannedAt ? `scan ${intel.scannedAt.slice(0, 10)}` : undefined}
-                className="min-h-0"
-                bodyClassName="overflow-y-auto"
-              >
-                {intelPanelBody(intel)}
-              </Panel>
+              <section className="min-h-0 overflow-y-auto px-1">
+                <div className="flex items-center justify-between gap-2 px-3">
+                  <h2 className="text-sm font-semibold">Intelligence de dépôt</h2>
+                  <Text className="aig-text-faint text-xs">
+                    {intel.scannedAt ? `scan ${intel.scannedAt.slice(0, 10)}` : ''}
+                  </Text>
+                </div>
+                <div className="aig-hairline mx-3 my-2" />
+                <div className="px-3 pb-2">{intelPanelBody(intel)}</div>
+              </section>
 
               {/* Capacité de LIVRAISON — un constat, pas un déclencheur. Cette
                 surface est en lecture seule : elle n'appelle aucune écriture
                 GitHub, pas même un dry-run. */}
-              <Panel title="Capacité de livraison" className="shrink-0">
+              <section className="shrink-0 px-3">
+                <h2 className="text-sm font-semibold">Capacité de livraison</h2>
+                <div className="aig-hairline my-2" />
                 <div className="space-y-1.5">
                   {[
                     {
@@ -515,7 +517,7 @@ export default function ProjectDetailScreen({
                       : "Une livraison réelle est impossible en l'état — toute poussée serait un dry-run."}
                   </Text>
                 </div>
-              </Panel>
+              </section>
             </div>
           </div>
         )}

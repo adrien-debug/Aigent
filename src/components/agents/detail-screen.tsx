@@ -15,7 +15,7 @@ import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { UNAVAILABLE_LABEL, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import type { ReleaseGate } from '@/lib/agent-mission-control/release-gate'
@@ -28,7 +28,14 @@ import {
   RuntimeStatusBadge,
   StageBadge,
 } from './atoms'
-import { sortChecks, stageDisplay, summarizeGate, STAGE_DISPLAY_MEANING } from './evidence-model'
+import {
+  blockerNature,
+  serviceVerdict,
+  sortChecks,
+  stageDisplay,
+  summarizeGate,
+  STAGE_DISPLAY_MEANING,
+} from './evidence-model'
 import { isUnavailable } from './roster-model'
 
 /** Une date ISO → texte court et déterministe (UTC, sans locale). */
@@ -227,11 +234,9 @@ function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
             <Badge color="red">hors catalogue</Badge>
           )}
           <LifecycleStatusBadge status={copilot.status} />
-          {project ? (
-            <Badge color="zinc">{project.name}</Badge>
-          ) : (
-            <Badge color="zinc">banc de validation</Badge>
-          )}
+          <Text className="aig-text-faint text-xs">
+            {project ? project.name : 'banc de validation'}
+          </Text>
           {agent ? <ProviderBadge provider={agent.provider} /> : null}
         </>
       }
@@ -255,7 +260,30 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   const consumerStage = lifecycle.stages.find((stage) => stage.key === 'active_in_consumer')
   const consumerDisplay = consumerStage ? stageDisplay(consumerStage) : 'unknown'
   const reachedCount = lifecycle.stages.filter((stage) => stageDisplay(stage) === 'reached').length
-  const blocked = detail.blockers.length > 0
+
+  /*
+   * TROIS VERDICTS, PAS DEUX. `detail.executable` répond « un run peut-il
+   * partir ? » — une question binaire dont la réponse est juste. Mais l'écran
+   * la peignait telle quelle : toute réponse négative sortait en rouge critique
+   * sous « Lancement bloqué », qu'un outil soit réellement inexécutable ou
+   * qu'une version n'ait simplement jamais été résolue.
+   *
+   * `serviceVerdict` distingue la NATURE des obstacles : un fait mesuré et
+   * négatif (rouge, mérité) d'une absence de mesure (neutre). Le contrat de
+   * données n'est pas touché — `detail.executable` et `detail.blockers` sont
+   * lus tels quels, et TOUS les obstacles restent affichés.
+   */
+  const verdict = serviceVerdict(detail.blockers, agent?.status)
+  const blocked = verdict === 'blocked'
+  const unmeasured = verdict === 'unmeasured'
+
+  // Le mot d'absence vient de `UNAVAILABLE_LABEL`, jamais d'un littéral : le
+  // produit n'épelle ce mot qu'UNE fois (invariant tenu par `cost-truth.test`).
+  const VERDICT_TITLE: Record<typeof verdict, string> = {
+    launchable: 'Lançable maintenant',
+    blocked: 'Lancement bloqué',
+    unmeasured: UNAVAILABLE_LABEL,
+  }
 
   return (
     <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="État de service">
@@ -266,9 +294,20 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             État de service
           </Text>
 
-          <p className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" style={detail.executable ? undefined : { color: SEVERITY.bad }}>
-            {detail.executable ? 'Lançable maintenant' : 'Lancement bloqué'}
+          {/* Seul un blocage PROUVÉ prend la couleur de sévérité. Une absence
+              reste dans le graphite du texte : elle se lit, elle n'alarme pas. */}
+          <p
+            className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
+            style={blocked ? { color: SEVERITY.bad } : undefined}
+          >
+            {VERDICT_TITLE[verdict]}
           </p>
+
+          {unmeasured ? (
+            <Text className="aig-text-muted mt-1 text-sm">
+              Aucune mesure runtime disponible pour cet agent.
+            </Text>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <StageBadge
@@ -284,28 +323,37 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             <InlineStatus tone={blocked ? 'danger' : 'default'}>
               {blocked
                 ? `${detail.blockers.length} obstacle(s) concret(s) empechent un lancement.`
-                : 'Aucun obstacle runtime connu a ce stade.'}
+                : unmeasured
+                  ? `${detail.blockers.length} prérequis non mesuré(s) — rien n’a échoué, rien n’a été lu.`
+                  : 'Aucun obstacle runtime connu a ce stade.'}
             </InlineStatus>
           </div>
 
           {/* Un obstacle DOIT ressortir : `aig-panel-raised` monte la boîte
               d'un palier, le liseré rouge porte la gravité. Le couple
               `border-red-200 / bg-red-50` était un aplat pâle pensé pour un
-              fond blanc — sur graphite il éblouissait. */}
-          {blocked ? (
+              fond blanc — sur graphite il éblouissait.
+              CHAQUE obstacle porte désormais SA propre nature : dans un agent
+              `degraded`, l'outil inexécutable est rouge et le prérequis non
+              résolu qui l'accompagne reste neutre. Peindre toute la liste en
+              rouge parce qu'un seul élément est prouvé serait la même faute à
+              une échelle plus fine. */}
+          {detail.blockers.length > 0 ? (
             <ul className="mt-3 space-y-2">
-              {detail.blockers.slice(0, 3).map((blocker) => (
-                <li
-                  key={blocker.code}
-                  className="aig-panel-raised px-3 py-2"
-                  style={{ borderColor: 'color-mix(in oklab, var(--aig-severity-bad) 40%, transparent)' }}
-                >
-                  <Strong className="block">{blocker.label}</Strong>
-                  <Text className="mt-1 text-sm" style={{ color: SEVERITY.bad }}>
-                    {blocker.detail}
-                  </Text>
-                </li>
-              ))}
+              {detail.blockers.slice(0, 3).map((blocker) => {
+                const proven = blockerNature(blocker.code, agent?.status) === 'proven'
+                return (
+                  <li key={blocker.code} className="aig-line border-l pl-3">
+                    <Strong className="block">{blocker.label}</Strong>
+                    <Text
+                      className={proven ? 'mt-1 text-sm' : 'aig-text-muted mt-1 text-sm'}
+                      style={proven ? { color: SEVERITY.bad } : undefined}
+                    >
+                      {blocker.detail}
+                    </Text>
+                  </li>
+                )
+              })}
             </ul>
           ) : null}
         </div>
@@ -483,8 +531,9 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
           </div>
         </div>
 
-        <div className="aig-quiet min-w-0 p-4 sm:p-5">
+        <div className="min-w-0 p-1">
           <Subheading level={3}>Evenements importants</Subheading>
+          <div className="aig-hairline my-2" />
           <Text className="aig-text-muted mt-1 text-sm">
             Les signaux qui changent la lecture de la page sans transformer chaque fait en panneau.
           </Text>
@@ -605,8 +654,9 @@ function QualificationSection({
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="aig-quiet min-w-0 p-4 sm:p-5">
+        <div className="min-w-0 p-1">
           <Subheading level={3}>Confiance de release</Subheading>
+          <div className="aig-hairline my-2" />
           {gate === null ? (
             <div className="mt-4">
               <Unavailable
@@ -624,10 +674,9 @@ function QualificationSection({
                 <Badge color={gateSummary?.promotable ? 'emerald' : 'red'}>
                   {gateSummary?.promotable ? 'promouvable' : 'non promouvable'}
                 </Badge>
-                {gateSummary && gateSummary.blocking > 0 ? (
-                  <Badge color="amber">{gateSummary.blocking} blocage(s)</Badge>
-                ) : null}
-                <Badge color="zinc">candidat {gate.evidence.candidateLabel}</Badge>
+                <Text className="aig-text-faint text-xs">
+                  {gateSummary?.blocking ?? 0} blocage(s) · candidat {gate.evidence.candidateLabel}
+                </Text>
               </div>
               {/* La liste des checks est un flux : elle descend dans un creux
                   à hauteur bornée plutôt que d'allonger la boîte. */}
@@ -651,8 +700,9 @@ function QualificationSection({
           )}
         </div>
 
-        <div className="aig-quiet min-w-0 p-4 sm:p-5">
+        <div className="min-w-0 p-1">
           <Subheading level={3}>Tests et preuves</Subheading>
+          <div className="aig-hairline my-2" />
           {testsBody}
         </div>
       </div>
@@ -702,25 +752,69 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
         ) : null}
 
         {resolvedTools.length > 0 ? (
-          <ul className="divide-y divide-[color:var(--aig-line-soft)]">
-            {resolvedTools.map((tool) => (
-              <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <Strong className="block truncate">{tool.name}</Strong>
-                  <Text className="mt-1 aig-text-muted text-sm">
-                    {tool.enabled ? 'active' : 'desactive'}
-                    {tool.requiresConfirmation ? ' · confirmation' : ''}
-                  </Text>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <Badge color={tool.mutates ? 'amber' : 'emerald'}>
-                    {tool.mutates ? 'mutant' : 'lecture seule'}
-                  </Badge>
-                  <Badge color={toolRiskBadgeColor(tool.riskLevel)}>{tool.riskLevel}</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            {/* LES TRAITS CONSTANTS REMONTENT EN TÊTE DE SECTION.
+             *
+             * Chaque ligne portait deux badges — `lecture seule`/`mutant` et le
+             * niveau de risque — répétés à l'identique sur toute la liste : 14
+             * fois « lecture seule » et 4 fois « low » sur une seule fiche.
+             * Un badge dont la valeur ne varie jamais n'informe pas, il
+             * tapisse ; et il vole l'attention aux lignes qui, elles, sortent
+             * du lot.
+             *
+             * La règle appliquée ici : ce qui est VRAI POUR TOUS se dit une
+             * fois, en texte, dans l'en-tête. Seule l'EXCEPTION garde un badge.
+             * Une liste entièrement homogène perd donc tous ses badges, et une
+             * liste mixte n'en garde que sur les lignes qui divergent — ce qui
+             * les rend enfin visibles. */}
+            {(() => {
+              const mutating = resolvedTools.filter((t) => t.mutates)
+              const risks = new Set(resolvedTools.map((t) => t.riskLevel))
+              const uniformRisk = risks.size === 1 ? [...risks][0] : null
+              const traits = [
+                mutating.length === 0
+                  ? 'lecture seule'
+                  : mutating.length === resolvedTools.length
+                    ? 'tous mutants'
+                    : null,
+                uniformRisk ? `risque ${uniformRisk}` : null,
+              ].filter(Boolean)
+
+              return traits.length > 0 ? (
+                <Text className="aig-text-muted text-sm">{traits.join(' · ')}</Text>
+              ) : null
+            })()}
+
+            <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+              {resolvedTools.map((tool) => {
+                const risks = new Set(resolvedTools.map((t) => t.riskLevel))
+                const mutatingCount = resolvedTools.filter((t) => t.mutates).length
+                // Un badge UNIQUEMENT si cette ligne diverge de la majorité.
+                const showMutates =
+                  tool.mutates && mutatingCount > 0 && mutatingCount < resolvedTools.length
+                const showRisk = risks.size > 1
+                return (
+                  <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <Strong className="block truncate">{tool.name}</Strong>
+                      <Text className="mt-1 aig-text-muted text-sm">
+                        {tool.enabled ? 'active' : 'desactive'}
+                        {tool.requiresConfirmation ? ' · confirmation' : ''}
+                      </Text>
+                    </div>
+                    {showMutates || showRisk ? (
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        {showMutates ? <Badge color="amber">mutant</Badge> : null}
+                        {showRisk ? (
+                          <Badge color={toolRiskBadgeColor(tool.riskLevel)}>{tool.riskLevel}</Badge>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         ) : null}
 
         {manifest && manifest.forbiddenActions.length > 0 ? (
@@ -752,8 +846,9 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="aig-quiet min-w-0 p-4 sm:p-5">
+        <div className="min-w-0 p-1">
           <Subheading level={3}>Paramètres actifs</Subheading>
+          <div className="aig-hairline my-2" />
           {manifest === undefined ? (
             <div className="mt-4">
               <Unavailable
@@ -827,6 +922,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
                 : 'Outils non résolus'}
             </Text>
           </div>
+          <div className="aig-hairline mb-2" />
 
           {/* Le montage d'outils est une LISTE : creux à hauteur bornée, la
               donnée défile dedans plutôt que d'allonger la page. */}

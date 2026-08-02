@@ -20,16 +20,26 @@
 }
 
 :root {
-  /* Graphite — paliers de clarté, pas de noir absolu. */
-  --aig-base: oklch(0.19 0.006 264);
-  --aig-subtle: oklch(0.16 0.006 264);
-  --aig-raised: oklch(0.24 0.008 264);
-  --aig-line: oklch(0.32 0.008 264);
-  --aig-line-soft: oklch(0.27 0.008 264);
+  /*
+   * Graphite — paliers de clarté, pas de noir absolu.
+   *
+   * ÉCHELLE RÉÉTALONNÉE (2026-08-02, DESIGN-POLISH-002 phase 3). L'échelle
+   * précédente logeait ses cinq rangs entre `rgb(7)` et `rgb(49)` : 42 niveaux
+   * sur 255 pour porter toute la hiérarchie. Mesuré au navigateur, l'écart entre
+   * deux rangs adjacents tombait à 1.04–1.12 de ratio — au-dessous du seuil où
+   * l'œil sépare deux aplats.
+   *
+   * L'ORDRE EST UN INVARIANT : canvas < creux < scène < élevé.
+   */
+  --aig-subtle: oklch(0.165 0.006 264); /* CANVAS */
+  --aig-base: oklch(0.243 0.007 264); /* SCÈNE */
+  --aig-raised: oklch(0.298 0.009 264); /* ÉLEVÉ */
+  --aig-line-soft: oklch(0.342 0.009 264);
+  --aig-line: oklch(0.408 0.01 264);
 
   --aig-text: oklch(0.93 0.004 264);
   --aig-text-muted: oklch(0.71 0.006 264);
-  --aig-text-faint: oklch(0.58 0.006 264);
+  --aig-text-faint: oklch(0.645 0.006 264);
   --aig-text-display: oklch(0.97 0.004 250);
 
   --aig-accent: oklch(0.72 0.11 52);

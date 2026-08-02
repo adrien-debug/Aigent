@@ -99,10 +99,10 @@ function Cell({
     <div
       className={clsx(
         'flex min-w-0 flex-col justify-between gap-2',
-        // Une menante vaut deux qualifiantes en largeur, à tous les points de
-        // rupture : c'est ce qui lui laisse la place d'un chiffre `text-4xl`
-        // sans le tronquer, et ce qui rend le rang lisible d'un coup d'œil.
-        lead ? 'col-span-2 gap-3 p-5' : 'p-4',
+        // Le padding tombe avec le cadre : sans boîte, il ne sépare plus rien
+        // et il ne fait qu'éloigner le libellé de son chiffre. C'est la
+        // gouttière de la grille qui espace désormais les mesures.
+        lead ? 'col-span-2 gap-3' : '',
       )}
     >
       <dt className="flex items-center gap-2">
@@ -203,7 +203,13 @@ export default function KpiStrip({
        autres se rangent par deux dans les deux colonnes restantes. En dessous
        de `xl` la grille dégrade proprement : 2 colonnes en mobile, 3 en `sm`,
        les menantes gardant leur double largeur. */
-    <dl className="aig-panel grid shrink-0 grid-cols-2 gap-px overflow-hidden bg-[var(--aig-line-soft)] sm:grid-cols-4 xl:grid-cols-8 [&>*]:bg-[var(--aig-base)]">
+    /* LES CHIFFRES SE POSENT NUS SUR LEUR SURFACE. La grille portait
+       `aig-panel` (fond + liseré + rayon + élévation) et séparait ses cellules
+       par une gouttière d'un pixel remplie de `--aig-line-soft` : chaque mesure
+       vivait donc dans SA boîte, et une absence encadrée pesait autant qu'un
+       chiffre mesuré. La grille ne garde que son rôle de grille ; les cellules
+       se séparent par un filet, pas par un cadre. */
+    <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4 xl:grid-cols-8">
       <Cell
         rank="lead"
         label="Runs 24 h"

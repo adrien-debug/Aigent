@@ -19,13 +19,11 @@
  * l'exécutable divergent ; un nombre écrit à la main dans une UI, lui, ne casse
  * jamais — il ment simplement.
  */
-import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import { TOOL_IDS, TOOL_REGISTRY, type ToolDefinition } from '@/lib/agent-mission-control/registry'
 import type { ToolsTabData } from './server-reads'
-import { ConfirmationBadge, Fact, FactValue, MutationBadge, RiskBadge } from './atoms'
+import { Fact, FactValue, MutationBadge, RiskBadge } from './atoms'
 
 /**
  * L'usage réel d'un outil, croisé depuis le roster.
@@ -58,15 +56,10 @@ function ToolRow({
         <code className="aig-text-muted truncate text-xs">{tool.id}</code>
         <MutationBadge mutates={tool.mutates} />
         <RiskBadge risk={tool.risk} />
-        <ConfirmationBadge required={tool.requiresConfirmation} />
-        {tool.certification !== 'certified' ? (
-          <Badge
-            color={tool.certification === 'deprecated' ? 'red' : 'amber'}
-            title="État de la DÉFINITION au registre — distinct de l’état d’un appel à l’exécution."
-          >
-            {tool.certification}
-          </Badge>
-        ) : null}
+        <Text className="aig-text-faint text-xs">
+          {tool.requiresConfirmation ? 'confirmation requise' : 'confirmation non requise'}
+          {tool.certification !== 'certified' ? ` · ${tool.certification}` : ''}
+        </Text>
       </div>
 
       {/*
@@ -76,39 +69,28 @@ function ToolRow({
       <Text className="mt-1">{tool.summary}</Text>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <Badge color="zinc" title="La forme d’intégration de l’outil.">
-          {tool.kind}
-        </Badge>
-        <Badge color="zinc">{tool.provenance}</Badge>
-        <Badge color="zinc" title="Les runtimes qui peuvent monter cet outil.">
-          {tool.runtimes.join(', ')}
-        </Badge>
+        <Text className="aig-text-faint text-xs">
+          {tool.kind} · {tool.provenance} · runtimes: {tool.runtimes.join(', ')}
+        </Text>
         {tool.secretRefs.length > 0 ? (
-          <Badge
-            color="amber"
+          <Text
+            className="aig-text-faint text-xs"
             title="Les secrets que cet outil consulte, désignés par leur NOM. Aucune valeur n’est lue ni affichée ici."
           >
             secrets : {tool.secretRefs.join(', ')}
-          </Badge>
+          </Text>
         ) : null}
         {usage === null ? (
-          <Badge color="zinc" title="Le catalogue d’agents n’a pas pu être lu : l’usage réel de cet outil est inconnu, pas nul.">
+          <Text className="aig-text-faint text-xs" title="Le catalogue d’agents n’a pas pu être lu : l’usage réel de cet outil est inconnu, pas nul.">
             usage inconnu
-          </Badge>
+          </Text>
         ) : (
-          <>
-            <Badge color={usage.mountedOn > 0 ? 'emerald' : 'zinc'}>
-              monté sur {usage.mountedOn} agent(s)
-            </Badge>
-            {usage.unresolvedOn > 0 ? (
-              <Badge
-                color="red"
-                title="Ces agents DÉCLARENT cet outil sans qu’il résolve vers un handler enregistré : ils ne peuvent pas faire ce qu’ils annoncent."
-              >
-                non résolu sur {usage.unresolvedOn}
-              </Badge>
-            ) : null}
-          </>
+          <Text
+            className={usage.unresolvedOn > 0 ? 'text-(--aig-severity-bad) text-xs' : 'aig-text-faint text-xs'}
+            title="Ces agents DÉCLARENT cet outil sans qu’il résolve vers un handler enregistré : ils ne peuvent pas faire ce qu’ils annoncent."
+          >
+            monté sur {usage.mountedOn} agent(s) · non résolu : {usage.unresolvedOn}
+          </Text>
         )}
       </div>
     </li>
@@ -124,7 +106,10 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-      <Panel title="Registre canonique des outils" hint="l’autorité unique" className="min-h-0 shrink-0">
+      <section className="min-h-0 shrink-0">
+        <h3 className="text-sm font-semibold">Registre canonique des outils</h3>
+        <p className="aig-text-faint text-xs">l’autorité unique</p>
+        <div className="aig-hairline my-2" />
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Fact label="Outils déclarés" value={<FactValue>{tools.length}</FactValue>} />
@@ -166,7 +151,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
                   (id) => !(id in TOOL_REGISTRY),
                 )
                 return unknown.length > 0 ? (
-                  <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_8%,transparent)] px-3 py-2">
+                  <div className="aig-line border-l pl-3">
                     <Strong className="block">
                       {unknown.length} outil(s) déclaré(s) hors du registre
                     </Strong>
@@ -187,15 +172,12 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
               })()
             : null}
         </div>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Outils"
-        hint={`${tools.length} au registre`}
-        className="min-h-80 min-w-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-80 min-w-0 xl:flex-1">
+        <h3 className="text-sm font-semibold">Outils</h3>
+        <p className="aig-text-faint text-xs">{tools.length} au registre</p>
+        <div className="aig-hairline my-2" />
         {/*
           Le registre est PUR : il se rend TOUJOURS, même catalogue muet. Il n'est
           pas enveloppé dans un `LoadedBlock` parce qu'il n'y a rien à charger —
@@ -204,7 +186,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
           backend. Seule la colonne d'usage devient inconnue, et chaque ligne le
           DIT plutôt que d'afficher « monté sur 0 agent », qui serait faux.
         */}
-        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+        <ul className="scroll-thin divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
           {tools.map((tool) => (
             <ToolRow
               key={tool.id}
@@ -213,7 +195,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
             />
           ))}
         </ul>
-      </Panel>
+      </section>
     </div>
   )
 }

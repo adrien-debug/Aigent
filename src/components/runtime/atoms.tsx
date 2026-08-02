@@ -156,15 +156,3 @@ export function RiskBadge({ risk }: Readonly<{ risk: string }>) {
   )
 }
 
-/** Confirmation humaine exigée avant l'appel. Absent = pas de badge. */
-export function ConfirmationBadge({ required }: Readonly<{ required: boolean }>) {
-  if (!required) return null
-  return (
-    <Badge
-      color="sky"
-      title="Le graphe interrompt le run avant cet appel et attend une confirmation humaine explicite (interrupt/resume)."
-    >
-      confirmation requise
-    </Badge>
-  )
-}

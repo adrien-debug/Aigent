@@ -33,7 +33,14 @@ const HEALTH_COLOR: Record<TelemetryHealthStatus, 'emerald' | 'amber' | 'red' | 
   healthy: 'emerald',
   loop_muted: 'amber',
   incomplete_configuration: 'amber',
-  not_configured: 'red',
+  // `not_configured` = une variable d'environnement n'est pas renseignée. C'est
+  // une CONFIGURATION ABSENTE, pas une panne : rien n'est cassé, rien n'a
+  // échoué, et le résumé juste à côté le dit déjà en toutes lettres (« This
+  // says nothing about whether delivered agents are running »). Le rouge
+  // contredisait ce texte et faisait lire un environnement non câblé comme un
+  // incident de production. Gris, comme `unavailable` : le registre de ce qui
+  // n'est pas renseigné.
+  not_configured: 'zinc',
   // `unavailable` = on ne SAIT pas. Ni vert (faux rassurant) ni rouge (fausse
   // panne) : gris, le registre de l'ignorance.
   unavailable: 'zinc',

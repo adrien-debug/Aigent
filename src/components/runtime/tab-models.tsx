@@ -24,7 +24,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
 import type { ModelsTabData } from './server-reads'
 import { Fact, FactValue, LoadedBlock, NotMeasured, ProvenEmpty } from './atoms'
 
@@ -33,11 +32,12 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-      <Panel
-        title="Parc local — vLLM"
-        hint={`${configuredLocal.length}/${data.local.length} endpoint(s) déclaré(s) ici`}
-        className="min-h-0 shrink-0"
-      >
+      <section className="min-h-0 shrink-0">
+        <h3 className="text-sm font-semibold">Parc local — vLLM</h3>
+        <p className="aig-text-faint text-xs">
+          {configuredLocal.length}/{data.local.length} endpoint(s) déclaré(s) ici
+        </p>
+        <div className="aig-hairline my-2" />
         <div className="flex flex-col gap-3">
           <Text>
             Le parc local est un opt-in explicite. Un endpoint « déclaré » signifie que ses variables
@@ -60,7 +60,9 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                   >
                     {row.configured ? 'déclaré ici' : 'non déclaré ici'}
                   </Badge>
-                  <Badge color="zinc">{row.contextTokens.toLocaleString('fr-FR')} jetons</Badge>
+                  <Text className="aig-text-faint text-xs">
+                    {row.contextTokens.toLocaleString('fr-FR')} jetons
+                  </Text>
                 </div>
                 <Text className="text-xs">{row.description}</Text>
                 <div className="mt-0.5 flex flex-wrap gap-2">
@@ -78,15 +80,12 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
             ))}
           </ul>
         </div>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Modèles observés sur le catalogue"
-        hint="déclaré vs prouvé"
-        className="min-h-64 min-w-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-64 min-w-0 xl:flex-1">
+        <h3 className="text-sm font-semibold">Modèles observés sur le catalogue</h3>
+        <p className="aig-text-faint text-xs">déclaré vs prouvé</p>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.agents} what="Le catalogue d’agents">
           {(agents) =>
             agents.length === 0 ? (
@@ -170,14 +169,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                             )}
                           </div>
                         </div>
-                        {mismatch ? (
-                          <Badge
-                            color="amber"
-                            title="Le modèle prouvé par le dernier run diffère du modèle déclaré. Les deux sont connus — c’est un écart réel, pas une absence."
-                          >
-                            écart
-                          </Badge>
-                        ) : null}
+                        {mismatch ? <Text className="text-(--aig-severity-warn) text-xs">écart</Text> : null}
                       </li>
                     )
                   })}
@@ -186,7 +178,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
             )
           }
         </LoadedBlock>
-      </Panel>
+      </section>
     </div>
   )
 }
