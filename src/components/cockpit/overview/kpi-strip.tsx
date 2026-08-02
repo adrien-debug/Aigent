@@ -47,9 +47,9 @@ function Figure({
 }>) {
   return (
     <div className="min-w-0">
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-h-4 items-center gap-1.5">
         {led}
-        <p className="aig-text-faint truncate text-3xs font-medium uppercase tracking-[0.12em] sm:text-2xs sm:tracking-[0.14em]">
+        <p className="aig-text-faint truncate text-2xs font-medium uppercase tracking-[0.16em] opacity-80">
           {label}
         </p>
       </div>
@@ -68,17 +68,19 @@ function Figure({
             <div className="flex items-baseline gap-1">
               <span
                 className={clsx(
-                  dimmed ? 'aig-kpi-quiet aig-text-faint' : 'aig-kpi-lead',
+                  dimmed
+                    ? 'aig-kpi-quiet aig-text-faint text-[1.4rem] sm:text-[1.5rem]'
+                    : 'aig-kpi-lead text-[1.95rem] sm:text-[2.15rem]',
                   valueColor && 'text-(--kpi)',
                 )}
                 style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
               >
                 {value}
               </span>
-              {unit ? <span className="aig-text-muted text-base sm:text-lg">{unit}</span> : null}
+              {unit ? <span className="aig-text-muted text-sm sm:text-base">{unit}</span> : null}
             </div>
           )}
-          <p className="aig-text-faint mt-0.5 truncate text-3xs sm:mt-1 sm:text-xs">{support}</p>
+          <p className="aig-text-faint mt-1 min-h-4 truncate text-2xs uppercase tracking-[0.08em] opacity-75">{support}</p>
         </div>
         {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
       </div>
@@ -154,20 +156,18 @@ export default function KpiStrip({
         }
       />
       <Figure
-        label="Bloquées"
+        label="Livraisons"
         value={blocked}
-        support="livraisons à débloquer"
+        support="bloquées à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
         unread={unread}
-        led={blocked !== null && blocked > 0 ? <Led color={BAD} /> : null}
       />
       <Figure
-        label="À décider"
+        label="Décisions"
         value={kpis.needsAction}
-        support="décisions en attente"
+        support="opérateur en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
         unread={unread}
-        led={kpis.needsAction > 0 ? <Led color={WARN} /> : null}
       />
     </div>
   )
