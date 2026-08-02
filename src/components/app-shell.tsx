@@ -87,7 +87,7 @@ function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
   const current = activeNavHref(pathname)
 
   return (
-    <Sidebar>
+    <Sidebar data-navigation-sidebar>
       <SidebarHeader className="aig-line-soft border-b">
         <div className="flex items-center gap-2.5">
           <Mark className="aig-accent size-5 shrink-0" />
@@ -106,13 +106,7 @@ function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
           {NAVIGATION.map((entry) => {
             const isCurrent = current === entry.href
             return (
-              <div key={entry.href} className="relative">
-                {isCurrent ? (
-                  <span
-                    aria-hidden
-                    className="absolute inset-y-1 left-0 z-10 w-0.5 rounded-full bg-[var(--aig-accent)]"
-                  />
-                ) : null}
+              <div key={entry.href}>
                 <SidebarItem href={entry.href} current={isCurrent}>
                   <entry.icon
                     data-slot="icon"
@@ -241,6 +235,7 @@ export function PageBody({
   // lecteur d'écran.
   return (
     <div
+      data-page-body
       className={clsx(
         'scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6 pt-5 sm:px-6',
         className,
@@ -272,7 +267,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
   const pathname = usePathname() ?? '/'
 
   return (
-    <div className="aig-subtle flex h-full min-h-0 overflow-hidden">
+    <div data-app-shell className="aig-subtle flex h-full min-h-0 overflow-hidden">
       <Headless.Dialog open={showSidebar} onClose={setShowSidebar} className="lg:hidden">
         <Headless.DialogBackdrop
           transition
@@ -285,7 +280,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
           {/* `overflow-y-auto` ici aussi : sur un téléphone en paysage (375×812
               couché, ou tout appareil sous ~640 px de haut), les onze entrées
               débordaient du panneau sans moyen d'y accéder. */}
-          <div className="aig-panel-raised scroll-thin flex h-full flex-col overflow-y-auto">
+          <div data-sidebar-mobile-shell className="aig-panel-raised flex h-full flex-col">
             <div className="flex shrink-0 justify-end px-3 pt-3">
               <Headless.CloseButton
                 type="button"
@@ -311,7 +306,10 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
           dépassent la hauteur du rail. Sans scroll propre, les dernières surfaces et le
           bloc de session devenaient inatteignables — la navigation cessait de
           naviguer. */}
-      <div className="aig-subtle aig-line-soft scroll-thin hidden w-64 shrink-0 border-r lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto">
+      <div
+        data-sidebar-desktop-shell
+        className="aig-subtle aig-line-soft hidden w-64 shrink-0 border-r lg:block lg:h-full lg:min-h-0"
+      >
         <NavigationSidebar pathname={pathname} />
       </div>
 
@@ -325,7 +323,10 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
           Le `min-h-0` n'est pas décoratif : sans lui, un enfant `flex-1` refuse
           de descendre sous la taille de son contenu et le plafond de `h-full`
           serait franchi en silence — le vide fantôme reviendrait. */}
-      <main className="aig-base relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main
+        data-app-shell-main
+        className="aig-base relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      >
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}
       </main>
