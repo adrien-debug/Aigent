@@ -56,23 +56,23 @@ export default function CockpitOverview({
       <PageBody>
         <section
           className={clsx(
-            'aig-stage aig-accent-edge flex min-w-0 flex-col py-5 sm:py-6',
+            'aig-stage flex min-w-0 flex-col py-5 sm:py-6',
             showActivity ? 'gap-8' : 'gap-6',
           )}
           aria-label={ENTRY.name}
         >
-          <div className="overview-zone">
+          <div className="overview-zone aig-accent-edge">
             <div className="grid min-w-0 grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
               {slices ? (
                 <>
-                  <div className="col-span-full lg:col-span-1 flex">
+                  <div className="col-span-full lg:col-span-2 flex items-center">
                     <h2 className="text-zinc-400 text-xs font-light uppercase tracking-wider">
                       {`Fenêtre 24 heures${
                         windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
                       }`}
                     </h2>
                   </div>
-                  <div className="col-span-full lg:col-span-5 flex">
+                  <div className="col-span-full lg:col-span-4 flex items-center">
                     <StatusLegend slices={slices} />
                   </div>
                 </>

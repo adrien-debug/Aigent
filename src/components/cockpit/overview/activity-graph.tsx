@@ -49,7 +49,6 @@ export function GhostActivityGraph() {
           strokeLinecap="round"
         />
       </svg>
-      <div aria-hidden className="mt-1 flex h-3" />
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-zinc-400 text-xs uppercase tracking-wider bg-[#0a0a0a]/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/5 shadow-sm">
           Ready to monitor — Aucun run sur les dernières 24 h

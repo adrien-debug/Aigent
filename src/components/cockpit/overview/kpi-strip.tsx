@@ -33,7 +33,7 @@ function Figure({
 }>) {
   return (
     <div className="min-w-0 aig-surface-elevated rounded-xl p-4 flex flex-col justify-between">
-      <div className="flex min-h-4 items-center justify-between gap-1.5">
+      <div className="flex h-5 items-center justify-between gap-1.5">
         <p className="text-zinc-400 truncate text-xs font-light uppercase tracking-wider">
           {label}
         </p>
