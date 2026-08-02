@@ -2,7 +2,7 @@
 
 ## Contexte de capture
 
-- Worktree source: ` /Users/adrienbeyondcrypto/Aigent-r3-capture`
+- Worktree source: `/Users/adrienbeyondcrypto/Aigent-r3-capture`
 - SHA capturé: `f146c58f2b7bc8ff06b7022245f973e2b08c0105`
 - Branche PR cible: `mission/aigent-visual-composition-004` (PR #76)
 - Serveur de capture: `http://127.0.0.1:3997`
@@ -30,7 +30,7 @@
 - `/`: état `Lecture impossible` affiché.
 - `/runtime?tab=telemetry`: section télémétrie visible, avec indisponibilités de données.
 - `/agents`: état `Lecture impossible` affiché.
-- fiche agent: route sélectionnée automatiquement non disponible (retombe sur ` /agents` dans ce contexte live-only).
+- fiche agent: route explicitement vérifiée `/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8` (état `Lecture impossible` attendu en mode live-only sans backend).
 - `/learning`: écran d'erreur rendu interrompu (`digest` visible).
 - `/delivery`: état `Lecture impossible` affiché.
 - `/qualification`: état `Lecture impossible` affiché.
@@ -42,6 +42,6 @@
 
 ## Validation technique post-capture
 
-- HTTP (`curl`): `200` sur `/runs`, `/`, `/runtime?tab=telemetry`, `/agents`, `/learning`, `/delivery`, `/qualification`.
+- HTTP (`curl`): `200` sur `/runs`, `/`, `/runtime?tab=telemetry`, `/agents`, `/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8`, `/learning`, `/delivery`, `/qualification`.
 - Console post-capture: `5` erreurs (`console-errors-post-capture.json`), principalement liées au mode live-only sans backend (`AMC_DATA_SOURCE/AMC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY`) et au rendu interrompu de `/learning`.
 

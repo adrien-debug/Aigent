@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T00:21:02.914Z",
+  "generatedAt": "2026-08-02T00:23:46.654Z",
   "captureCommitSha": "f146c58f2b7bc8ff06b7022245f973e2b08c0105",
   "captureCommitShort": "f146c58",
   "branchTarget": "mission/aigent-visual-composition-004",
@@ -22,7 +22,7 @@
     "headless": true
   },
   "routes": {
-    "agentDetailRoute": "/agents"
+    "agentDetailRoute": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8"
   },
   "captures": [
     {
@@ -96,7 +96,7 @@
       "consoleErrors": 0
     },
     {
-      "route": "/agents",
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
       "file": "agent-detail-desktop-1440x900.png",
       "viewport": {
         "width": 1440,
@@ -194,7 +194,7 @@
       "status": 200
     },
     {
-      "route": "/agents",
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
       "viewport": {
         "width": 1440,
         "height": 900
@@ -303,7 +303,8 @@
       "agents": 200,
       "learning": 200,
       "delivery": 200,
-      "qualification": 200
+      "qualification": 200,
+      "agentDetail": 200
     },
     "consolePostCapture": {
       "totalErrors": 5,
