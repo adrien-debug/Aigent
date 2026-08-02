@@ -23,8 +23,29 @@ const tokens = read('src/theme/tokens.css')
 const globals = read('src/app/globals.css')
 const utilities = read('src/theme/utilities.css')
 
+/*
+ * L'ÉCHELLE SOMBRE EST UN ACQUIS, PAS L'ÉCHELLE ACTIVE.
+ *
+ * Ces valeurs étaient épinglées dans `:root` du temps où le produit n'avait
+ * qu'une seule échelle. Depuis AIGENT-DS-SURFACES-001, `:root` porte la
+ * direction claire et l'échelle graphite vit dans l'îlot `.aig-dark` (sidebar,
+ * futur mode nuit) — elle n'a pas disparu, elle a changé de scope.
+ *
+ * Ce que cette gate protège est donc la PRÉSERVATION, pas l'emplacement :
+ * l'issue #94 interdit explicitement « toute suppression destructive des tokens
+ * sombres sans stratégie de compatibilité ». On vérifie que chaque valeur
+ * existe encore quelque part dans le fichier ; c'est `.aig-dark` qui décide où.
+ *
+ * Ne pas y réintroduire les valeurs claires : figer l'échelle active
+ * empêcherait toute mission de direction visuelle de passer, ce qui est
+ * exactement le blocage que cette note évite.
+ */
 const CANONICAL_LITERALS = [
-  '--aig-subtle: oklch(0.165 0.006 264)',
+  // Approfondi de 0.165 → 0.135 par AIGENT-DS-SURFACES-001 : le rail n'est plus
+  // un creux dans un produit graphite mais la seule zone sombre d'un document
+  // clair, et l'issue demande une sidebar « noire profonde, mate ». Le rang
+  // reste le CANVAS de l'îlot sombre — c'est sa valeur qui descend, pas son rôle.
+  '--aig-subtle: oklch(0.135 0.005 264)',
   '--aig-base: oklch(0.243 0.007 264)',
   '--aig-raised: oklch(0.298 0.009 264)',
   '--aig-line-soft: oklch(0.342 0.009 264)',
@@ -79,12 +100,30 @@ for (const line of ALIAS_LINES) {
   }
 }
 
-const aliasBlock = tokens.slice(tokens.indexOf('/* Alias sémantiques'))
-for (const line of aliasBlock.split('\n')) {
-  const trimmed = line.trim()
-  if (!trimmed.startsWith('--')) continue
-  if (trimmed.includes('oklch(') || /#[0-9a-f]{3,8}/i.test(trimmed)) {
-    errors.push(`alias sémantique ne doit pas porter de littéral : ${trimmed}`)
+/*
+ * LE BLOC D'ALIAS S'ARRÊTE À SA PROPRE ACCOLADE.
+ *
+ * `slice(indexOf(...))` prenait tout le fichier jusqu'à la fin : dès qu'une
+ * seconde échelle est déclarée après `:root` (l'îlot `.aig-dark` de
+ * AIGENT-DS-SURFACES-001), ses valeurs — qui sont des littéraux parfaitement
+ * légitimes, pas des alias — étaient lues comme des alias fautifs. La gate
+ * signalait alors douze violations sur un fichier correct.
+ *
+ * On borne donc la lecture au bloc réellement concerné : du marqueur d'alias
+ * jusqu'au `}` qui ferme la règle qui le contient.
+ */
+const aliasStart = tokens.indexOf('/* Alias sémantiques')
+if (aliasStart === -1) {
+  errors.push('bloc « Alias sémantiques » introuvable dans tokens.css')
+} else {
+  const aliasEnd = tokens.indexOf('}', aliasStart)
+  const aliasBlock = tokens.slice(aliasStart, aliasEnd === -1 ? undefined : aliasEnd)
+  for (const line of aliasBlock.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('--')) continue
+    if (trimmed.includes('oklch(') || /#[0-9a-f]{3,8}/i.test(trimmed)) {
+      errors.push(`alias sémantique ne doit pas porter de littéral : ${trimmed}`)
+    }
   }
 }
 
