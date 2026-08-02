@@ -94,6 +94,11 @@ function seedUiKitBase(root: string) {
   put(root, 'src/components/ui/divider.tsx', 'export function Divider(){return null}\n')
   put(root, 'src/components/ui/fieldset.tsx', 'export function Description(){return null}\nexport function ErrorMessage(){return null}\nexport function Field(){return null}\nexport function Fieldset(){return null}\nexport function Label(){return null}\nexport function Legend(){return null}\n')
   put(root, 'src/components/ui/heading.tsx', 'export function Heading(){return null}\nexport function Subheading(){return null}\n')
+  // `input` rejoint `REQUIRED` avec AIGENT-DS-SURFACES-001 (le démonstrateur
+  // `/lab/surfaces` rend un champ réel). Même mécanique que `description-list`
+  // ci-dessus : le fixture doit suivre la liste, sinon le test échoue sur une
+  // lacune du décor et non sur le comportement qu'il prétend vérifier.
+  put(root, 'src/components/ui/input.tsx', 'export function Input(){return <input className="focus-visible:ring-2"/>}\n')
   put(root, 'src/components/ui/link.tsx', 'export function Link(){return null}\n')
   put(root, 'src/components/ui/navbar.tsx', 'export function Navbar(){return null}\n')
   put(root, 'src/components/ui/sidebar.tsx', 'export function Sidebar(){return null}\nexport function SidebarBody(){return null}\nexport function SidebarFooter(){return null}\nexport function SidebarHeader(){return null}\nexport function SidebarHeading(){return null}\nexport function SidebarItem(){return null}\nexport function SidebarLabel(){return null}\nexport function SidebarSection(){return null}\n')

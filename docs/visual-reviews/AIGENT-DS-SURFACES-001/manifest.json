@@ -1,0 +1,111 @@
+{
+  "mission": "AIGENT-DS-SURFACES-001",
+  "baseUrl": "http://127.0.0.1:3987",
+  "screens": [
+    {
+      "key": "overview",
+      "route": "/"
+    },
+    {
+      "key": "agent",
+      "route": "/agents/copilot-market-intelligence"
+    },
+    {
+      "key": "project",
+      "route": "/projects/proj-tradeagent"
+    }
+  ],
+  "viewports": {
+    "desktop-1440x900": {
+      "width": 1440,
+      "height": 900
+    },
+    "laptop-1280x800": {
+      "width": 1280,
+      "height": 800
+    },
+    "mobile-375x812": {
+      "width": 375,
+      "height": 812
+    }
+  },
+  "measures": [
+    {
+      "screen": "overview-desktop-1440x900",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "overview-desktop-1440x900",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "agent-desktop-1440x900",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "agent-desktop-1440x900",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "project-desktop-1440x900",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "project-desktop-1440x900",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "overview-laptop-1280x800",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "overview-laptop-1280x800",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "agent-laptop-1280x800",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "agent-laptop-1280x800",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "project-laptop-1280x800",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "project-laptop-1280x800",
+      "kind": "séparation sidebar / body",
+      "ratio": 19.01
+    },
+    {
+      "screen": "overview-mobile-375x812",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "agent-mobile-375x812",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    },
+    {
+      "screen": "project-mobile-375x812",
+      "kind": "texte principal / zone de travail",
+      "ratio": 14.94
+    }
+  ],
+  "failures": [],
+  "capturedAt": "2026-08-02T23:18:58.048Z"
+}

@@ -176,11 +176,24 @@ export function PageHeader({
     // produit. Le titre monte (`text-2xl`, blanc métallique), la description
     // passe en `text-2xs` et se tronque à une ligne : elle situe, elle ne
     // raconte plus.
-    <header className="aig-overlay aig-line-soft sticky top-0 z-20 shrink-0 border-b px-4 py-3.5 sm:px-6 max-lg:pl-16">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+    //
+    // `aig-base` + liseré, et non `aig-overlay` : le voile translucide servait à
+    // laisser deviner le graphite qui défilait dessous. Sur un document clair il
+    // ne produit qu'un gris sale au défilement — un aplat franc sépare mieux
+    // l'en-tête de la zone de travail.
+    <header className="aig-base aig-line-soft sticky top-0 z-20 shrink-0 border-b px-4 py-3.5 sm:px-6 max-lg:pl-16">
+      {/* EN BAS DE 640px, LE TITRE PREND SA PROPRE LIGNE.
+          En `flex-wrap` sur une seule rangée, `actions` est `shrink-0` et le
+          titre `flex-1` : à 375px les boutons prenaient la largeur utile et il
+          restait ~50px au titre, qui se tronquait en « A.. » pendant que
+          l'eyebrow — qui ne tronque pas — se cassait sur trois lignes. On
+          empile donc jusqu'à `sm`, où la rangée redevient horizontale.
+          Le débordement horizontal ne le voyait pas : rien ne dépassait, tout
+          était simplement illisible. */}
+      <div className="flex flex-col gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
         <div className="min-w-0 flex-1">
           {eyebrow ? (
-            <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
+            <p className="aig-text-faint truncate text-3xs font-medium uppercase tracking-[0.2em]">
               {eyebrow}
             </p>
           ) : null}
@@ -189,7 +202,9 @@ export function PageHeader({
             <p className="aig-text-muted mt-0.5 max-w-4xl truncate text-2xs">{description}</p>
           ) : null}
         </div>
-        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        ) : null}
       </div>
       {meta ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2">{meta}</div>
@@ -269,7 +284,10 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
           {/* `overflow-y-auto` ici aussi : sur un téléphone en paysage (375×812
               couché, ou tout appareil sous ~640 px de haut), les onze entrées
               débordaient du panneau sans moyen d'y accéder. */}
-          <div className="aig-panel-raised scroll-thin flex h-full flex-col overflow-y-auto">
+          {/* `dark aig-dark` : le tiroir mobile porte la MÊME surface sombre que
+              le rail desktop — c'est la même navigation, elle ne change pas
+              d'identité en changeant de format. */}
+          <div className="dark aig-dark aig-panel-raised scroll-thin flex h-full flex-col overflow-y-auto">
             <div className="flex shrink-0 justify-end px-3 pt-3">
               <Headless.CloseButton
                 type="button"
@@ -287,15 +305,19 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
         </Headless.DialogPanel>
       </Headless.Dialog>
 
-      {/* Rail permanent — un CREUX à gauche, pas une bande étrangère collée au
-          produit. Le liseré suffit à le séparer de la zone de travail.
+      {/* Rail permanent — SURFACE SOMBRE INDÉPENDANTE (AIGENT-DS-SURFACES-001).
+          Le rail était un creux graphite dans un produit graphite ; il est
+          maintenant l'unique zone sombre d'un document clair, et c'est ce
+          contraste — pas une bordure appuyée — qui l'ancre à gauche. `dark`
+          rebascule le kit Catalyst en sombre DANS ce scope, `aig-dark` y rétablit
+          l'échelle graphite `--aig-*`.
 
           `overflow-y-auto` sur le rail : en FAIBLE HAUTEUR (fenêtre de 600 px,
           écran 13" avec inspecteur ouvert), onze entrées + en-tête + pied
           dépassent la hauteur du rail. Sans scroll propre, les dernières surfaces et le
           bloc de session devenaient inatteignables — la navigation cessait de
           naviguer. */}
-      <div className="aig-subtle aig-line-soft scroll-thin hidden w-64 shrink-0 border-r lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto">
+      <div className="dark aig-dark aig-subtle scroll-thin hidden w-64 shrink-0 lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto">
         <NavigationSidebar pathname={pathname} />
       </div>
 

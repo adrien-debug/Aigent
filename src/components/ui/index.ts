@@ -18,6 +18,7 @@ export { Divider } from './divider'
 export { DescriptionList, DescriptionTerm, DescriptionDetails } from './description-list'
 export { Description, ErrorMessage, Field, Fieldset, Label, Legend } from './fieldset'
 export { Heading, Subheading } from './heading'
+export { Input } from './input'
 export { Link } from './link'
 export { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from './navbar'
 export {

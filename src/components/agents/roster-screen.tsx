@@ -81,7 +81,17 @@ function FleetFigure({
   hint?: string
   tone?: 'default' | 'good' | 'warn' | 'bad'
 }>) {
-  const toneColor = tone === 'bad' ? SEVERITY.bad : tone === 'warn' ? SEVERITY.warn : tone === 'good' ? SEVERITY.good : null
+  // Variante ENCRE : ce chiffre est du TEXTE, pas un aplat ni un rail. Les
+  // teintes nues de `SEVERITY` sont calibrées pour émettre sur graphite et
+  // tombent sous 4.5:1 sur les surfaces claires (2.79:1 mesuré pour `warn`).
+  const toneColor =
+    tone === 'bad'
+      ? 'var(--aig-severity-bad-ink)'
+      : tone === 'warn'
+        ? 'var(--aig-severity-warn-ink)'
+        : tone === 'good'
+          ? 'var(--aig-severity-good-ink)'
+          : null
 
   return (
     <div className="min-w-0">
@@ -146,7 +156,7 @@ function FleetStage({
         <Text className="aig-text-muted text-sm">
           {counts.inactive} inactif(s) · {counts.unavailable} indisponible(s)
         </Text>
-        <Text className={counts.withUnresolvedTools > 0 ? 'text-sm' : 'aig-text-muted text-sm'} style={counts.withUnresolvedTools > 0 ? { color: SEVERITY.bad } : undefined}>
+        <Text className={counts.withUnresolvedTools > 0 ? 'text-sm' : 'aig-text-muted text-sm'} style={counts.withUnresolvedTools > 0 ? { color: 'var(--aig-severity-bad-ink)' } : undefined}>
           {counts.withUnresolvedTools} avec outil non résolu
         </Text>
       </div>
@@ -156,10 +166,10 @@ function FleetStage({
           <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Répartition runtime</Text>
           <div className="mt-2 space-y-2">
             {[
-              { label: 'Actifs', value: counts.active, color: SEVERITY.good },
-              { label: 'Dégradés', value: counts.degraded, color: SEVERITY.bad },
+              { label: 'Actifs', value: counts.active, color: 'var(--aig-severity-good-ink)' },
+              { label: 'Dégradés', value: counts.degraded, color: 'var(--aig-severity-bad-ink)' },
               { label: 'Inactifs', value: counts.inactive, color: SEVERITY.muted },
-              { label: 'Indisponibles', value: counts.unavailable, color: SEVERITY.warn },
+              { label: 'Indisponibles', value: counts.unavailable, color: 'var(--aig-severity-warn-ink)' },
             ].map((row) => (
               <div key={row.label}>
                 <div className="mb-1 flex items-center justify-between text-xs">
@@ -229,10 +239,21 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
           <Text className="mt-1 truncate">
             {activity ? `Dernier run : ${activity} UTC` : 'Aucune activité enregistrée'}
           </Text>
-          {/* Teintes remontées d'un cran (600/700 → 400) : sur graphite, un
-              rouge 600 passe sous le seuil de lisibilité alors qu'il était
-              calibré pour un fond blanc. La SÉVÉRITÉ n'a pas changé. */}
-          {signal ? <Text className="mt-1" style={{ color: signal.tone === 'red' ? SEVERITY.bad : SEVERITY.warn }}>{signal.text}</Text> : null}
+          {/* Variante ENCRE des teintes de sévérité — voir `tokens.css`. La
+              SÉVÉRITÉ ne change pas, seule sa lisibilité sur fond clair. */}
+          {signal ? (
+            <Text
+              className="mt-1"
+              style={{
+                color:
+                  signal.tone === 'red'
+                    ? 'var(--aig-severity-bad-ink)'
+                    : 'var(--aig-severity-warn-ink)',
+              }}
+            >
+              {signal.text}
+            </Text>
+          ) : null}
         </div>
 
         {/* L'affordance d'ouverture s'éclaire au survol : `aig-text-faint` au
@@ -262,7 +283,7 @@ export default function AgentRosterScreen({
         title="Agents"
         description="La flotte en tête, la liste en dessous : l’essentiel pour décider quoi ouvrir, pas tout ce que le contrat sait."
         actions={
-          <Button color="dark/zinc" href="/builder">
+          <Button className="aig-btn-accent" href="/builder">
             Nouveau copilot
           </Button>
         }
