@@ -8,8 +8,6 @@
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
-import { Text } from '@/components/ui/text'
-
 export type SeverityTone = 'good' | 'running' | 'warn' | 'blocked' | 'bad' | 'neutral'
 
 const CHIP_TONE: Record<SeverityTone, string> = {
@@ -70,7 +68,7 @@ export function SurfaceSection({
     <section className={className}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="aig-h3 truncate">{title}</h3>
-        {hint ? <Text className="aig-text-faint truncate text-3xs">{hint}</Text> : null}
+        {hint ? <p className="aig-text-faint truncate text-3xs">{hint}</p> : null}
         {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
       </div>
       <div className="aig-hairline my-2" />

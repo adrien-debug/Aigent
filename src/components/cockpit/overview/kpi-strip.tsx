@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import clsx from 'clsx'
 
 import { NotMeasured } from '@/components/cockpit/primitives'
-import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { SEVERITY } from '@/lib/cockpit/status'
@@ -31,6 +31,7 @@ function LeadFigure({
   led,
   valueColor,
   unread,
+  quietEmpty = false,
 }: Readonly<{
   label: string
   value: string | number | null
@@ -40,34 +41,40 @@ function LeadFigure({
   led?: ReactNode
   valueColor?: string
   unread: boolean
+  /** Fenêtre lue mais sans matière : tiret discret plutôt que « aucune mesure ». */
+  quietEmpty?: boolean
 }>) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-2">
         {led}
-        <Text className="aig-text-faint truncate text-2xs font-medium uppercase tracking-[0.14em]">
+        <p className="aig-text-faint truncate text-2xs font-medium uppercase tracking-[0.14em]">
           {label}
-        </Text>
+        </p>
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">
         <div className="min-w-0">
           {value === null ? (
-            <NotMeasured
-              why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
-              label={unread ? undefined : 'aucune mesure'}
-            />
+            quietEmpty ? (
+              <span className="aig-text-faint aig-kpi-lead">—</span>
+            ) : (
+              <NotMeasured
+                why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
+                label={unread ? undefined : 'aucune mesure'}
+              />
+            )
           ) : (
             <div className="flex items-baseline gap-1">
               <span
-                className="aig-display text-3xl font-semibold tabular-nums sm:text-4xl"
-                style={valueColor ? { color: valueColor } : undefined}
+                className={clsx('aig-kpi-lead', valueColor && 'text-(--kpi)')}
+                style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
               >
                 {value}
               </span>
               {unit ? <span className="aig-text-muted text-lg">{unit}</span> : null}
             </div>
           )}
-          <Text className="aig-text-faint mt-1 truncate text-xs">{support}</Text>
+          <p className="aig-text-faint mt-1 truncate text-xs">{support}</p>
         </div>
         {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
       </div>
@@ -94,18 +101,18 @@ function QuietFigure({
     <div className="min-w-0 flex-1 sm:min-w-28 sm:flex-none">
       <div className="flex items-center gap-1.5">
         {led}
-        <Text className="aig-text-faint truncate text-3xs uppercase tracking-[0.12em]">{label}</Text>
+        <p className="aig-text-faint truncate text-3xs uppercase tracking-[0.12em]">{label}</p>
       </div>
       <div className="mt-1 flex items-end justify-between gap-2">
         <span
-          className="aig-display text-xl font-semibold tabular-nums"
-          style={valueColor ? { color: valueColor } : undefined}
+          className={clsx('aig-kpi-quiet', valueColor && 'text-(--kpi)')}
+          style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
         >
           {value ?? '—'}
         </span>
         {graphic ? <div className="shrink-0">{graphic}</div> : null}
       </div>
-      <Text className="aig-text-faint mt-0.5 truncate text-3xs">{support}</Text>
+      <p className="aig-text-faint mt-0.5 truncate text-3xs">{support}</p>
     </div>
   )
 }
@@ -120,6 +127,7 @@ export default function KpiStrip({
   const partial = cost !== null && cost.measuredRuns < cost.totalRuns
   const blocked = kpis.blockedDeliveries
   const executableTotal = kpis.executableTotal
+  const windowEmpty = !unread && kpis.runs24h === 0
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -129,7 +137,7 @@ export default function KpiStrip({
           value={unread ? null : kpis.runs24h}
           support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
           unread={unread}
-          led={<Led color={GOOD} live={(kpis.runs24h ?? 0) > 0} />}
+          led={(kpis.runs24h ?? 0) > 0 ? <Led color={GOOD} live /> : null}
         />
         <LeadFigure
           label="Succès 24 h"
@@ -138,6 +146,7 @@ export default function KpiStrip({
           support={kpis.success24h === null ? 'aucun run terminal' : 'sur les runs terminaux'}
           valueColor={kpis.success24h === null ? undefined : successColor}
           unread={unread}
+          quietEmpty={windowEmpty && kpis.success24h === null}
           graphic={
             kpis.success24h === null ? undefined : (
               <ArcGauge
@@ -154,6 +163,7 @@ export default function KpiStrip({
           value={unread || cost === null ? null : formatUsd(cost.usd)}
           support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
           unread={unread}
+          quietEmpty={windowEmpty && cost === null}
           graphic={
             cost === null ? undefined : (
               <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-14" />
@@ -184,14 +194,14 @@ export default function KpiStrip({
           value={blocked}
           support="livraisons à débloquer"
           valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
-          led={<Led color={blocked !== null && blocked > 0 ? BAD : SEVERITY.muted} />}
+          led={blocked !== null && blocked > 0 ? <Led color={BAD} /> : null}
         />
         <QuietFigure
           label="À décider"
           value={kpis.needsAction}
           support="décisions en attente"
           valueColor={kpis.needsAction > 0 ? WARN : undefined}
-          led={<Led color={kpis.needsAction > 0 ? WARN : SEVERITY.muted} />}
+          led={kpis.needsAction > 0 ? <Led color={WARN} /> : null}
         />
       </div>
     </div>

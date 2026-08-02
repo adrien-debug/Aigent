@@ -1,3 +1,5 @@
+import './overview.css'
+
 import clsx from 'clsx'
 
 import { navEntry } from '@/components/navigation'
@@ -5,7 +7,7 @@ import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
-import { Strong, Text } from '@/components/ui/text'
+import { Text } from '@/components/ui/text'
 import { Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { SeverityChip, SurfaceSection, type SeverityTone } from '@/components/surface-primitives'
 import type { DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -23,10 +25,7 @@ const ENTRY = navEntry('/')
 function ActivityPanel({ buckets }: Readonly<{ buckets: HourlyBucket[] | null }>) {
   if (buckets === null) {
     return (
-      <Unavailable
-        reason="unread"
-        detail="La fenêtre de runs n'a pas pu être lue."
-      />
+      <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
     )
   }
   if (buckets.every((bucket) => bucket.total === 0)) {
@@ -53,7 +52,7 @@ function RunStreamPanel({
 }
 
 function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>) {
-  const sorted = [...projects].sort((a, b) => {
+  const sorted = [...projects].toSorted((a, b) => {
     const aScore = a.copilotCount > 0 ? 1 : 0
     const bScore = b.copilotCount > 0 ? 1 : 0
     if (aScore !== bScore) return bScore - aScore
@@ -76,26 +75,91 @@ function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>
                 className={clsx('size-8 shrink-0', empty && 'opacity-60')}
               />
               <span className="min-w-0 flex-1">
-                <Strong className={clsx('block truncate', empty && 'aig-text-muted')}>
+                <span
+                  className={clsx(
+                    'aig-text block truncate text-sm font-medium',
+                    empty && 'aig-text-muted',
+                  )}
+                >
                   {project.name}
-                </Strong>
-                <Text className="truncate">{project.repoFullName ?? 'aucun dépôt lié'}</Text>
+                </span>
+                <span className="aig-text-muted block truncate text-xs">
+                  {project.repoFullName ?? 'aucun dépôt lié'}
+                </span>
               </span>
-              <Text className="shrink-0 text-right tabular-nums">
+              <span className="aig-text shrink-0 text-right tabular-nums">
                 {empty ? (
                   <span className="aig-text-faint text-xs">—</span>
                 ) : (
                   <>
-                    <Strong className="tabular-nums">{project.activeCount}</Strong>
+                    <span className="font-medium tabular-nums">{project.activeCount}</span>
                     <span className="aig-text-faint">/{project.copilotCount}</span>
                   </>
                 )}
-              </Text>
+              </span>
             </Link>
           </li>
         )
       })}
     </ul>
+  )
+}
+
+function ProjectsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) {
+  return (
+    <SurfaceSection
+      title="Projets"
+      hint={`${overview.projects.length} au catalogue`}
+      actions={sectionLink('/projects', 'Catalogue →')}
+    >
+      {overview.projects.length === 0 ? (
+        <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
+      ) : (
+        <ProjectList projects={overview.projects} />
+      )}
+    </SurfaceSection>
+  )
+}
+
+function EventsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) {
+  return (
+    <SurfaceSection
+      title="Événements importants"
+      hint={`${overview.actionItems.length} signal(aux)`}
+      actions={sectionLink('/actions', 'File complète →')}
+    >
+      {overview.actionItems.length === 0 ? (
+        <Unavailable
+          reason="no-data"
+          detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
+        />
+      ) : (
+        <ul className="min-w-0">
+          {overview.actionItems.slice(0, 6).map((item) => (
+            <li key={item.id} className="aig-line-soft flex items-start gap-3 border-b py-3 last:border-b-0">
+              <SeverityChip tone={actionTone(item.status)}>{item.status}</SeverityChip>
+              <div className="min-w-0 flex-1">
+                <p className="aig-text truncate text-sm font-medium">{item.title}</p>
+                <p className="aig-text-muted truncate text-xs">{item.meta}</p>
+              </div>
+              <Button plain href={item.href} className="overview-link px-2! py-1! text-2xs">
+                Ouvrir →
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SurfaceSection>
+  )
+}
+
+function CatalogColumn({ overview }: Readonly<{ overview: DashboardOverview }>) {
+  return (
+    <>
+      <ProjectsBlock overview={overview} />
+      <div className="aig-hairline my-4" />
+      <EventsBlock overview={overview} />
+    </>
   )
 }
 
@@ -108,7 +172,7 @@ function actionTone(status: string): SeverityTone {
 
 function sectionLink(href: string, label: string) {
   return (
-    <Button plain href={href} className="px-2! py-1! text-2xs">
+    <Button plain href={href} className="overview-link px-2! py-1! text-2xs">
       {label}
     </Button>
   )
@@ -122,6 +186,7 @@ export default function CockpitOverview({
   const slices = buildStatusBreakdown(overview.windowRuns)
   const runs = buildNamedRuns(overview.windowRuns, overview.copilots, overview.projectRows)
   const unread = overview.windowRuns === null
+  const hasRuns = runs !== null && runs.length > 0
 
   return (
     <>
@@ -134,7 +199,7 @@ export default function CockpitOverview({
             <Button plain href="/runs">
               Voir les runs
             </Button>
-            <Button color="orange" href="/actions">
+            <Button href="/actions" className="overview-btn-accent">
               File d’action
             </Button>
           </>
@@ -146,12 +211,13 @@ export default function CockpitOverview({
           className="aig-stage aig-accent-edge flex min-w-0 flex-col gap-8 px-3 py-4 sm:px-5 sm:py-5"
           aria-label={ENTRY.name}
         >
-          <div className="flex min-w-0 flex-col gap-5">
+          {/* Zone signal — KPI d’abord, courbe seulement si elle porte de l’info */}
+          <div className="overview-zone">
             <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+                <p className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
                   Fenêtre 24 heures
-                </Text>
+                </p>
                 <h2 className="aig-h2 mt-1">Activité de la flotte</h2>
               </div>
               {slices ? (
@@ -159,7 +225,7 @@ export default function CockpitOverview({
                   <StatusLegend slices={slices} />
                 </div>
               ) : (
-                <Text className="aig-text-faint text-xs">fenêtre non lue</Text>
+                <p className="aig-text-faint text-xs">fenêtre non lue</p>
               )}
             </header>
 
@@ -169,7 +235,8 @@ export default function CockpitOverview({
 
           <div className="aig-hairline" />
 
-          <div className="flex min-w-0 flex-col gap-5">
+          {/* Zone opérations — grille adaptée : pas de colonne vide quand le flux est vide */}
+          <div className="overview-zone">
             <header>
               <h2 className="aig-h2">Opérations & catalogue</h2>
               <Text className="aig-text-faint mt-1 text-xs">
@@ -177,59 +244,36 @@ export default function CockpitOverview({
               </Text>
             </header>
 
-            <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[6fr_4fr]">
-              <SurfaceSection
-                title="Flux d'exécution"
-                hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-                actions={sectionLink('/runs', 'Tous les runs →')}
-              >
-                <RunStreamPanel runs={runs} nowMs={nowMs} />
-              </SurfaceSection>
-
-              <div className="flex min-w-0 flex-col xl:aig-line-soft xl:border-l xl:pl-5">
+            {hasRuns ? (
+              <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <SurfaceSection
-                  title="Projets"
-                  hint={`${overview.projects.length} au catalogue`}
-                  actions={sectionLink('/projects', 'Catalogue →')}
+                  title="Flux d'exécution"
+                  hint={`${runs.length} sur la fenêtre`}
+                  actions={sectionLink('/runs', 'Tous les runs →')}
                 >
-                  {overview.projects.length === 0 ? (
-                    <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
-                  ) : (
-                    <ProjectList projects={overview.projects} />
-                  )}
+                  <RunStreamPanel runs={runs} nowMs={nowMs} />
                 </SurfaceSection>
 
-                <div className="aig-hairline my-4" />
-
-                <SurfaceSection
-                  title="Événements importants"
-                  hint={`${overview.actionItems.length} signal(aux)`}
-                  actions={sectionLink('/actions', 'File complète →')}
-                >
-                  {overview.actionItems.length === 0 ? (
-                    <Unavailable
-                      reason="no-data"
-                      detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
-                    />
-                  ) : (
-                    <ul className="divide-y divide-(--aig-line-soft)">
-                      {overview.actionItems.slice(0, 6).map((item) => (
-                        <li key={item.id} className="flex items-start gap-3 py-3">
-                          <SeverityChip tone={actionTone(item.status)}>{item.status}</SeverityChip>
-                          <div className="min-w-0 flex-1">
-                            <p className="aig-text truncate text-sm font-medium">{item.title}</p>
-                            <p className="aig-text-muted truncate text-xs">{item.meta}</p>
-                          </div>
-                          <Button plain href={item.href} className="px-2! py-1! text-2xs">
-                            Ouvrir →
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </SurfaceSection>
+                <div className="flex min-w-0 flex-col xl:aig-line-soft xl:border-l xl:pl-5">
+                  <CatalogColumn overview={overview} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex min-w-0 flex-col gap-6">
+                <SurfaceSection
+                  title="Flux d'exécution"
+                  hint={runs ? '0 sur la fenêtre' : undefined}
+                  actions={sectionLink('/runs', 'Tous les runs →')}
+                >
+                  <RunStreamPanel runs={runs} nowMs={nowMs} />
+                </SurfaceSection>
+
+                <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2">
+                  <ProjectsBlock overview={overview} />
+                  <EventsBlock overview={overview} />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

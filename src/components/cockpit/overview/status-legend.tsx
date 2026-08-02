@@ -1,10 +1,9 @@
-import { Text } from '@/components/ui/text'
 import type { StatusSlice } from '@/lib/cockpit/overview-series'
 import { RUN_STATUS_COLOR, RUN_STATUS_LABEL } from '@/lib/cockpit/status'
 
 export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
   return (
-    <Text className="aig-text-muted flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+    <p className="aig-text-muted flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       {slices.map((slice, index) => (
         <span key={slice.status} className="inline-flex items-center gap-1.5 tabular-nums">
           {index > 0 ? <span className="aig-text-faint hidden sm:inline" aria-hidden>·</span> : null}
@@ -17,6 +16,6 @@ export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
           <span className="aig-text-faint">{slice.count}</span>
         </span>
       ))}
-    </Text>
+    </p>
   )
 }
