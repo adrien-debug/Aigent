@@ -359,7 +359,7 @@ export default function ProjectDetailScreen({
         actions={
           <Link
             href="/projects"
-            className="aig-text-muted shrink-0 text-sm/6 underline underline-offset-4 hover:text-white"
+            className="aig-text-muted shrink-0 text-sm/6 underline underline-offset-4 hover:text-(--aig-text)"
           >
             Retour au catalogue
           </Link>

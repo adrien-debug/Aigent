@@ -61,7 +61,17 @@ function stripCodeComments(text) {
 }
 
 function scanFactoryDoctrine() {
+  // PÉRIMÈTRE — il couvre désormais le KIT et les surfaces reconstruites.
+  //
+  // Il s'est longtemps arrêté à sept dossiers produit. Deux trous en
+  // découlaient, et la gate affichait « 0 violation » sans pouvoir les voir :
+  //  · `src/components/ui/**` (Catalyst) portait sa PROPRE couche esthétique
+  //    (`zinc-*`, `white`, `dark:`) — une seconde autorité visuelle, rendue par
+  //    43 fichiers produit via `Text`, 35 via `Badge`, 12 via `Button` ;
+  //  · `builder`, `projects`, `lab`, `app/error.tsx` échappaient au scan et y
+  //    ont laissé passer `bg-white/4`, `hover:text-white`, `text-white`.
   const scanRoots = [
+    'src/components/ui',
     'src/components/agents',
     'src/components/qualification',
     'src/components/delivery',
@@ -69,7 +79,11 @@ function scanFactoryDoctrine() {
     'src/components/learning',
     'src/components/runs',
     'src/components/cockpit',
+    'src/components/builder',
+    'src/components/projects',
+    'src/components/lab',
     'src/components/app-shell.tsx',
+    'src/app/error.tsx',
     'src/app/globals.css',
   ]
   const fileRegex = /\.(ts|tsx|css)$/
@@ -92,6 +106,16 @@ function scanFactoryDoctrine() {
     { name: 'fill-white/*', re: /\bfill-white(?:\/[0-9]+)?\b/g },
     { name: 'hex color', re: /#[0-9a-fA-F]{3,8}\b/g },
     { name: 'rgb/rgba/hsl color', re: /\b(?:rgb|rgba|hsl|hsla)\(/g },
+    // ACCENTS TAILWIND BRUTS — le trou par lequel une troisième palette entre.
+    // `sky-800`, `amber-500`, `red-500` passaient : la gate ne bannissait que
+    // les gris. Un état se dit avec `--aig-severity-*`, qui porte le SENS
+    // (bloqué ≠ avertissement) ; une teinte brute ne dit qu'une couleur, et
+    // deux surfaces finissent par en choisir deux différentes pour le même
+    // état. Les couleurs de marque restent possibles via l'exception média.
+    {
+      name: 'accent Tailwind brut',
+      re: /\b(?:bg|text|ring|border|fill|stroke|divide|outline|shadow|from|via|to|decoration|accent|caret)-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|stone|neutral)-\d{2,3}(?:\/[\d.]+)?\b/g,
+    },
   ]
 
   for (const root of scanRoots) {

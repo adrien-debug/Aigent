@@ -451,7 +451,7 @@ export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData
           // Le rouge est une SÉVÉRITÉ — un endpoint refusé est un défaut — donc
           // il reste. Il monte en `-500` : le `-600` était calibré pour un fond
           // blanc et s'éteignait sur le graphite de la grammaire.
-          <Text className="truncate text-2xs text-red-500">endpoint refusé</Text>
+          <Text className="truncate text-2xs text-(--aig-severity-bad)">endpoint refusé</Text>
         )}
       </div>
 

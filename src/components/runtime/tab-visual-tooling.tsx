@@ -72,7 +72,7 @@ function ToolDetail({ tool }: Readonly<{ tool: ToolProbe }>) {
           // L'ambre est une SÉVÉRITÉ (« il manque quelque chose à faire »), pas
           // une surface : elle reste, remontée en `-500` — la teinte `-600` avait
           // été calibrée pour un fond blanc et s'éteignait sur graphite.
-          <Text className="text-2xs text-amber-500">
+          <Text className="text-2xs text-(--aig-severity-warn)">
             Pour l’activer : {tool.remediation}
           </Text>
         ) : null}

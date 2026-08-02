@@ -2,93 +2,192 @@
 /**
  * Gate d'intégrité du kit de primitives `src/components/ui/`.
  *
- * CE QU'ELLE VÉRIFIE — l'empreinte SHA-256 de chacun des 14 fichiers du kit.
- * Toute modification, ajout ou suppression fait échouer la gate.
+ * CE QU'ELLE VÉRIFIE — la SUBSTANCE du kit, pas ses octets.
  *
- * POURQUOI ELLE EXISTE — deux dérives silencieuses, le même jour :
- *  · une mission « migrer vers Catalyst » a réécrit 215 lignes du kit pour y
- *    porter la densité et les couleurs du produit : des noms d'origine sur un
- *    fork non déclaré ;
- *  · une mission « sortir de Catalyst » a supprimé 2438 lignes pour en écrire
- *    257 — `TouchTarget` vidé de sa cible tactile de 44 px, `Button` réduit à
- *    4 couleurs sur les 6 consommées. Les 15 gates sont restées vertes, le
- *    build aussi, les 2105 tests aussi (revert `5e2aa63`).
- * Dans les deux cas la substance du kit a bougé sans que rien ne le signale.
- * Cette gate rend le changement VISIBLE ; elle ne le juge pas.
+ * Elle a longtemps été une empreinte SHA-256 des 14 fichiers : toute
+ * modification la faisait rougir, y compris une évolution légitime. C'était un
+ * gel, pas une garantie — et un gel finit toujours par être contourné par un
+ * `--update` réflexe, ce qui ne prouve alors plus rien du tout. Elle interdisait
+ * surtout ce qu'on vient de faire : unifier l'apparence du kit sur les jetons
+ * `--aig-*` pour supprimer la double autorité visuelle.
+ *
+ * Elle vérifie désormais ce dont la perte a RÉELLEMENT cassé le produit :
+ *
+ *  1. INVENTAIRE — les 14 primitives existent et exportent ce que le produit
+ *     importe. Une mission « sortir de Catalyst » avait supprimé 2438 lignes
+ *     pour en écrire 257 : `Button` était tombé de 6 couleurs consommées à 4.
+ *
+ *  2. CIBLE TACTILE — `TouchTarget` conserve sa zone de 44 px. La même mission
+ *     l'avait vidée de sa substance ; les 15 gates sont restées vertes, le
+ *     build aussi, les 2105 tests aussi (revert `5e2aa63`).
+ *
+ *  3. ACCESSIBILITÉ — anneau de focus, `forced-colors`, `data-disabled` et
+ *     `aria-hidden` restent présents. Ce sont eux qui rendent le kit utilisable
+ *     au clavier et en contraste forcé ; ils disparaissent sans bruit.
+ *
+ *  4. AUTORITÉ VISUELLE UNIQUE — aucune couleur Tailwind brute (`zinc-*`,
+ *     `white`, `blue-500`…) ne revient dans le kit. C'est la règle qui empêche
+ *     la double autorité de se reformer fichier par fichier. Le détail est
+ *     tenu par `check:legacy-design-doctrine`, qui scanne le kit ; ici on garde
+ *     un filet indépendant pour que la règle survive à la suppression de
+ *     l'autre gate.
  *
  * CE QU'ELLE NE GARANTIT PAS — que les écrans utilisent le kit, qu'ils ne le
  * combattent pas de l'extérieur (`className` agressifs, `!important`), ni que
- * les primitives FONCTIONNENT. Elle compare des octets, pas un rendu. Aucune
- * gate de ce repo ne mesure ce qui s'affiche : après avoir touché une primitive,
- * ouvrez un écran qui la consomme et regardez-le.
- *
- * MODIFIER LE KIT est légitime — c'est du code du repo, pas du vendor. Après une
- * modification assumée, régénérer les empreintes :
- *   node scripts/check-ui-kit-integrity.mjs --update
- * Le diff du manifeste rend alors le changement visible en revue.
+ * les primitives FONCTIONNENT. Elle lit du texte, pas un rendu. Aucune gate de
+ * ce repo ne mesure ce qui s'affiche : après avoir touché une primitive, ouvrez
+ * un écran qui la consomme et regardez-le.
  *
  * Voir `src/components/ui/README.md` pour l'inventaire et les usages.
  */
-import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const KIT_DIR = 'src/components/ui'
-const MANIFEST = 'scripts/ui-kit.sha256.json'
 
-function sha256(path) {
-  return createHash('sha256').update(readFileSync(path)).digest('hex')
+/**
+ * Les primitives attendues et, pour chacune, les exports que le produit
+ * consomme. Retirer un export d'ici est une décision de revue, pas un accident.
+ */
+const REQUIRED = {
+  'avatar.tsx': ['Avatar'],
+  'badge.tsx': ['Badge', 'BadgeButton'],
+  'button.tsx': ['Button', 'TouchTarget'],
+  'checkbox.tsx': ['Checkbox', 'CheckboxField', 'CheckboxGroup'],
+  'dialog.tsx': ['Dialog', 'DialogActions', 'DialogBody', 'DialogDescription', 'DialogTitle'],
+  'divider.tsx': ['Divider'],
+  'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Fieldset', 'Label', 'Legend'],
+  'heading.tsx': ['Heading', 'Subheading'],
+  'link.tsx': ['Link'],
+  'navbar.tsx': ['Navbar'],
+  'sidebar.tsx': ['Sidebar', 'SidebarBody', 'SidebarFooter', 'SidebarHeader', 'SidebarItem'],
+  'table.tsx': ['Table', 'TableBody', 'TableCell', 'TableHead', 'TableHeader', 'TableRow'],
+  'text.tsx': ['Code', 'Strong', 'Text', 'TextLink'],
+  'textarea.tsx': ['Textarea'],
 }
 
-function currentKit() {
-  const files = readdirSync(KIT_DIR)
-    .filter((name) => name.endsWith('.tsx') || name.endsWith('.ts'))
-    .sort()
-  return Object.fromEntries(files.map((name) => [name, sha256(join(KIT_DIR, name))]))
+/** Couleur Tailwind brute — la marque d'une seconde autorité visuelle. */
+const RAW_COLOR =
+  /\b(?:bg|text|ring|border|fill|stroke|divide|outline|shadow|from|via|to|placeholder|decoration|accent|caret)-(?:(?:zinc|slate|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}|white|black)(?:\/[\d.]+)?\b/g
+
+/**
+ * Marqueurs d'accessibilité, avec le fichier qui doit les porter. Ce ne sont
+ * pas des détails d'apparence : sans eux le kit devient inutilisable au clavier
+ * ou en contraste forcé, et rien d'autre ne le signale.
+ */
+const A11Y = [
+  { file: 'button.tsx', pattern: /forced-colors:/, label: 'contraste forcé (button)' },
+  { file: 'button.tsx', pattern: /data-disabled:/, label: 'état désactivé (button)' },
+  { file: 'checkbox.tsx', pattern: /forced-colors:/, label: 'contraste forcé (checkbox)' },
+  // Une ligne cliquable de `Table` pose un lien en recouvrement ; sans nom
+  // accessible, un lecteur d'écran annonce un lien vide.
+  { file: 'table.tsx', pattern: /aria-label/, label: 'nom accessible du lien de ligne (table)' },
+]
+
+const errors = []
+const notes = []
+
+// ---------------------------------------------------------- 1. INVENTAIRE
+const present = new Set(
+  readdirSync(KIT_DIR).filter((n) => n.endsWith('.tsx') || n.endsWith('.ts')),
+)
+
+const sources = {}
+for (const name of Object.keys(REQUIRED)) {
+  if (!present.has(name)) {
+    errors.push(`PRIMITIVE MANQUANTE  ${KIT_DIR}/${name}`)
+    continue
+  }
+  sources[name] = readFileSync(join(KIT_DIR, name), 'utf8')
 }
 
-const actual = currentKit()
+for (const [name, exports] of Object.entries(REQUIRED)) {
+  const src = sources[name]
+  if (!src) continue
+  for (const symbol of exports) {
+    // `export function X`, `export const X`, `export { X }`, `export const X = forwardRef`
+    const re = new RegExp(
+      `export\\s+(?:async\\s+)?(?:function|const|class)\\s+${symbol}\\b|export\\s*\\{[^}]*\\b${symbol}\\b`,
+    )
+    if (!re.test(src)) errors.push(`EXPORT PERDU        ${KIT_DIR}/${name} → ${symbol}`)
+  }
+}
 
-if (process.argv.includes('--update')) {
-  writeFileSync(MANIFEST, `${JSON.stringify(actual, null, 2)}\n`)
-  console.log(`✓ Empreintes du kit régénérées — ${Object.keys(actual).length} fichier(s).`)
-  console.log('  Le diff de ce fichier doit être relu en revue : il prouve une modification du kit.')
+// ------------------------------------------------------- 2. CIBLE TACTILE
+// La zone de confort de 44 px ne se lit pas dans un rendu : elle vit dans un
+// `span` absolu dont la taille est écrite en toutes lettres.
+const button = sources['button.tsx']
+if (button) {
+  if (!/TouchTarget/.test(button)) {
+    errors.push('CIBLE TACTILE       button.tsx → `TouchTarget` a disparu')
+  } else if (!/\[max\(100%,2\.75rem\)\]/.test(button)) {
+    errors.push(
+      'CIBLE TACTILE       button.tsx → `TouchTarget` ne garantit plus 2.75rem (44 px)',
+    )
+  }
+}
+
+// -------------------------------------------------------- 3. ACCESSIBILITÉ
+for (const { file, pattern, label } of A11Y) {
+  const src = sources[file]
+  if (src && !pattern.test(src)) errors.push(`ACCESSIBILITÉ       ${label} — marqueur absent`)
+}
+
+// Anneau de focus : présent dans tout composant focusable, quelle que soit sa
+// couleur (l'accent du produit ou autre) — c'est sa PRÉSENCE qui compte.
+for (const file of ['button.tsx', 'checkbox.tsx', 'textarea.tsx', 'badge.tsx']) {
+  const src = sources[file]
+  if (src && !/outline|focus/.test(src)) {
+    errors.push(`ACCESSIBILITÉ       ${file} → aucun anneau de focus détecté`)
+  }
+}
+
+// ------------------------------------------------ 4. AUTORITÉ VISUELLE UNIQUE
+let rawTotal = 0
+for (const [name, src] of Object.entries(sources)) {
+  // On ignore les commentaires : ils DOCUMENTENT la migration et citent donc
+  // les anciens jetons. Une gate qui interdit d'expliquer son propre travail
+  // pousse à effacer l'explication.
+  const code = src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((l) => !l.trim().startsWith('//'))
+    .join('\n')
+  const hits = code.match(RAW_COLOR) || []
+  if (hits.length) {
+    rawTotal += hits.length
+    const uniq = [...new Set(hits)].slice(0, 6).join(', ')
+    errors.push(`COULEUR BRUTE       ${KIT_DIR}/${name} → ${hits.length}× (${uniq})`)
+  }
+}
+
+// ------------------------------------------------------------------ VERDICT
+if (errors.length === 0) {
+  console.log('✓ ui-kit-integrity — substance du kit préservée.')
+  console.log(
+    `  ${Object.keys(REQUIRED).length} primitive(s), ${Object.values(REQUIRED).flat().length} export(s) consommé(s) vérifié(s).`,
+  )
+  console.log(
+    '  Cible tactile 44 px, marqueurs d’accessibilité présents, 0 couleur Tailwind brute.',
+  )
+  console.log(
+    '  Ne garantit PAS que les écrans l’utilisent ni que les primitives fonctionnent : cette gate lit du texte, pas un rendu.',
+  )
+  for (const n of notes) console.log(`  ${n}`)
   process.exit(0)
 }
 
-let expected
-try {
-  expected = JSON.parse(readFileSync(MANIFEST, 'utf8'))
-} catch {
-  console.error(`✗ Manifeste introuvable ou illisible : ${MANIFEST}`)
-  console.error('  Générez-le avec : node scripts/check-ui-kit-integrity.mjs --update')
-  process.exit(1)
+console.error('✗ ui-kit-integrity — la substance du kit a régressé.\n')
+for (const e of errors) console.error(`  ${e}`)
+if (rawTotal > 0) {
+  console.error(`
+Une couleur Tailwind brute dans le kit recrée la DOUBLE AUTORITÉ VISUELLE que
+cette gate existe pour empêcher : le produit parle \`--aig-*\`, le kit parlerait
+autre chose. Utilisez les jetons — \`text-(--aig-text)\`, \`bg-(--aig-raised)\`,
+\`border-(--aig-line)\`, \`--aig-severity-*\` pour la sémantique.`)
 }
-
-const modified = []
-const added = []
-const removed = []
-
-for (const [name, hash] of Object.entries(actual)) {
-  if (!(name in expected)) added.push(name)
-  else if (expected[name] !== hash) modified.push(name)
-}
-for (const name of Object.keys(expected)) {
-  if (!(name in actual)) removed.push(name)
-}
-
-if (modified.length === 0 && added.length === 0 && removed.length === 0) {
-  console.log(`✓ ui-kit-integrity — kit de primitives intact.`)
-  console.log(`  ${Object.keys(actual).length} fichier(s) vérifié(s) par empreinte SHA-256.`)
-  console.log(`  Ne garantit PAS que les écrans l'utilisent, ni que les primitives fonctionnent : cette gate compare des octets, pas un rendu.`)
-  process.exit(0)
-}
-
-console.error('✗ ui-kit-integrity — le kit de primitives a été altéré.\n')
-for (const name of modified) console.error(`  MODIFIÉ  ${KIT_DIR}/${name}`)
-for (const name of added) console.error(`  AJOUTÉ   ${KIT_DIR}/${name}`)
-for (const name of removed) console.error(`  SUPPRIMÉ ${KIT_DIR}/${name}`)
 console.error(`
-Modifier le kit est légitime et volontaire quand le besoin est sur la primitive elle-même.
-Après modification assumée : node scripts/check-ui-kit-integrity.mjs --update`)
+Modifier le kit est LÉGITIME — c'est du code du repo, pas du vendor. Cette gate
+n'interdit pas le changement : elle interdit la PERTE (un export, la cible
+tactile, un marqueur d'accessibilité, l'autorité visuelle unique).`)
 process.exit(1)

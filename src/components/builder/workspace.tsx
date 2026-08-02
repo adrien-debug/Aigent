@@ -491,7 +491,7 @@ function HitlPanel({
       ) : null}
 
       {hitl.pendingTool ? (
-        <div className="rounded-lg border border-dashed border-amber-500/40 p-3">
+        <div className="rounded-lg border border-dashed border-[color-mix(in_oklab,var(--aig-severity-warn)_40%,transparent)] p-3">
           <div className="flex flex-wrap items-center gap-2">
             <Strong className="font-mono text-xs">{hitl.pendingTool.name}</Strong>
             {hitl.pendingTool.risk ? <Badge color="amber">{hitl.pendingTool.risk}</Badge> : null}
@@ -989,7 +989,7 @@ export default function BuilderWorkspace({
 
               <div className="flex flex-col gap-2 p-4">
                 {draftCreatedId ? (
-                  <div className="rounded-lg border border-dashed border-emerald-500/40 p-3">
+                  <div className="rounded-lg border border-dashed border-[color-mix(in_oklab,var(--aig-severity-good)_40%,transparent)] p-3">
                     <Text className="font-medium">Draft créé</Text>
                     <Text className="mt-1 font-mono text-xs wrap-break-word">{draftCreatedId}</Text>
                     <Text className="mt-1 text-xs">

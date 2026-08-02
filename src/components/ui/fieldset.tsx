@@ -1,3 +1,6 @@
+// Couleurs issues des jetons `--aig-*` (voir `src/app/globals.css`). Les
+// variantes `dark:` ont disparu : les jetons sont déjà sombres, une paire
+// `X dark:Y` se réduit donc à une seule valeur.
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import type React from 'react'
@@ -24,7 +27,7 @@ export function Legend({
       {...props}
       className={clsx(
         className,
-        'text-base/6 font-semibold text-zinc-950 data-disabled:opacity-50 sm:text-sm/6 dark:text-white'
+        'text-base/6 font-semibold text-(--aig-text) data-disabled:opacity-50 sm:text-sm/6'
       )}
     />
   )
@@ -58,7 +61,7 @@ export function Label({ className, ...props }: Readonly<{ className?: string } &
       {...props}
       className={clsx(
         className,
-        'text-base/6 text-zinc-950 select-none data-disabled:opacity-50 sm:text-sm/6 dark:text-white'
+        'text-base/6 text-(--aig-text) select-none data-disabled:opacity-50 sm:text-sm/6'
       )}
     />
   )
@@ -72,7 +75,7 @@ export function Description({
     <Headless.Description
       data-slot="description"
       {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 data-disabled:opacity-50 sm:text-sm/6 dark:text-zinc-400')}
+      className={clsx(className, 'text-base/6 text-(--aig-text-muted) data-disabled:opacity-50 sm:text-sm/6')}
     />
   )
 }
@@ -85,7 +88,7 @@ export function ErrorMessage({
     <Headless.Description
       data-slot="error"
       {...props}
-      className={clsx(className, 'text-base/6 text-red-600 data-disabled:opacity-50 sm:text-sm/6 dark:text-red-500')}
+      className={clsx(className, 'text-base/6 text-(--aig-severity-bad) data-disabled:opacity-50 sm:text-sm/6')}
     />
   )
 }

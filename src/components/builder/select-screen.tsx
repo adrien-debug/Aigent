@@ -30,7 +30,7 @@ function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
       <Rail color={item.repoLinked ? SEVERITY.good : SEVERITY.muted} />
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-white/4 focus-visible:bg-white/4 focus-visible:outline-hidden"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
         <div className="min-w-0 flex-1">

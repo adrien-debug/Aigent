@@ -75,7 +75,7 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
           déclenchait plus jamais. */}
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-white/4 focus-visible:bg-white/4 focus-visible:outline-hidden"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
 
