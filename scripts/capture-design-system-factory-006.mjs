@@ -10,10 +10,10 @@ const { chromium } = await import('playwright').catch(() => {
 })
 
 const ROOT = process.cwd()
-const OUT = join(ROOT, 'docs/visual-reviews/aigent-design-system-factory-006')
+const OUT = join(ROOT, '.tmp/visual-reviews/aigent-design-system-factory-006')
 const BASE = 'http://127.0.0.1:3987'
 const AGENT_DETAIL_ROUTE = '/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8'
-const BEFORE_DIR = join(ROOT, 'docs/visual-reviews/aigent-visual-composition-004-r4')
+const BEFORE_DIR = join(ROOT, '.tmp/visual-reviews/aigent-visual-composition-004-r4')
 const BEFORE_REFERENCE = [
   { route: '/', file: 'overview-desktop-1440x900.png' },
   { route: '/runs', file: 'runs-desktop-1440x900.png' },
@@ -75,7 +75,6 @@ page.on('pageerror', (err) => {
 await page.addStyleTag({
   content: [
     'nextjs-portal{display:none!important}',
-    'css-studio-panel{display:none!important}',
     '[data-testid=\"issues-badge\"], [data-testid=\"cursor-overlay\"], [data-testid=\"agent-overlay\"]{display:none!important}',
   ].join(''),
 }).catch(() => {})

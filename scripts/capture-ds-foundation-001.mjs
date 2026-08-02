@@ -14,7 +14,7 @@ const { chromium } = await import('playwright').catch(() => {
 
 const phase = process.argv.find((a) => a.startsWith('--phase='))?.split('=')[1] ?? 'after'
 const base = process.argv.find((a) => a.startsWith('--base='))?.split('=')[1] ?? 'http://127.0.0.1:3987'
-const outDir = join(process.cwd(), `docs/visual-reviews/AIGENT-DS-REFACTOR-001/${phase}`)
+const outDir = join(process.cwd(), `.tmp/visual-reviews/AIGENT-DS-REFACTOR-001/${phase}`)
 mkdirSync(outDir, { recursive: true })
 
 const git = (...params) => execFileSync('git', params, { encoding: 'utf8' }).trim()

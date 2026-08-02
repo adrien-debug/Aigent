@@ -183,4 +183,23 @@ describe('ui-kit integrity tactile context', () => {
     const res = run(GATE_UI, root)
     expect(res.status).toBe(0)
   })
+
+  it('refuse rounded-2xl et shadow-lg bruts dans le kit', () => {
+    const root = makeWorkspace()
+    seedUiKitBase(root)
+    put(
+      root,
+      'src/components/ui/button.tsx',
+      [
+        'export function Button(){return <TouchTarget>ok</TouchTarget>}',
+        'export function TouchTarget({children}:{children:unknown}){',
+        "  return <span className='rounded-2xl shadow-lg absolute pointer-fine:hidden size-[max(100%,2.75rem)] focus-visible:ring-2 forced-colors:text-[ButtonText] data-disabled:opacity-50'>{children as never}</span>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const res = run(GATE_UI, root)
+    expect(res.status).toBe(1)
+    expect(res.stderr).toMatch(/JETON DS/)
+  })
 })

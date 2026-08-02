@@ -25,7 +25,7 @@ const { chromium } = await import('playwright').catch(() => {
   process.exit(2)
 })
 
-const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-VISUAL-STACK-002')
+const OUT = join(process.cwd(), '.tmp/visual-reviews/AIGENT-VISUAL-STACK-002')
 mkdirSync(OUT, { recursive: true })
 
 const GRAFANA = 'http://127.0.0.1:3802'

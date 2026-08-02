@@ -23,7 +23,7 @@ const { chromium } = await import('playwright').catch(() => {
 })
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:3989'
-const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-VISUALIZATION-LAB-003')
+const OUT = join(process.cwd(), '.tmp/visual-reviews/AIGENT-VISUALIZATION-LAB-003')
 const ROUTE = '/lab/visualizations'
 mkdirSync(OUT, { recursive: true })
 
@@ -89,7 +89,7 @@ function attachConsole(page) {
 async function hideDevOverlay(page) {
   await page
     .addStyleTag({
-      content: 'nextjs-portal{display:none!important}css-studio-panel{display:none!important}',
+      content: 'nextjs-portal{display:none!important}',
     })
     .catch(() => {})
 }

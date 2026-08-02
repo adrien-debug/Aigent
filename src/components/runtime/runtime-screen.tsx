@@ -127,7 +127,7 @@ export default function RuntimeScreen({
            * ~3730 px de vide non défilable. Le document est désormais borné au
            * viewport (`layout.tsx` + `app-shell.tsx`) et la box tient enfin sa
            * promesse : hauteur fixe, données qui défilent dedans.
-           * Mesures : docs/visual-reviews/aigent-visual-composition-004-r6/. */}
+           * Mesures layout runtime (mission visual-composition-004-r6). */}
           <div className="aig-inset scroll-thin m-3 mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:mx-4 sm:mb-4">
             <TabPanel payload={payload} />
           </div>

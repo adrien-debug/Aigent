@@ -23,9 +23,9 @@ export const Textarea = forwardRef(function Textarea(
         // Le pseudo `before` ne servait qu'au mode clair (il etait deja masque en
         // sombre). Le produit etant dark-first, il reste masque en permanence : la
         // couleur de fond est portee par le controle lui-meme.
-        'before:absolute before:inset-px before:rounded-[calc(var(--radius-lg)-1px)] before:hidden',
+        'before:absolute before:inset-px before:rounded-[calc(var(--radius-md)-1px)] before:hidden',
         // Focus ring
-        'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-(--aig-accent)',
+        'after:pointer-events-none after:absolute after:inset-0 after:rounded-md after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-(--aig-accent)',
         // Disabled state
         'has-data-disabled:opacity-50 has-data-disabled:before:shadow-none',
       ])}
@@ -35,11 +35,11 @@ export const Textarea = forwardRef(function Textarea(
         {...props}
         className={clsx([
           // Basic layout
-          'relative block h-full w-full appearance-none rounded-lg px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
+          'relative block h-full w-full appearance-none rounded-md px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
           // Typography
           'text-base/6 text-(--aig-text) placeholder:text-(--aig-text-muted) sm:text-sm/6',
           // Border
-          'border border-(--aig-line) data-hover:border-(--aig-line)',
+          'border border-(--border-default) data-hover:border-(--border-default)',
           // Background color
           'bg-(--aig-line-soft)',
           // Hide default focus styles

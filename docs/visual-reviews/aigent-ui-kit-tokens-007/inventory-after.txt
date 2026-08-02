@@ -1,8 +1,0 @@
-=== PAR FICHIER ===
-
-=== PAR JETON (top 40) ===
-
-TOTAL occurrences   : 0
-dont sous `dark:`   : 0
-fichiers du kit     : 14
-fichiers concernes  : 0

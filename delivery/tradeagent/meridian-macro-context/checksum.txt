@@ -1,2 +1,0 @@
-sha256  package.json   ab87b986effe4ebd0dfef6717b447e66126d6a71b8b1b59a51db3b146dee9a18
-sha256  contract.json  a63407c67943267983f3b93cf96f482cbf5cf45db9b9f9cdb1946e073ab330b5

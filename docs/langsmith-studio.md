@@ -37,9 +37,7 @@ Six arêtes, dont quatre conditionnelles. Le nœud `approval` porte le HITL
 
 **Une hypothèse antérieure de ce document était fausse.** Il affirmait que
 Studio exigeait une session graphique et ne pouvait donc pas afficher le
-graphe. La capture
-`docs/visual-reviews/AIGENT-VISUAL-STACK-002/langsmith-graph.png` montre le
-contraire :
+graphe. Vérification manuelle (2026-08-01) montre le contraire :
 
 - Studio ouvre le graphe **`agent_builder`** sans connexion préalable ;
 - les cinq nœuds sont rendus : `__start__`, `agent`, `approval`, `tools`, `__end__` ;

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import CssStudio from '@/components/css-studio'
 import MotionProvider from '@/components/motion-provider'
 
 export const metadata: Metadata = {
@@ -51,8 +50,6 @@ export default function RootLayout({
     <html lang="fr" className="dark aig-scope h-svh overflow-hidden">
       <body className="aig-subtle h-svh overflow-hidden antialiased">
         <MotionProvider>{children}</MotionProvider>
-        {/* Outil de développement — inerte ET absent du bundle en production. */}
-        <CssStudio />
       </body>
     </html>
   )

@@ -2,7 +2,7 @@
  * AIG-PACK-015 — deterministic export of the six trading agents.
  *
  * Pure, offline: drives scripts/export-trading-packages.mjs against the FROZEN
- * snapshot (delivery/tradeagent/_snapshot/db-truth.json). No network, no OpenAI,
+ * snapshot (tests/fixtures/tradeagent/db-truth.json). No network, no OpenAI,
  * no DB — the export is a function of committed bytes only.
  *
  * Proves the three mission guarantees:
@@ -19,7 +19,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 
 const REPO = resolve(__dirname, '..', '..')
 const SCRIPT = join(REPO, 'scripts', 'export-trading-packages.mjs')
-const SNAPSHOT = join(REPO, 'delivery', 'tradeagent', '_snapshot', 'db-truth.json')
+const SNAPSHOT = join(REPO, 'tests', 'fixtures', 'tradeagent', 'db-truth.json')
 
 const SLUGS = [
   'atlas-market-structure',

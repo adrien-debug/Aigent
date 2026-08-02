@@ -19,7 +19,7 @@
  *
  * Usage:
  *   node --env-file=.env.local scripts/restore-agent-domain.mjs                       # dry-run, default export path
- *   node --env-file=.env.local scripts/restore-agent-domain.mjs --in delivery/agent-domain/export.json
+ *   node --env-file=.env.local scripts/restore-agent-domain.mjs --in .tmp/agent-domain-export.json
  *   node --env-file=.env.local scripts/restore-agent-domain.mjs --apply               # write
  */
 import { readFileSync } from 'node:fs'
@@ -34,7 +34,7 @@ if (!base || !key) {
 const argv = process.argv.slice(2)
 const apply = argv.includes('--apply')
 const inArg = argv.indexOf('--in')
-const IN = inArg >= 0 ? argv[inArg + 1] : 'delivery/agent-domain/export.json'
+const IN = inArg >= 0 ? argv[inArg + 1] : '.tmp/agent-domain-export.json'
 
 const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
 

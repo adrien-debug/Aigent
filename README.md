@@ -25,9 +25,7 @@ authoring or runs.
 ## Frontend — 15 écrans qui tournent
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
-partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, captures
-desktop/mobile, revue visuelle R2 dans
-`docs/visual-reviews/aigent-visual-composition-004-r2/`) :
+partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, gates statiques) :
 
 | Route | Rôle |
 |---|---|
@@ -74,10 +72,11 @@ Trois gates encadrent le front, avec responsabilités séparées :
   fichiers globaux de tokens.
 - `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
   primitives et leurs 43 exports consommés, la cible tactile de 44 px en
-  contexte tactile, les
-  marqueurs d'accessibilité, et zéro couleur Tailwind brute. Elle interdit la
-  **perte**, pas le changement : modifier une primitive est légitime et ne
-  demande aucune régénération.
+  contexte tactile, les marqueurs d'accessibilité, zéro couleur Tailwind brute,
+  et depuis **AIGENT-DS-REFACTOR-002** l'usage des jetons DS (radius 4/8/16,
+  `shadow-(--shadow-*)`, pas d'`oklch()` littéral). Barrel `ui/index.ts` vérifié
+  si présent. Elle interdit la **perte**, pas le changement : modifier une
+  primitive est légitime et ne demande aucune régénération.
 
 > ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
 > réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
