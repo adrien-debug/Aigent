@@ -47,6 +47,29 @@
   color: var(--aig-accent);
 }
 
+/* CTA produit sur `Button` Catalyst — recolor via variables internes du kit. */
+@utility aig-btn-accent {
+  --btn-bg: var(--aig-accent) !important;
+  --btn-border: var(--aig-accent-quiet) !important;
+  --btn-hover-overlay: var(--aig-subtle) !important;
+  border-color: transparent !important;
+  background-color: var(--aig-accent) !important;
+  color: var(--aig-subtle) !important;
+}
+
+/* Liens d'action discrets — `Button plain` ou `Link` Catalyst. */
+@utility aig-link-accent {
+  color: var(--aig-accent) !important;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.aig-link-accent:hover {
+  color: color-mix(in oklab, var(--aig-accent) 82%, white) !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @utility aig-panel {
   background-color: var(--aig-base);
   color: var(--aig-text);
