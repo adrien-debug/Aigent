@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { NotMeasured } from '@/components/cockpit/primitives'

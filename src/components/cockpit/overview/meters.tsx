@@ -1,8 +1,5 @@
 import clsx from 'clsx'
 
-const BRONZE_ACTIVE = '#CD7F32'
-const BRONZE_PASSIVE = '#8B5A2B'
-
 export function BarMeter({
   ratio,
   color,
