@@ -1,0 +1,66 @@
+{
+  "timestampUtc": "2026-08-02T09:38:56Z",
+  "commitSha": "2b117b097a17aa4eea4c3a93909b28adce9ad33c",
+  "target": {
+    "host": "<masked>",
+    "database": "<masked>",
+    "user": "<masked>"
+  },
+  "server": "http://127.0.0.1:3988",
+  "proofPrefix": "proof-aigent-consumer-live-009",
+  "canonicalBinding": {
+    "projectId": "proj-tradeagent",
+    "copilotId": "copilot-market-intelligence",
+    "versionId": "ver-market-intelligence-v1",
+    "deliveryEventId": "delivery_5132137d",
+    "deliveryStatus": "delivered"
+  },
+  "createInstallation": {
+    "httpStatus": 201,
+    "installationId": "inst-development-f84ae01bec344970a565",
+    "tokenReturnedOnce": true,
+    "tokenPersistedInEvidence": false,
+    "tokenPrefix": "mRIwP4Ve",
+    "label": "proof-aigent-consumer-live-009-20260802T093856Z"
+  },
+  "hashOnlyPersistence": {
+    "dbRowFound": true,
+    "status": "active",
+    "environment": "development",
+    "projectId": "proj-tradeagent",
+    "copilotId": "copilot-market-intelligence",
+    "versionId": "ver-market-intelligence-v1",
+    "deliveryEventId": "delivery_5132137d",
+    "tokenHashPresent": true,
+    "tokenClearStored": false
+  },
+  "listing": {
+    "httpStatus": 200,
+    "installationVisible": true,
+    "clearTokenExposed": false
+  },
+  "telemetryValid": {
+    "httpStatus": 202,
+    "payloadEventId": "proof-aigent-consumer-live-009-valid-20260802T093856Z",
+    "dbEventId": "consumer:inst-development-f84ae01bec344970a565:proof-aigent-consumer-live-009-valid-20260802T093856Z",
+    "versionVerified": true,
+    "projectId": "proj-tradeagent",
+    "copilotId": "copilot-market-intelligence",
+    "versionId": "ver-market-intelligence-v1",
+    "provider": null,
+    "model": null
+  },
+  "activationDerivation": {
+    "verifiedEventsBeforeValidEvent": 0,
+    "verifiedEventsAfterValidEvent": 1,
+    "activationFromVerifiedTelemetryOnly": true
+  },
+  "revoke": {
+    "httpStatus": 200,
+    "installationStatus": "revoked",
+    "revokedReason": "proof-aigent-consumer-live-009-cleanup",
+    "revokedAtSet": true,
+    "oldTokenRejectedAfterRevoke": true,
+    "postRevokeTelemetryHttpStatus": 401
+  }
+}

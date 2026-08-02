@@ -1,0 +1,73 @@
+{
+  "timestampUtc": "2026-08-02T09:37:30Z",
+  "commitSha": "2b117b097a17aa4eea4c3a93909b28adce9ad33c",
+  "target": {
+    "host": "<masked>",
+    "database": "<masked>",
+    "user": "<masked>"
+  },
+  "requiredTablesExist": {
+    "consumer_installations": true,
+    "runtime_telemetry_events": true
+  },
+  "requiredColumns": [
+    {
+      "table": "consumer_installations",
+      "column": "delivery_event_id",
+      "dataType": "text",
+      "isNullable": true,
+      "default": null
+    },
+    {
+      "table": "consumer_installations",
+      "column": "revoked_reason",
+      "dataType": "text",
+      "isNullable": true,
+      "default": null
+    },
+    {
+      "table": "consumer_installations",
+      "column": "version_id",
+      "dataType": "text",
+      "isNullable": true,
+      "default": null
+    },
+    {
+      "table": "runtime_telemetry_events",
+      "column": "version_verified",
+      "dataType": "boolean",
+      "isNullable": false,
+      "default": "false"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "consumer_installations_delivery_event_id_fkey",
+      "definition": "FOREIGN KEY (delivery_event_id) REFERENCES agent_delivery_events(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "consumer_installations_version_id_fkey",
+      "definition": "FOREIGN KEY (version_id) REFERENCES copilot_versions(id) ON DELETE SET NULL"
+    }
+  ],
+  "requiredIndexes": [
+    {
+      "name": "consumer_installations_delivery_event_idx",
+      "definition": "CREATE INDEX consumer_installations_delivery_event_idx ON public.consumer_installations USING btree (delivery_event_id)"
+    },
+    {
+      "name": "consumer_installations_version_idx",
+      "definition": "CREATE INDEX consumer_installations_version_idx ON public.consumer_installations USING btree (version_id)"
+    },
+    {
+      "name": "runtime_telemetry_events_verified_consumer_idx",
+      "definition": "CREATE INDEX runtime_telemetry_events_verified_consumer_idx ON public.runtime_telemetry_events USING btree (agent_id, received_at DESC) WHERE ((installation_id IS NOT NULL) AND (version_verified = true))"
+    }
+  ],
+  "tableSchemaExport": {
+    "source": "pg_dump --schema-only -t public.consumer_installations -t public.runtime_telemetry_events",
+    "includesData": false,
+    "tableCount": 2
+  },
+  "otherTableDropDetected": false
+}

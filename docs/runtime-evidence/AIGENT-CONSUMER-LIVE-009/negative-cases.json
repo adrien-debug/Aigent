@@ -1,0 +1,42 @@
+{
+  "timestampUtc": "2026-08-02T09:39:10Z",
+  "commitSha": "2b117b097a17aa4eea4c3a93909b28adce9ad33c",
+  "cases": [
+    {
+      "name": "wrong token",
+      "httpStatus": 401,
+      "responseBody": {
+        "error": "unauthorized"
+      }
+    },
+    {
+      "name": "wrong version",
+      "httpStatus": 401,
+      "responseBody": {
+        "error": "unauthorized"
+      }
+    },
+    {
+      "name": "broken project/version chain",
+      "httpStatus": 401,
+      "responseBody": {
+        "error": "unauthorized"
+      }
+    },
+    {
+      "name": "unknown installation",
+      "httpStatus": 401,
+      "responseBody": {
+        "error": "unauthorized"
+      }
+    },
+    {
+      "name": "invalid payload",
+      "httpStatus": 400,
+      "responseBody": {
+        "error": "invalid payload"
+      }
+    }
+  ],
+  "sensitiveDetailExposed": false
+}
