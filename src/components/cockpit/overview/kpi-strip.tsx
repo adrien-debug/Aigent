@@ -31,7 +31,6 @@ function Figure({
   led,
   valueColor,
   unread,
-  quietEmpty = false,
   dimmed = false,
 }: Readonly<{
   label: string
@@ -42,7 +41,6 @@ function Figure({
   led?: ReactNode
   valueColor?: string
   unread: boolean
-  quietEmpty?: boolean
   dimmed?: boolean
 }>) {
   return (
@@ -56,14 +54,10 @@ function Figure({
       <div className="mt-1.5 flex items-end justify-between gap-2 sm:mt-2 sm:gap-3">
         <div className="min-w-0">
           {value === null ? (
-            quietEmpty ? (
-              <span className="aig-text-faint text-xl font-semibold tabular-nums sm:text-2xl">—</span>
-            ) : (
-              <NotMeasured
-                why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
-                label={unread ? undefined : 'aucune mesure'}
-              />
-            )
+            <NotMeasured
+              why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
+              label="—"
+            />
           ) : (
             <div className="flex items-baseline gap-1">
               <span
@@ -117,7 +111,6 @@ export default function KpiStrip({
         support={kpis.success24h === null ? 'aucun run terminal' : 'sur les runs terminaux'}
         valueColor={kpis.success24h === null ? undefined : successColor}
         unread={unread}
-        quietEmpty={windowEmpty && kpis.success24h === null}
         graphic={
           kpis.success24h === null ? undefined : (
             <ArcGauge
@@ -134,7 +127,6 @@ export default function KpiStrip({
         value={unread || cost === null ? null : formatUsd(cost.usd)}
         support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
         unread={unread}
-        quietEmpty={windowEmpty && cost === null}
         graphic={
           cost === null ? undefined : (
             <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-12 sm:w-14" />
@@ -161,6 +153,7 @@ export default function KpiStrip({
         support="bloquées à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
         unread={unread}
+        led={blocked !== null ? <Led color={blocked > 0 ? BAD : GOOD} /> : null}
       />
       <Figure
         label="Décisions"
@@ -168,6 +161,7 @@ export default function KpiStrip({
         support="opérateur en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
         unread={unread}
+        led={<Led color={kpis.needsAction > 0 ? WARN : GOOD} />}
       />
     </div>
   )

@@ -47,27 +47,59 @@
   color: var(--aig-accent);
 }
 
-/* CTA produit sur `Button` Catalyst — recolor via variables internes du kit. */
+/*
+ * CTA produit sur `Button` Catalyst.
+ *
+ * Le bouton solide lit déjà `--btn-bg` / `--btn-border` / `--btn-hover-overlay`,
+ * mais le kit pose ensuite ses propres variables de couleur. On garde donc
+ * `!important` uniquement sur CES variables internes documentées, pas sur le
+ * layout ni sur des hacks de densité.
+ */
 @utility aig-btn-accent {
   --btn-bg: var(--aig-accent) !important;
   --btn-border: var(--aig-accent-quiet) !important;
-  --btn-hover-overlay: var(--aig-subtle) !important;
-  border-color: transparent !important;
-  background-color: var(--aig-accent) !important;
+  --btn-hover-overlay: color-mix(in oklab, var(--aig-subtle) 80%, transparent) !important;
   color: var(--aig-subtle) !important;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-/* Liens d'action discrets — `Button plain` ou `Link` Catalyst. */
+.aig-btn-accent:hover {
+  --btn-bg: color-mix(in oklab, var(--aig-accent) 84%, white) !important;
+}
+
+.aig-btn-accent:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--aig-accent) 62%, white);
+  outline-offset: 2px;
+}
+
+/*
+ * Liens d'action discrets — `Button plain` ou `Link` Catalyst.
+ *
+ * `Button plain` impose encore `text-zinc-*` / `dark:text-white` au niveau du kit ;
+ * le `!important` sur la couleur reste donc documenté et volontaire ici.
+ */
 @utility aig-link-accent {
   color: var(--aig-accent) !important;
   text-decoration: none;
-  transition: color 150ms ease;
+  transition:
+    color 150ms ease,
+    text-decoration-color 150ms ease;
 }
 
-.aig-link-accent:hover {
+.aig-link-accent:hover,
+.aig-link-accent:focus-visible {
   color: color-mix(in oklab, var(--aig-accent) 82%, white) !important;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.aig-link-accent:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--aig-accent) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 @utility aig-panel {
@@ -222,6 +254,13 @@
 @utility aig-callout {
   border-left: var(--border-width-default) solid var(--aig-line);
   padding-left: 0.75rem;
+}
+
+@utility aig-empty-well {
+  border: var(--border-width-default) dashed color-mix(in oklab, var(--aig-line-soft) 80%, transparent);
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  padding: 0.375rem 0.5rem;
 }
 
 @utility aig-accent-edge {

@@ -44,6 +44,15 @@ function EmptyOverviewLine({
   )
 }
 
+function EmptyInlineMeta({ detail }: Readonly<{ detail: string }>) {
+  return (
+    <span className="flex min-w-0 items-baseline gap-1.5">
+      <NotMeasured label="—" why={detail} />
+      <span className="aig-text-faint min-w-0 truncate text-2xs">{detail}</span>
+    </span>
+  )
+}
+
 export function ActivityPanel({ buckets }: Readonly<{ buckets: HourlyBucket[] | null }>) {
   if (buckets === null) {
     return (
@@ -90,13 +99,17 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           >
             {project.name}
           </span>
-          <span className="aig-text-faint block truncate text-2xs uppercase tracking-[0.08em]">
-            {empty ? 'aucun agent' : (project.repoFullName ?? 'aucun dépôt lié')}
-          </span>
+          {empty ? (
+            <EmptyInlineMeta detail="Aucun agent dans ce projet." />
+          ) : (
+            <span className="aig-text-faint block truncate text-2xs uppercase tracking-[0.08em]">
+              {project.repoFullName ?? 'aucun dépôt lié'}
+            </span>
+          )}
         </span>
         <span className="aig-text-faint shrink-0 text-right text-2xs tabular-nums">
           {empty ? (
-            '—'
+            <NotMeasured label="—" why="Aucun agent actif dans ce projet." />
           ) : (
             <>
               <span className="aig-text font-medium tabular-nums">{project.activeCount}</span>

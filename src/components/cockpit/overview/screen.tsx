@@ -62,13 +62,14 @@ export default function CockpitOverview({
           aria-label={ENTRY.name}
         >
           <div className="overview-zone">
-            <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-6 lg:items-end lg:gap-x-6 lg:gap-y-2">
-              <p className="aig-text-faint text-2xs font-medium uppercase tracking-[0.16em] opacity-85 lg:col-span-1">
-                Fenêtre 24 heures
-                {windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : null}
-              </p>
-              <div className="lg:col-span-5">{slices ? <StatusLegend slices={slices} /> : null}</div>
-            </div>
+            {slices ? (
+              <StatusLegend
+                slices={slices}
+                lead={`Fenêtre 24 heures${
+                  windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
+                }`}
+              />
+            ) : null}
 
             <KpiStrip kpis={overview.kpis} unread={unread} />
 
