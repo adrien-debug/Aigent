@@ -48,7 +48,7 @@ function EmptyInlineMeta({ detail }: Readonly<{ detail: string }>) {
   return (
     <span className="flex min-w-0 items-baseline gap-1.5">
       <NotMeasured label="—" why={detail} />
-      <span className="aig-text-faint min-w-0 truncate text-2xs">{detail}</span>
+      <span className="aig-text-faint min-w-0 truncate text-xs">{detail}</span>
     </span>
   )
 }
@@ -102,12 +102,12 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           {empty ? (
             <EmptyInlineMeta detail="Aucun agent dans ce projet." />
           ) : (
-            <span className="aig-text-faint block truncate text-2xs uppercase tracking-[0.08em]">
+            <span className="aig-text-faint block truncate text-xs uppercase tracking-wider">
               {project.repoFullName ?? 'aucun dépôt lié'}
             </span>
           )}
         </span>
-        <span className="aig-text-faint shrink-0 text-right text-2xs tabular-nums">
+        <span className="aig-text-faint shrink-0 text-right text-xs tabular-nums">
           {empty ? (
             <NotMeasured label="—" why="Aucun agent actif dans ce projet." />
           ) : (
@@ -142,7 +142,7 @@ function EventRow({ item }: Readonly<{ item: ActionItem }>) {
       </SeverityChip>
       <div className="min-w-0 flex-1">
         <p className="aig-text truncate text-sm font-medium">{item.title}</p>
-        <p className="aig-text-faint truncate text-2xs uppercase tracking-[0.08em]">{item.meta}</p>
+        <p className="aig-text-faint truncate text-xs uppercase tracking-wider">{item.meta}</p>
       </div>
       <SectionAction href={item.href}>{item.buttonLabel} →</SectionAction>
     </li>

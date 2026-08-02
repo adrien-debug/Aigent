@@ -18,13 +18,15 @@ export function OverviewSection({
   className?: string
 }>) {
   return (
-    <section className={className}>
-      <div className="mb-3 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="aig-h3 truncate">{title}</h3>
-        {hint ? <p className="aig-text-faint truncate text-3xs">{hint}</p> : null}
-        {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
+    <section className={`flex min-h-0 flex-col ${className ?? ''}`}>
+      <div className="mb-4 flex min-w-0 items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <h3 className="aig-text truncate text-sm font-semibold tracking-[-0.01em]">{title}</h3>
+          {hint ? <p className="aig-text-faint mt-1 truncate text-xs uppercase tracking-wider">{hint}</p> : null}
+        </div>
+        {actions ? <div className="shrink-0 pt-0.5">{actions}</div> : null}
       </div>
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   )
 }

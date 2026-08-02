@@ -30,7 +30,6 @@ function Figure({
   graphic,
   led,
   valueColor,
-  unread,
   dimmed = false,
 }: Readonly<{
   label: string
@@ -40,14 +39,13 @@ function Figure({
   graphic?: ReactNode
   led?: ReactNode
   valueColor?: string
-  unread: boolean
   dimmed?: boolean
 }>) {
   return (
     <div className="min-w-0">
       <div className="flex min-h-4 items-center gap-1.5">
         {led}
-        <p className="aig-text-faint truncate text-2xs font-medium uppercase tracking-[0.16em] opacity-80">
+        <p className="aig-text-faint truncate text-xs font-medium uppercase tracking-wider">
           {label}
         </p>
       </div>
@@ -55,26 +53,28 @@ function Figure({
         <div className="min-w-0">
           {value === null ? (
             <NotMeasured
-              why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
+              why={support}
               label="—"
             />
           ) : (
-            <div className="flex items-baseline gap-1">
-              <span
-                className={clsx(
-                  dimmed
-                    ? 'aig-kpi-quiet aig-text-faint text-[1.4rem] sm:text-[1.5rem]'
-                    : 'aig-kpi-lead text-[1.95rem] sm:text-[2.15rem]',
-                  valueColor && 'text-(--kpi)',
-                )}
-                style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
-              >
-                {value}
-              </span>
-              {unit ? <span className="aig-text-muted text-sm sm:text-base">{unit}</span> : null}
-            </div>
+            <>
+              <div className="flex items-baseline gap-1">
+                <span
+                  className={clsx(
+                    dimmed
+                      ? 'aig-kpi-quiet aig-text-faint text-[1.4rem] sm:text-[1.5rem]'
+                      : 'aig-kpi-lead text-[1.95rem] sm:text-[2.15rem]',
+                    valueColor && 'text-(--kpi)',
+                  )}
+                  style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
+                >
+                  {value}
+                </span>
+                {unit ? <span className="aig-text-muted text-sm sm:text-base">{unit}</span> : null}
+              </div>
+              <p className="aig-text-faint mt-1 min-h-4 truncate text-xs uppercase tracking-wider">{support}</p>
+            </>
           )}
-          <p className="aig-text-faint mt-1 min-h-4 truncate text-2xs uppercase tracking-[0.08em] opacity-75">{support}</p>
         </div>
         {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
       </div>
@@ -95,12 +95,11 @@ export default function KpiStrip({
   const windowEmpty = !unread && kpis.runs24h === 0
 
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
+    <>
       <Figure
         label="Runs 24 h"
         value={unread ? null : kpis.runs24h}
         support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
-        unread={unread}
         dimmed={windowEmpty && (kpis.runs24h ?? 0) === 0}
         led={(kpis.runs24h ?? 0) > 0 ? <Led color={GOOD} live /> : null}
       />
@@ -110,7 +109,6 @@ export default function KpiStrip({
         unit={kpis.success24h === null ? undefined : '%'}
         support={kpis.success24h === null ? 'aucun run terminal' : 'sur les runs terminaux'}
         valueColor={kpis.success24h === null ? undefined : successColor}
-        unread={unread}
         graphic={
           kpis.success24h === null ? undefined : (
             <ArcGauge
@@ -126,7 +124,6 @@ export default function KpiStrip({
         label="Coût 24 h"
         value={unread || cost === null ? null : formatUsd(cost.usd)}
         support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
-        unread={unread}
         graphic={
           cost === null ? undefined : (
             <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-12 sm:w-14" />
@@ -140,7 +137,6 @@ export default function KpiStrip({
           executableTotal === null ? 'total du catalogue non lu' : `sur ${executableTotal} au catalogue`
         }
         valueColor={kpis.executableNow === 0 ? WARN : undefined}
-        unread={unread}
         graphic={
           executableTotal === null || kpis.executableNow === null ? undefined : (
             <SegmentMeter filled={kpis.executableNow} total={executableTotal} color={GOOD} />
@@ -152,17 +148,13 @@ export default function KpiStrip({
         value={blocked}
         support="bloquées à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
-        unread={unread}
-        led={blocked !== null ? <Led color={blocked > 0 ? BAD : GOOD} /> : null}
       />
       <Figure
         label="Décisions"
         value={kpis.needsAction}
         support="opérateur en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
-        unread={unread}
-        led={<Led color={kpis.needsAction > 0 ? WARN : GOOD} />}
       />
-    </div>
+    </>
   )
 }

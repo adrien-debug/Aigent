@@ -62,16 +62,24 @@ export default function CockpitOverview({
           aria-label={ENTRY.name}
         >
           <div className="overview-zone">
-            {slices ? (
-              <StatusLegend
-                slices={slices}
-                lead={`Fenêtre 24 heures${
-                  windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
-                }`}
-              />
-            ) : null}
+            <div className="grid min-w-0 grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
+              {slices ? (
+                <>
+                  <div className="col-span-full lg:col-span-1 flex items-end pb-2">
+                    <h2 className="aig-text-faint text-xs font-medium uppercase tracking-wider">
+                      {`Fenêtre 24 heures${
+                        windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
+                      }`}
+                    </h2>
+                  </div>
+                  <div className="col-span-full lg:col-span-5 flex items-end pb-2">
+                    <StatusLegend slices={slices} />
+                  </div>
+                </>
+              ) : null}
 
-            <KpiStrip kpis={overview.kpis} unread={unread} />
+              <KpiStrip kpis={overview.kpis} unread={unread} />
+            </div>
 
             {showActivity ? (
               <>
@@ -89,11 +97,11 @@ export default function CockpitOverview({
 
           <div className="overview-zone">
             <header className="min-w-0">
-              <p className="aig-text-faint text-2xs font-medium uppercase tracking-[0.16em] opacity-85">
+              <p className="aig-text-faint text-xs font-medium uppercase tracking-wider">
                 Zone opérateur
               </p>
               <h2 className="aig-h2 mt-2 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
-              <p className="aig-text-faint mt-2 text-2xs uppercase tracking-[0.12em] opacity-90">
+              <p className="aig-text-faint mt-2 text-xs uppercase tracking-wider">
                 {hasRuns
                   ? 'Flux récent, projets et signaux de la fenêtre courante'
                   : 'Signaux et projets — flux vide sur la fenêtre 24 h'}
@@ -118,7 +126,7 @@ export default function CockpitOverview({
         </section>
 
         {overview.dataWarnings.length > 0 ? (
-          <p className="aig-accent truncate px-1 font-mono text-2xs">
+          <p className="aig-accent truncate px-1 font-mono text-xs">
             {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
           </p>
         ) : null}
