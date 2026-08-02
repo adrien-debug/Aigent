@@ -25,8 +25,9 @@ authoring or runs.
 ## Frontend — 15 écrans qui tournent
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
-partir du **2026-07-31**. État vérifié au 2026-07-31 (build vert, 4 écrans
-contrôlés dans un navigateur, zéro erreur console) :
+partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, captures
+desktop/mobile, revue visuelle R2 dans
+`docs/visual-reviews/aigent-visual-composition-004-r2/`) :
 
 | Route | Rôle |
 |---|---|
