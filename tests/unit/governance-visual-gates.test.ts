@@ -85,6 +85,11 @@ function seedUiKitBase(root: string) {
     'src/components/ui/checkbox.tsx',
     "export function Checkbox(){return <span className='focus-visible:ring-2 forced-colors:text-[ButtonText]'/>}\nexport function CheckboxField(){return null}\nexport function CheckboxGroup(){return null}\n",
   )
+  // Ce fixture doit porter TOUTES les primitives exigées par `REQUIRED` dans
+  // `check-ui-kit-integrity.mjs`. Il en manquait une — `description-list` — et
+  // le test « garde-fous conservés » échouait donc sur PRIMITIVE MANQUANTE,
+  // c'est-à-dire sur une lacune du fixture, pas sur le comportement testé.
+  put(root, 'src/components/ui/description-list.tsx', 'export function DescriptionDetails(){return null}\nexport function DescriptionList(){return null}\nexport function DescriptionTerm(){return null}\n')
   put(root, 'src/components/ui/dialog.tsx', 'export function Dialog(){return null}\nexport function DialogActions(){return null}\nexport function DialogBody(){return null}\nexport function DialogDescription(){return null}\nexport function DialogTitle(){return null}\n')
   put(root, 'src/components/ui/divider.tsx', 'export function Divider(){return null}\n')
   put(root, 'src/components/ui/fieldset.tsx', 'export function Description(){return null}\nexport function ErrorMessage(){return null}\nexport function Field(){return null}\nexport function Fieldset(){return null}\nexport function Label(){return null}\nexport function Legend(){return null}\n')
