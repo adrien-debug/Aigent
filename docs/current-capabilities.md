@@ -143,6 +143,12 @@ option `--fix` **écrit en base**. Ce sont des commandes d'exploitation manuelle
 `npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
 `build`. `test:live` est opt-in, tape GPU1 + OpenAI et coûte de l'argent.
 
+Constat vérifié sur la mission `AIGENT-CODEX-011` : la chaîne `check` est verte,
+mais `quality:dead` échoue encore sur **3 types exportés non utilisés** dans le
+frontend actif (`src/components/lab/registry.ts`,
+`src/components/visualizations/embed/contract.ts`) laissés à l'intégrateur
+frontend propriétaire.
+
 **Aucune gate ne mesure le rendu** — c'est une décision (free design), pas un
 manque à combler par une gate visuelle. Ce que chaque gate ne garantit PAS est
 dans `scripts/README-gates.md`.

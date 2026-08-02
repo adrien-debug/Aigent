@@ -159,6 +159,19 @@ personne qui a lu la source. Deux réflexes en découlent :
 2. les rapports de mission historiques vivent dans **l'historique git**, jamais
    comme règles actives.
 
+## 12. `quality:dead` reste bloqué par 3 exports frontend hors ownership
+
+Exécution prouvée sur la mission `AIGENT-CODEX-011` :
+
+- `npm run check` passe (incluant `audit:dead`).
+- `npm run quality:dead` échoue uniquement sur 3 `Unused exported types` :
+  `LabPatternId` (`src/components/lab/registry.ts`), `SurfaceRole` et
+  `AllowedThemeParam` (`src/components/visualizations/embed/contract.ts`).
+
+Ces fichiers appartiennent au lot frontend actif ; ils n'ont pas été modifiés
+ici par contrainte d'ownership explicite. Tant qu'ils restent exportés sans
+consommateur, `npm run verify` échoue sur l'étape Knip.
+
 ## Non vérifié dans cette passe
 
 - Si le backend GPU1 live détient le roster documenté dans l'état décrit. Aucun
