@@ -8,12 +8,18 @@
 > **Ce fichier n'est pas de la doctrine** : c'est un constat daté. Les règles
 > vivent dans `CLAUDE.md` et `AGENTS.md`. Mis à jour 2026-07-31 (tri docs).
 
-## 1. Une surface reste un placeholder
+## 1. Une surface UI reste un placeholder
 
-Le front a 16 routes (shell + listes + détails). Une seule n'a **pas encore de
-lecture** et affiche `SurfacePlaceholder` :
+Le front a 16 routes (shell + listes + détails). Une seule affiche encore
+`SurfacePlaceholder` :
 
-- `/settings` — réglages (prévue PR 8)
+- `/settings` — réglages (UI non branchée)
+
+Le backend Settings existe désormais en lecture opérateur :
+`GET /api/agent-ops/settings/posture` expose un contrat server-only expurgé
+(auth, backend GPU1, LangGraph, providers, observabilité, shipping GitHub,
+Learning Runtime) sans valeur de secret. Le manque restant est strictement UI :
+l'écran `/settings` n'interroge pas encore cette route.
 
 Ce n'est pas un faux zéro : le composant dit explicitement qu'aucune lecture n'a
 été tentée. Le reste du parcours (aperçu, runs, agents, projets, builder,
