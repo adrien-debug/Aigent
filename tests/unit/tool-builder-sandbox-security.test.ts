@@ -11,7 +11,7 @@ describe('Tool Builder sandbox security guards', () => {
       maxInputBytes: 1024,
       maxOutputBytes: 1024,
       capabilities: ['local-deterministic-exec', 'network-write'],
-      execute: (value: string) => value,
+      executeSource: '(value) => value',
       cases: [{ name: 'one', input: 'ok', expected: 'ok' }],
     })
     expect(result.status).toBe('unavailable')
@@ -26,7 +26,7 @@ describe('Tool Builder sandbox security guards', () => {
       maxInputBytes: 2,
       maxOutputBytes: 1024,
       capabilities: ['local-deterministic-exec'],
-      execute: (value: string) => value,
+      executeSource: '(value) => value',
       cases: [{ name: 'too-big', input: 'abcd', expected: 'abcd' }],
     })
     expect(result.status).toBe('failed')
@@ -34,39 +34,56 @@ describe('Tool Builder sandbox security guards', () => {
     expect(result.evidence.detail).toContain('input too large')
   })
 
-  it('fails when execution exceeds timeout', async () => {
-    const slowSandbox: LocalDeterministicSandbox<number, number> = {
-      id: 'timeout',
-      timeoutMs: 20,
+  it('terminates an infinite loop on timeout', async () => {
+    const infiniteLoopSandbox: LocalDeterministicSandbox<number, number> = {
+      id: 'infinite-loop',
+      timeoutMs: 50,
       maxCases: 2,
       maxInputBytes: 1024,
       maxOutputBytes: 1024,
       capabilities: ['local-deterministic-exec'],
-      execute: async (value) => {
-        await new Promise((resolve) => setTimeout(resolve, 40))
-        return value
-      },
-      cases: [{ name: 'slow', input: 1, expected: 1 }],
+      executeSource: '() => { while (true) {} }',
+      cases: [{ name: 'loop', input: 1, expected: 1 }],
     }
 
-    const result = await runLocalDeterministicSandbox(slowSandbox)
+    const result = await runLocalDeterministicSandbox(infiniteLoopSandbox)
     expect(result.status).toBe('failed')
     expect(result.evidence.failed).toBe(1)
     expect(result.evidence.detail).toContain('timeout')
   })
 
-  it('executes with an isolated empty env context', async () => {
+  it('terminates a synchronous blocking executor without hanging main thread', async () => {
+    const started = Date.now()
     const result = await runLocalDeterministicSandbox({
-      id: 'env-isolation',
+      id: 'sync-blocking',
+      timeoutMs: 40,
+      maxCases: 2,
+      maxInputBytes: 1024,
+      maxOutputBytes: 1024,
+      capabilities: ['local-deterministic-exec'],
+      executeSource: '() => { const end = Date.now() + 5000; while (Date.now() < end) {} return 1 }',
+      cases: [{ name: 'blocking', input: 1, expected: 1 }],
+    })
+    const elapsed = Date.now() - started
+    expect(result.status).toBe('failed')
+    expect(result.evidence.failed).toBe(1)
+    expect(result.evidence.detail).toContain('timeout')
+    expect(elapsed).toBeLessThan(1500)
+  })
+
+  it('prevents access to process/env/global from executor code', async () => {
+    const result = await runLocalDeterministicSandbox({
+      id: 'env-process-global-isolation',
       timeoutMs: 100,
       maxCases: 2,
       maxInputBytes: 1024,
       maxOutputBytes: 1024,
       capabilities: ['local-deterministic-exec'],
-      execute: (_value: string, context) => JSON.stringify(context.env),
-      cases: [{ name: 'empty-env', input: 'x', expected: '{}' }],
+      executeSource: '() => ({ proc: process.env, glob: global, gproc: globalThis.process })',
+      cases: [{ name: 'no-access', input: 'x', expected: null }],
     })
-    expect(result.status).toBe('certified')
-    expect(result.evidence.failed).toBe(0)
+    expect(result.status).toBe('failed')
+    expect(result.evidence.failed).toBe(1)
+    expect(result.evidence.detail).toMatch(/process is not defined|Cannot read properties/)
   })
 })

@@ -6,7 +6,6 @@ import {
   type ToolBuildSpec,
 } from './mission'
 import { runLocalDeterministicSandbox, type LocalDeterministicSandbox, type ToolSandboxRunResult } from './sandbox'
-import { countWords } from './tools/count-words'
 
 const DEFAULT_LOCAL_SANDBOX_LIMITS = {
   timeoutMs: 1500,
@@ -16,13 +15,13 @@ const DEFAULT_LOCAL_SANDBOX_LIMITS = {
 } as const
 
 const LOCAL_TOOL_SANDBOXES: Readonly<
-  Record<string, LocalDeterministicSandbox<string, ReturnType<typeof countWords>>>
+  Record<string, LocalDeterministicSandbox<string, { ok: true; words: number; characters: number; longestWord: number }>>
 > = {
   count_words: {
     id: 'local/count_words/v1',
     capabilities: ['local-deterministic-exec'],
     ...DEFAULT_LOCAL_SANDBOX_LIMITS,
-    execute: (input) => countWords(input),
+    executorId: 'count_words',
     cases: [
       { name: 'empty', input: '', expected: { ok: true, words: 0, characters: 0, longestWord: 0 } },
       { name: 'hello world', input: 'hello world', expected: { ok: true, words: 2, characters: 11, longestWord: 5 } },
