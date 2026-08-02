@@ -25,6 +25,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 
 import {
+  DROPSHIP_ARCHIVED,
   DROPSHIP_ROSTER,
   getDropshipAgentBySlug,
   type DropshipAgentDef,
@@ -418,7 +419,9 @@ const COMPLETE_VARIANT = {
 
 // ── Les scénarios ────────────────────────────────────────────────────────
 
-describe.skipIf(!live)('bench comportemental — copilots dropship importés (FACTURÉ)', () => {
+const benchDisabled = !live || DROPSHIP_ARCHIVED
+
+describe.skipIf(benchDisabled)('bench comportemental — copilots dropship importés (FACTURÉ)', () => {
   afterAll(() => {
     const pass = report.filter((r) => r.verdict === 'PASS').length
     const fail = report.filter((r) => r.verdict === 'FAIL').length
@@ -646,9 +649,15 @@ describe.skipIf(!live)('bench comportemental — copilots dropship importés (FA
     }))
 })
 
-describe.skipIf(live)('bench comportemental — skip', () => {
-  it('OPENAI_API_KEY absent : bench non exécuté (UNAVAILABLE, pas de verdict)', () => {
-    console.warn('[live] OPENAI_API_KEY manquant — le bench comportemental ne peut pas tourner.')
-    expect(DROPSHIP_ROSTER.length).toBe(6)
+describe.skipIf(!benchDisabled)('bench comportemental — skip', () => {
+  it('bench non exécuté (clé absente ou roster archivé)', () => {
+    if (!live) {
+      console.warn('[live] OPENAI_API_KEY manquant — le bench comportemental ne peut pas tourner.')
+    }
+    if (DROPSHIP_ARCHIVED) {
+      console.warn('[live] DROPSHIP_ARCHIVED — roster dropship vide, bench désactivé.')
+    }
+    expect(benchDisabled).toBe(true)
+    expect(DROPSHIP_ROSTER.length).toBe(0)
   })
 })

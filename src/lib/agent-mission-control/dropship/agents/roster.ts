@@ -1,4 +1,8 @@
 /**
+ * ARCHIVÉ 2026-08-02 — roster vide, agents non servis. Les définitions ci-dessous
+ * restent en fichier pour traçabilité git ; rien n'est exposé au catalogue ni
+ * facturé. Réactiver : remplir `DROPSHIP_ROSTER` et `DROPSHIP_ARCHIVED = false`.
+ *
  * AIG-DROPSHIP-001 — LOT 1: import des six copilots de dropship-platform,
  * en config pure.
  *
@@ -34,6 +38,9 @@ import type { AgentAccent, AgentSkill, ConfirmationPolicy } from '../../types'
 // ---------------------------------------------------------------------------
 // Provenance
 // ---------------------------------------------------------------------------
+
+/** Roster archivé : aucun copilot dropship servi par Aigent. */
+export const DROPSHIP_ARCHIVED = true
 
 /** Provenance de l'import — la source de vérité reste le repo dropship. */
 export const DROPSHIP_IMPORT = {
@@ -618,15 +625,12 @@ const SUPER_AGENT: DropshipAgentDef = {
 // Roster
 // ---------------------------------------------------------------------------
 
-export const DROPSHIP_ROSTER: readonly DropshipAgentDef[] = [
-  RESEARCH_AGENT,
-  CURATION_AGENT,
-  ADS_AGENT,
-  MEDIAS_AGENT,
-  DEV_AGENT,
-  SUPER_AGENT,
-] as const
+export const DROPSHIP_ROSTER: readonly DropshipAgentDef[] = [] as const
+
+/** Définitions Lot 1 — non enregistrées tant que `DROPSHIP_ARCHIVED`. */
+void [RESEARCH_AGENT, CURATION_AGENT, ADS_AGENT, MEDIAS_AGENT, DEV_AGENT, SUPER_AGENT]
 
 export function getDropshipAgentBySlug(slug: string): DropshipAgentDef | undefined {
+  if (DROPSHIP_ARCHIVED) return undefined
   return DROPSHIP_ROSTER.find((a) => a.slug === slug)
 }
