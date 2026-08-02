@@ -1,64 +1,49 @@
-# `src/components/ui/` — le kit de primitives
+# `src/components/ui/` — Catalyst officiel (Tailwind Plus)
 
-**14 primitives, toutes consommées.** Ce dossier est du **code du repo**, pas du
-vendor : il est linté, typé et modifiable comme le reste. Il vient à l'origine
-d'un fork de Tailwind Plus Catalyst, mais il n'est plus réaligné sur l'amont —
-cette filiation est une note historique, pas une contrainte.
+**Source** : `catalyst-ui-kit.zip` (Tailwind Plus) — copie dans
+`vendor/catalyst-ui-kit/typescript/`, déployée telle quelle dans ce dossier.
 
-## Ce qu'il contient, et qui s'en sert
+## Règle d'or
 
-| Primitive | Imports | Dépend de Headless UI pour |
-|---|---:|---|
-| `text` (`Text`, `Strong`) | 53 | — |
-| `badge` | 31 | `Button` (variante cliquable) |
-| `heading` (`Heading`, `Subheading`) | 15 | — |
-| `divider` | 15 | — |
-| `link` | 12 | `DataInteractive` (états `data-hover`) |
-| `avatar` | 7 | `Button` (variante cliquable) |
-| `button` (+ `TouchTarget`) | 5 | `Button` |
-| `dialog` | 3 | **Dialog, DialogPanel, DialogBackdrop, DialogTitle** |
-| `textarea` | 2 | `Textarea` |
-| `navbar` | 2 | `Button` |
-| `fieldset` (`Field`, `Label`, `Description`) | 2 | **Fieldset, Legend, Field, Label** |
-| `checkbox` (+ `CheckboxField`) | 2 | **Checkbox, Field** |
-| `table` | 1 | — |
-| `sidebar` | 1 | `Button`, `CloseButton` |
+**Ne pas recolorer le kit.** Pas de `--aig-*` ici. Le kit parle zinc + `dark:` ;
+le graphite produit vit dans `src/theme/tokens.css`, `utilities.css` et les
+classes `aig-*` sur les écrans.
 
-## Headless UI : pourquoi il reste
+`<html class="dark">` dans `layout.tsx` active le mode sombre natif de Catalyst.
 
-`dialog`, `checkbox` et `fieldset` s'appuient sur Headless UI pour ce qui est
-**coûteux et risqué à réécrire** : piège de focus, portail, restitution du focus
-à la fermeture, `aria-*` et association label/champ/description. Les réécrire à
-la main serait une régression d'accessibilité déguisée en simplification.
+## Primitives consommées par le produit (14)
 
-Les autres usages sont superficiels (`Headless.Button` pour les états
-`data-hover`/`data-active`) et pourraient disparaître si le besoin s'en faisait
-sentir. Ce n'est pas un chantier prioritaire.
+| Fichier | Exports utilisés |
+|---|---|
+| `text` | `Text`, `Strong`, `TextLink`, `Code` |
+| `badge` | `Badge`, `BadgeButton` |
+| `heading` | `Heading`, `Subheading` |
+| `divider` | `Divider` |
+| `link` | `Link` |
+| `avatar` | `Avatar` |
+| `button` | `Button`, `TouchTarget` |
+| `dialog` | `Dialog`, `DialogActions`, `DialogBody`, `DialogDescription`, `DialogTitle` |
+| `textarea` | `Textarea` |
+| `navbar` | `Navbar` |
+| `fieldset` | `Field`, `Label`, `Description`, … |
+| `checkbox` | `Checkbox`, `CheckboxField`, `CheckboxGroup` |
+| `table` | `Table`, … |
+| `sidebar` | `Sidebar`, `SidebarItem`, … |
 
-## Modifier une primitive
+## Primitives Catalyst additionnelles (disponibles, non consommées)
 
-1. La gate `check:ui-kit-integrity` ne fige plus ce dossier : elle en vérifie la
-   **substance**. Modifier une primitive est légitime et ne demande aucune
-   régénération. Ce qu'elle refuse, c'est la PERTE — un export que le produit
-   consomme, la cible tactile de 44 px, un marqueur d'accessibilité, ou le
-   retour d'une couleur Tailwind brute.
-2. **Les couleurs viennent des jetons `--aig-*`**, jamais de la palette Tailwind
-   (`zinc-*`, `white`, `sky-500`…). Le kit portait autrefois sa propre couche
-   esthétique : deux autorités visuelles pour une seule interface. Un état se
-   dit avec `--aig-severity-*`, qui porte le sens ; une teinte brute ne dit
-   qu'une couleur. Les variantes `dark:` n'ont plus lieu d'être — les jetons
-   sont déjà sombres.
-3. **Puis ouvrir un écran qui consomme la primitive, et regarder.**
+`alert`, `combobox`, `dropdown`, `input`, `listbox`, `pagination`, `radio`,
+`select`, `switch`, `description-list`, `auth-layout`, `sidebar-layout`,
+`stacked-layout`.
 
-> ⚠️ Le point 3 n'est pas une politesse. Le 2026-07-31, une réécriture de ce kit
-> a supprimé 2438 lignes pour en écrire 257 : `TouchTarget` s'est retrouvé vidé
-> de sa cible tactile de 44 px, `Button` réduit à 4 couleurs sur les 6 réellement
-> consommées. **Les 15 gates sont restées vertes, le build aussi, les 2105 tests
-> aussi.** Rien de ce qui est automatisé ici ne mesure le rendu. Revert
-> `5e2aa63`.
+## Mise à jour depuis l'amont
 
-## Ce que le kit n'impose pas
+1. Décompresser le zip Tailwind Plus Catalyst
+2. Copier `catalyst-ui-kit/typescript/*.tsx` → `src/components/ui/`
+3. Ne pas toucher aux couleurs — `npm run check:ui-kit-integrity` refuse `--aig-*`
+4. Ouvrir un écran consommateur et vérifier le rendu (aucune gate ne mesure les pixels)
 
-Aucune palette, aucun token, aucune structure de page (`CLAUDE.md` §8). Un écran
-peut utiliser ces primitives, les composer, ou s'en passer. Aucune gate ne vérifie
-qu'un composant vient d'ici.
+## Hors périmètre Catalyst dans ce dossier
+
+- `index.ts` — barrel de gouvernance
+- `ui-kit-catalog.tsx` — capture dev-only (Aigent)

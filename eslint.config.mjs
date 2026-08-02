@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     // Agent worktrees: isolated copies of the repo created by workflow workers.
     // They are not source of THIS working tree and must never enter the lint gate.
     ".claude/worktrees/**",
+    // Archives Catalyst / staging zip — référence, pas code produit linté.
+    "vendor/**",
+    ".vendor-staging/**",
   ]),
   {
     rules: {
@@ -28,6 +31,13 @@ const eslintConfig = defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+    },
+  },
+  // Catalyst officiel (Tailwind Plus) — copié tel quel, non reformaté.
+  {
+    files: ["src/components/ui/**/*.tsx"],
+    rules: {
+      "prefer-const": "off",
     },
   },
 ]);

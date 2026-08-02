@@ -184,7 +184,7 @@ describe('ui-kit integrity tactile context', () => {
     expect(res.status).toBe(0)
   })
 
-  it('refuse rounded-2xl et shadow-lg bruts dans le kit', () => {
+  it('refuse un recolorage fork --aig-* dans le kit Catalyst', () => {
     const root = makeWorkspace()
     seedUiKitBase(root)
     put(
@@ -193,13 +193,13 @@ describe('ui-kit integrity tactile context', () => {
       [
         'export function Button(){return <TouchTarget>ok</TouchTarget>}',
         'export function TouchTarget({children}:{children:unknown}){',
-        "  return <span className='rounded-2xl shadow-lg absolute pointer-fine:hidden size-[max(100%,2.75rem)] focus-visible:ring-2 forced-colors:text-[ButtonText] data-disabled:opacity-50'>{children as never}</span>",
+        "  return <span className='bg-(--aig-raised) absolute pointer-fine:hidden size-[max(100%,2.75rem)] focus-visible:ring-2 forced-colors:text-[ButtonText] data-disabled:opacity-50'>{children as never}</span>",
         '}',
         '',
       ].join('\n'),
     )
     const res = run(GATE_UI, root)
     expect(res.status).toBe(1)
-    expect(res.stderr).toMatch(/JETON DS/)
+    expect(res.stderr).toMatch(/FORK RECOLORÉ/)
   })
 })

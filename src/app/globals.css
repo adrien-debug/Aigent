@@ -3,8 +3,9 @@
 /* En Tailwind v4, `dark:` suit `prefers-color-scheme` par défaut : la classe
  * `dark` posée sur <html> ne déclenche rien tant qu'on ne l'a pas déclarée
  * ici. C'est ce variant qui active le mode sombre NATIF de Catalyst
- * (`dark:bg-zinc-900`, `dark:text-white`…) — sans lui, le kit rend en clair et
- * on serait tenté de le repeindre, ce qu'interdit `check:ui-kit-integrity`. */
+ * (`dark:bg-zinc-900`, `dark:text-white`…) — le kit officiel dans
+ * `src/components/ui/` reste non recoloré ; le graphite produit vit dans
+ * `src/theme/*` et les utilities `aig-*`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @import "../theme/tokens.css";
