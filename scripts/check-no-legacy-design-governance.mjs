@@ -68,9 +68,17 @@ if (scannedFiles === 0) {
   failures.push('aucun fichier de gouvernance/injection scanné')
 }
 
-const agents = read('AGENTS.md')
-if (agents && !/Doctrine design historique\s+—\s+non applicable/i.test(agents)) {
-  failures.push('AGENTS.md — mention "Doctrine design historique — non applicable" absente')
+// L'abrogation de l'ancienne doctrine design appartient au fichier qui fait
+// autorité sur le design. Elle vivait dans AGENTS.md quand celui-ci portait
+// encore des règles de surface ; depuis la refonte de gouvernance,
+// DESIGN_DOCTRINE.md est le propriétaire et AGENTS.md ne contient plus aucune
+// règle visuelle. Chercher l'abrogation ici, c'est la chercher là où un lecteur
+// qui doute du design ira réellement regarder.
+const designDoctrine = read('DESIGN_DOCTRINE.md')
+if (!designDoctrine) {
+  failures.push('DESIGN_DOCTRINE.md — fichier absent (autorité design attendue)')
+} else if (!/Doctrine design historique\s+—\s+non applicable/i.test(designDoctrine)) {
+  failures.push('DESIGN_DOCTRINE.md — mention "Doctrine design historique — non applicable" absente')
 }
 
 if (failures.length > 0) {

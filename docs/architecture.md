@@ -50,13 +50,18 @@ Deux points à ne pas arrondir :
   n'est gardée par rien : soit elle reste sous ce préfixe, soit elle apporte sa
   propre authentification explicite — c'est ce que font, délibérément, les deux
   surfaces runtime ci-dessus.
-- **Le fail-closed est total en production seulement.** `auth.ts` porte des
-  fallbacks dev-only (secret de session et mot de passe admin par défaut) qui
-  deviennent inertes dès `NODE_ENV === 'production'`. En dev, sans
-  `AMC_SESSION_SECRET`, une session reste frappable via `POST /api/auth/login`.
+- **Le fail-closed est total, dans tous les environnements.** `auth.ts` ne porte
+  **aucun** secret de session par défaut, **aucun** mot de passe admin de repli,
+  **aucun** bypass — ni en dev, ni en test, ni en production. Sans secret
+  configuré, la frappe de session lève.
 
-Il n'y a plus d'échappatoire de bypass d'authentification : la variable
-`AMC_DEV_BYPASS_AUTH` n'est lue par aucun code.
+  > Corrigé le 2026-08-03. Ce document décrivait des fallbacks « dev-only » qui
+  > n'existent plus : la doctrine annonçait une posture **plus faible** que le
+  > code réel. Invariant propriétaire : `AGENTS.md` § Authentification.
+
+- **Les pages ne sont pas couvertes par le proxy.** Une surface qui lit des
+  données sans passer par une route API doit porter sa propre vérification de
+  session.
 
 ## Carte des répertoires
 
@@ -124,8 +129,8 @@ Tailwind v4 se branche par un unique plugin PostCSS (`postcss.config.mjs`) : il
 n'y a **pas** de `tailwind.config.js`, et une éventuelle config de thème vivrait
 dans `@theme` au sein de `src/app/globals.css`.
 
-Le front se reconstruit **bloc par bloc** sur décision d'Adrien. Aucun layout,
-aucune typographie, aucune navigation ni esthétique permanente ne sont imposés.
-Sur les surfaces de production, les jetons `--aig-*` constituent l'autorité
-sémantique actuelle ; Composer, Lab et Prototype restent libres pour
-l'exploration.
+Les règles qui gouvernent les surfaces vivent dans `DESIGN_DOCTRINE.md` : Design
+System obligatoire en production, jetons `--aig-*` comme autorité sémantique,
+réutilisation du kit avant création, états obligatoires, accessibilité, preuves
+visuelles. Composer, Lab et Prototype restent des zones d'exploration, isolées de
+la production.

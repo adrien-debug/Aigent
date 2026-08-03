@@ -1,5 +1,14 @@
 # Current capabilities — verified state
 
+> **ARCHIVE — remplacé comme autorité par `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`
+> (2026-08-03).**
+>
+> Deux inventaires d'état concurrents produisent deux vérités divergentes ; il
+> n'en reste qu'un. Ce fichier est conservé pour sa colonne « preuve », qui nomme
+> des fichiers ouvrables et reste un bon point d'entrée dans le code. Ses comptes
+> (écrans, exports, étapes de gates) sont **périmés** et ne doivent pas être
+> cités.
+
 > État établi par lecture du code, au SHA où ce fichier a été committé. La colonne
 > **preuve** nomme un fichier que tu peux ouvrir. Une capacité sans fichier de
 > preuve n'a pas sa place dans ce tableau.

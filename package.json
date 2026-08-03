@@ -5,10 +5,11 @@
   "scripts": {
     "audit:dead": "node scripts/audit-dead.mjs",
     "build": "next build",
-    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:no-legacy-design-governance && npm run check:production-visual-authority && npm run check:theme-foundation && npm run check:ui-kit-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:no-legacy-design-governance && npm run check:production-visual-authority && npm run check:theme-foundation && npm run check:ui-kit-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead && npm run check:governance",
     "check:legacy-design-doctrine": "node scripts/check-legacy-design-doctrine.mjs",
     "check:agent-truth": "node scripts/check-agent-truth.mjs",
     "check:dev-port": "node scripts/check-dev-port.mjs",
+    "check:governance": "node scripts/check-governance.mjs",
     "check:lifecycle-truth": "node scripts/check-lifecycle-truth.mjs",
     "check:no-legacy-front": "node scripts/check-no-legacy-front.mjs",
     "check:no-legacy-design-governance": "node scripts/check-no-legacy-design-governance.mjs",

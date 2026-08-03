@@ -1,5 +1,14 @@
 # Known gaps — ce qui manque honnêtement
 
+> **ARCHIVE — remplacé comme autorité par `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`
+> § Limites connues (2026-08-03).**
+>
+> Conservé pour ses explications : ce fichier dit *pourquoi* un écart compte, ce
+> qu'une liste ne capture pas. Mais son inventaire est daté et plusieurs entrées
+> ont été comblées sans qu'il soit mis à jour — le mode de défaillance qu'il
+> décrit lui-même au § « La dérive documentaire ». Ne pas le citer comme état
+> courant.
+
 > Compagnon de `docs/current-capabilities.md`. Ce fichier-là dit dans quel état
 > est chaque capacité ; celui-ci dit pourquoi l'écart compte et ce que le combler
 > impliquerait. Rien ici n'est de la spéculation — chaque manque a été établi en

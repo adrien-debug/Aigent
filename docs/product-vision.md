@@ -1,8 +1,18 @@
 # Aigent — product vision
 
-> What this platform is FOR. Not what is built (`docs/current-capabilities.md`),
-> not how it is built (`docs/architecture.md`), not what is missing
-> (`docs/known-gaps.md`).
+> **ARCHIVE — remplacé par `PRODUCT_DOCTRINE.md` (2026-08-03).**
+>
+> Ce document n'est plus une autorité. Il est conservé parce qu'il décrit
+> fidèlement l'intention d'origine et la raison d'être de la boucle, ce qui reste
+> utile à lire.
+>
+> **Il contient une affirmation désormais fausse** : « Not a runtime host —
+> consumer products execute their own agents » (§ *What Aigent is NOT*). La
+> décision d'architecture retenue est l'inverse — Aigent **est** le runtime
+> gouverné canonique, et les produits consommateurs l'appellent. Voir
+> `PRODUCT_DOCTRINE.md` §3.
+>
+> Ne pas citer ce fichier comme règle.
 
 ## The one sentence
 
