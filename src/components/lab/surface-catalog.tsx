@@ -18,6 +18,7 @@ import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ErrorMessage, Field, Label } from '@/components/ui/fieldset'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -338,6 +339,60 @@ export default function SurfaceCatalog() {
             <p className="aig-text-muted text-2xs">
               Aucun chiffre pendant l&apos;attente : une valeur non lue ne s&apos;affiche jamais.
             </p>
+          </div>
+        </Row>
+
+        <Row title="Erreur" hint="deux registres, jamais confondus">
+          {/*
+            DEUX ERREURS DIFFÉRENTES, et les confondre coûte cher.
+
+            · L'ÉCHEC DE LECTURE dit « je n'ai pas pu savoir ». Il ne se rend
+              jamais en rouge vif : rien n'est cassé côté opérateur, et le
+              peindre comme un incident déclencherait des gestes inutiles.
+              C'est `Unavailable reason="unread"` — le même composant que
+              partout ailleurs dans le produit.
+
+            · L'ERREUR DE SAISIE dit « corrige ceci ». Elle est actionnable,
+              donc elle porte la sévérité `bad` en variante ENCRE
+              (`--aig-severity-bad-ink`) : la teinte nue est calibrée pour
+              émettre sur graphite et tombe à 2.79:1 sur fond clair.
+
+            Le liseré du champ passe lui aussi en `bad-ink` : l'erreur ne doit
+            pas reposer sur la seule couleur du texte d'aide, sinon elle
+            disparaît pour qui ne distingue pas le rouge.
+          */}
+          <div className="aig-surface-elevated flex flex-col gap-4 rounded-lg p-4">
+            <div className="flex flex-col gap-1.5">
+              <p className="aig-text-muted text-2xs uppercase tracking-[0.1em]">
+                Lecture impossible
+              </p>
+              <Unavailable
+                reason="unread"
+                detail="Le backend n'a pas répondu — ce n'est pas un zéro."
+              />
+            </div>
+
+            <Field>
+              <Label className="aig-text text-xs font-medium">Budget maximal (USD)</Label>
+              <Input
+                aria-label="Budget maximal"
+                aria-invalid
+                defaultValue="-12"
+                className="sm:max-w-xs"
+                style={{ borderColor: 'var(--aig-severity-bad-ink)' }}
+              />
+              <ErrorMessage style={{ color: 'var(--aig-severity-bad-ink)' }}>
+                Un budget ne peut pas être négatif.
+              </ErrorMessage>
+            </Field>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <SeverityChip tone="bad">Échoué</SeverityChip>
+              <span className="aig-text-muted text-2xs">
+                L&apos;état d&apos;échec porte toujours son libellé écrit — la teinte seule ne
+                code jamais un statut.
+              </span>
+            </div>
           </div>
         </Row>
 

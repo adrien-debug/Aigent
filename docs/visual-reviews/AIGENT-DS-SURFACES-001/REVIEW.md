@@ -122,7 +122,8 @@ n'est pas une preuve.
 catalogue qui pose côte à côte les six rangs de surface, les trois rangs de
 texte, les six tons de sévérité, les actions, les champs, les états d'absence,
 le **tableau**, les **cartes projet**, le **graphique cuivre**, l'état de
-**chargement** et l'**overlay** (dialog + menu), puis les séparateurs. Elle est
+**chargement**, l'état d'**erreur** et l'**overlay** (dialog + menu), puis les
+séparateurs. Elle est
 rendue **dans `AppShell`**, délibérément — c'est la seule façon de contrôler la
 sidebar sombre et le body clair ensemble.
 
@@ -144,6 +145,16 @@ qu'ils ne se voient pas dans le code :
   l'écran tout en semblant codé. Mesuré au rendu (`rgba(0,0,0,0)`), corrigé par
   `aig-skeleton-bar`, qui porte un vrai aplat volontairement calme : un squelette
   trop contrasté se lit comme du contenu réel.
+- **L'erreur n'existait que comme badge décoratif.** La mission exige les états
+  « vide, loading, erreur, disabled » ; les trois autres avaient leur section, le
+  rouge n'était qu'une pastille dans la rangée des badges. La planche démontre
+  désormais les **deux registres d'erreur du produit, et le fait qu'ils ne se
+  confondent pas** : l'échec de LECTURE (« je n'ai pas pu savoir » — neutre,
+  `Unavailable reason="unread"`, aucun rouge, car rien n'est cassé côté opérateur
+  et le peindre en incident déclencherait des gestes inutiles) et l'erreur de
+  SAISIE (« corrige ceci » — actionnable, donc `--aig-severity-bad-ink`). Le
+  liseré du champ porte lui aussi l'erreur : reposer sur la seule couleur du
+  texte d'aide la ferait disparaître pour qui ne distingue pas le rouge.
 
 Elle vit sous `/lab`, donc hors `NAVIGATION` et `notFound()` en production
 (même garde que `/lab`) : une planche de fabrication laissée accessible en
