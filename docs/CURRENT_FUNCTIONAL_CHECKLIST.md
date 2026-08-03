@@ -13,8 +13,9 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `6b0225cfc7ef6d2b943cb22dff9f3f6318a8e2e6`
-Dernière mise à jour : 2026-08-03 · mission `aigent-governance-reset-001`
+**État de référence** — `main` = `5ffb22e11a713923bd986f0c24b7b89151445d21`
+Dernière mise à jour : 2026-08-03 · mission `aigent-hardening-production-001`
+(branche `mission/aigent-hardening-production-001`, **non mergée**)
 
 ---
 
@@ -36,14 +37,20 @@ Capacités dont l'exécution réelle a été constatée.
 | Authentification fail-closed dans **tous** les environnements | aucun fallback dev ; vérifié ligne à ligne le 2026-08-03 |
 | Ingestion de télémétrie, payload traité comme hostile | plafond avant parse, schéma strict, aucun écho |
 | Double verrou sur écriture distante (confirmation + armement) | aucune mutation avant le garde |
+| **Garde d'identité sur les pages du cockpit** | smoke test : `/`, `/agents`, `/runs` → **302** vers `/sign-in?next=…` ; `/api/agent-ops/**` → **401** ; validé au navigateur sur 6 pages |
+| **Surface de connexion `/sign-in`** | flux complet exercé au navigateur : formulaire → `POST /api/auth/login` → cookie `httpOnly`/`SameSite=Lax` → retour vers `next=` honoré |
+| **`npm run health` dit la vérité** | `STACK HEALTHY` constaté ; sondé dans les deux sens (stack up / Next injoignable) |
+| **`npm run check` vert et identique partout** | exit 0, 19 gates ; l'écart local/CI est fermé |
 
 ## Testé
 
 | Suite | État |
 |---|---|
-| `npm run test` (unitaire, hors ligne) | **2 364 tests, 0 skipped**, 189 fichiers |
+| `npm run test` (unitaire, hors ligne) | **2 462 tests passés + 1 échec attendu**, 192 fichiers |
 | `npm run typecheck` | **0 erreur** |
-| `npm run build` | **OK**, 41 routes |
+| `npm run build` | **OK** |
+| `npm run check` | **exit 0** — 19 gates |
+| Validation navigateur (Chromium, 1440×900 et 390×844) | 10 captures + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` |
 | `check:secrets` (gitleaks) | propre sur l'historique complet |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
 
@@ -76,7 +83,8 @@ Capacités dont l'exécution réelle a été constatée.
 
 ## Déployé
 
-**Rien n'est déclaré déployé.**
+**Rien n'est déclaré déployé.** La mission de durcissement n'a rien déployé et
+n'a pas été mergée.
 
 Vérifié le 2026-08-03 : `.github/workflows/ci.yml` ne contient que deux jobs
 (`check + build`, `sonarqube`) et **aucune étape de déploiement**. Il n'existe ni
@@ -105,27 +113,35 @@ fichier.
 
 Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
-**Sécurité — à traiter en premier**
+> **Sept limites de ce relevé ont été fermées** par la mission
+> `aigent-hardening-production-001` (branche non mergée) : limites 1, 2, 3, 5, 6,
+> 7 et 11. Elles sont barrées ci-dessous avec leur preuve, et non supprimées :
+> une limite qu'on efface est une limite qu'on ne peut plus auditer.
 
-1. **Les pages ne sont pas authentifiées.** Le matcher du proxy ne couvre que
+**Sécurité**
+
+1. ~~**Les pages ne sont pas authentifiées.**~~ **FERMÉE** — proxy inversé, 302
+   vers `/sign-in`, 401 pour l'API ; vérifié au navigateur sur 6 pages, aucune
+   fuite de contenu avant redirection. Les 11 pages ne rendent plus de message
+   interne (corrigé à la source). Ancien texte : Le matcher du proxy ne couvre que
    `/api/agent-ops/**` ; aucune page ne vérifie de session et elles lisent la
    base en direct. Plusieurs rendent un message d'erreur interne dans le HTML.
    Il n'existe plus de page de login : l'UI n'a jamais été derrière la garde.
-2. **Évasion du périmètre repo dans les outils de lecture LangGraph** : les
+2. ~~**Évasion du périmètre repo.**~~ **FERMÉE** — `..` refusé (formes encodées et double-encodées incluses), `list_repo_tree` filtre le chemin demandé. Ancien texte : : les
    segments `..` ne sont pas filtrés et l'URL sort du dépôt scopé, avec le jeton
    serveur. Le contrôle correct existe déjà côté TypeScript.
-3. **Throttle de login contournable** : l'identifiant client est pris à
+3. ~~**Throttle de login contournable.**~~ **FERMÉE** — `CF-Connecting-IP` prioritaire après vérification de la topologie réelle, plus un plafond global. Ancien texte : : l'identifiant client est pris à
    l'extrémité de la chaîne d'en-têtes que le client contrôle.
 4. **Clé API opérateur unique**, non scopée, sans expiration, partagée à
    plusieurs systèmes.
-5. **Advisory de contournement de proxy** sur la version de framework installée —
+5. ~~**Advisory de contournement de proxy.**~~ **FERMÉE** — `next` 16.2.10 → 16.2.12 ; 8 advisories de production (3 high) → 4 (0 high). Ancien texte : sur la version de framework installée —
    or le proxy est la garde unique de toutes les routes mutantes.
 
 **Chaîne de validation**
 
-6. **`npm run check` est rouge en local** et vert en CI : le linter voit des
+6. ~~**`npm run check` rouge en local, vert en CI.**~~ **FERMÉE** — exit 0, 19 gates ; portée d'ignore étroite, sondée dans les deux sens. Ancien texte : et vert en CI : le linter voit des
    fichiers vendorés que git ignore. Même commande, deux verdicts.
-7. **La CI ne conclut jamais** : un job cible un runner inexistant, et
+7. ~~**La CI ne conclut jamais.**~~ **CORRIGÉE, NON PROUVÉE EN EXÉCUTION** — job SonarQube conditionné, `timeout-minutes`, `cancel-in-progress` asymétrique. Le vérifier exige de pousser. Ancien texte : : un job cible un runner inexistant, et
    l'annulation en cascade fait qu'aucun run n'atteint un état terminal. `main`
    n'a aucune protection de branche ni check requis.
 8. **Deux gates prouvées contournables** : le détecteur de code mort accepte une
@@ -134,7 +150,7 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 9. **Une gate sans garde-fou anti-vacuité** : elle afficherait ✓ sur zéro cible.
 10. **Une garde d'accessibilité morte** : elle interdit un nom de classe d'une
     version antérieure de Tailwind, absente du dépôt.
-11. **`npm run health` est faux-rouge en permanence** : il sonde une route
+11. ~~**`npm run health` faux-rouge.**~~ **FERMÉE** — sonde une route gardée ; 401 = HEALTHY, 200 = UNHEALTHY. `STACK HEALTHY` constaté. Ancien texte : : il sonde une route
     supprimée. L'outil anti-faux-vert est lui-même cassé.
 
 **Vérité des données**
@@ -163,15 +179,16 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 ## Prochaines étapes
 
-Ordonnées par rapport valeur / risque.
+Ordonnées par rapport valeur / risque. Les trois premières de la version
+précédente sont faites.
 
-1. **Authentifier les surfaces de production** (limite 1) — le seul point qui
-   expose des données sans décision préalable.
-2. **Filtrer les segments `..`** dans les outils de lecture (limite 2) — une
-   ligne, le contrôle existe déjà ailleurs.
-3. **Rendre la chaîne de validation concluante** (limites 6 et 7) : ignorer les
-   fichiers vendorés côté linter, désarmer le job sans runner.
-4. **Fermer les faux verts de mesure** (limites 12, 13, 14).
+1. **Prouver la CI en exécution** (limite 7) — le correctif est codé et
+   syntaxiquement validé, jamais constaté sur un run réel. Se vérifie au premier
+   push de cette branche.
+2. **`aria-current` sur la navigation** — `DESIGN_DOCTRINE.md` §7 l'impose,
+   `sidebar.tsx` ne projette que `data-current`. Écart préexistant relevé par la
+   validation navigateur ; correctif d'une ligne dans le kit.
+3. **Fermer les faux verts de mesure** (limites 12, 13, 14).
 5. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
    preuves visuelles.
 6. **Brancher la qualification aval** : transmettre un driver pour que shadow et

@@ -91,3 +91,13 @@ docs/visual-reviews/*
 
 # Generated output of `npm run verify:admin-routes` — regenerated on demand.
 tmp/
+
+# EXCEPTION CIBLÉE — AIGENT-HARDENING-PRODUCTION-001.
+#
+# La mission crée une surface de production (`/sign-in`) et déplace toutes les
+# pages derrière une garde d'identité. `DESIGN_DOCTRINE.md` §8 exige une preuve
+# visuelle datée pour toute modification d'une surface de production : sans
+# elle, le relecteur doit croire sur parole qu'un écran qu'il ne peut pas voir
+# respecte la doctrine. Les captures des deux points de rupture sont donc
+# livrées avec la PR. Le reste de `docs/visual-reviews/` reste ignoré.
+!docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/
