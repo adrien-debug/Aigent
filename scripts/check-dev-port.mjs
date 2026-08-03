@@ -54,6 +54,12 @@ const EXEMPT = [
   '.next/',
   // This gate's own prose names the banned ports to forbid them.
   'scripts/check-dev-port.mjs',
+  // Agent worktrees are full checkouts of this repository. Scanning them makes
+  // the gate report every file TWICE — once for the real tree, once per live
+  // worktree — and turns any multi-agent mission red for reasons that have
+  // nothing to do with the code under review. Measured: a single mission with
+  // four workers produced 30 phantom violations, including this gate's own copy.
+  '.claude/worktrees/',
 ]
 
 /**
@@ -83,6 +89,8 @@ async function* walk(dir) {
   for (const entry of entries) {
     const full = join(dir, entry.name)
     if (entry.name === 'node_modules' || entry.name === '.next') continue
+    // Do not descend into agent worktrees — see EXEMPT for why.
+    if (full.includes('.claude/worktrees')) continue
     if (entry.isDirectory()) yield* walk(full)
     else if (SCAN_EXT.test(entry.name)) yield full
   }

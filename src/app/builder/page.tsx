@@ -34,14 +34,16 @@ export const dynamic = 'force-dynamic'
 
 async function loadProjects() {
   try {
-    return { items: buildProjectChoices(await getProjects()), failure: null }
+    return { items: buildProjectChoices(await getProjects()) }
   } catch (err) {
-    return { items: null, failure: err instanceof Error ? err.message : 'lecture impossible' }
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[builder] lecture de la liste des projets impossible', err)
+    return { items: null }
   }
 }
 
 export default async function Page() {
-  const { items, failure } = await loadProjects()
+  const { items } = await loadProjects()
 
   if (items === null) {
     return (
@@ -49,11 +51,7 @@ export default async function Page() {
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={
-            failure
-              ? `La liste des projets n’a pas pu être lue — ${failure}. Ce n’est pas un catalogue vide, c’est un catalogue inconnu.`
-              : 'La liste des projets n’a pas pu être lue. Ce n’est pas un catalogue vide, c’est un catalogue inconnu.'
-          }
+          detail="La liste des projets n’a pas pu être lue. Ce n’est pas un catalogue vide, c’est un catalogue inconnu. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

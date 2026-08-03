@@ -29,20 +29,16 @@ export const dynamic = 'force-dynamic'
 
 async function loadRoster() {
   try {
-    return {
-      agents: await getAvailableAgents(),
-      failure: null as string | null,
-    }
+    return { agents: await getAvailableAgents() }
   } catch (err) {
-    return {
-      agents: null,
-      failure: err instanceof Error ? err.message : 'lecture impossible',
-    }
+    // Détail réel au log serveur uniquement. L'état rendu reste inchangé.
+    console.error('[agents] lecture du catalogue d’agents impossible', err)
+    return { agents: null }
   }
 }
 
 export default async function Page() {
-  const { agents, failure } = await loadRoster()
+  const { agents } = await loadRoster()
 
   // Backend muet : l'écran DIT qu'il ne sait pas. Il ne rend pas une liste vide,
   // qui se lirait comme « aucun agent » — l'inverse de la vérité.
@@ -52,11 +48,7 @@ export default async function Page() {
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={
-            failure
-              ? `Le catalogue d’agents n’a pas pu être lu — ${failure}. Aucune liste n’est affichée : une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.`
-              : 'Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.'
-          }
+          detail="Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

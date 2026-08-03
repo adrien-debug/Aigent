@@ -18,6 +18,16 @@ const eslintConfig = defineConfig([
     // Archives Catalyst / staging zip — référence, pas code produit linté.
     "vendor/**",
     ".vendor-staging/**",
+    // Exemples Tailwind Plus vendorés (364 fichiers .jsx livrés tels quels).
+    // Ils sont ignorés par git (`.gitignore` → `docs/visual-reviews/*`), donc la
+    // CI ne les voit jamais : sans cette entrée, `npm run lint` est VERT en CI et
+    // ROUGE sur une machine de dev où le dossier existe (8 erreurs). Un flat
+    // config eslint ne lit pas `.gitignore` — l'ignore doit être déclaré ici.
+    //
+    // Portée volontairement réduite à CE dossier, pas à `docs/**` : le reste de
+    // `docs/` porte du code réel à linter (`visual-reviews/matiere-phase1/
+    // measure.mjs`, seul fichier lintable suivi par git sous `docs/`).
+    "docs/visual-reviews/tailwind-plus-application-ui-v4/**",
   ]),
   {
     rules: {

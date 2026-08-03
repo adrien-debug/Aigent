@@ -101,12 +101,18 @@ async function loadRepo(repoFullName: string | undefined): Promise<RepoView> {
     const { roots, deeperEntries } = buildRepoTree(entries, TREE_DEPTH)
     return { state: 'read', fullName: repoFullName, roots, deeperEntries, failure: null }
   } catch (err) {
+    // Le message d'une erreur GitHub porte l'URL appelée, le dépôt, parfois un
+    // en-tête d'authentification tronqué. Il va au LOG SERVEUR, jamais dans le
+    // HTML — `detail-screen` rend `repo.failure` tel quel à l'écran. L'ÉTAT
+    // `unreadable` est inchangé : c'est le texte technique qui part, pas la
+    // distinction (DESIGN_DOCTRINE §6).
+    console.error('[projects] lecture de l’arbre du dépôt impossible', repoFullName, err)
     return {
       state: 'unreadable',
       fullName: repoFullName,
       roots: [],
       deeperEntries: 0,
-      failure: err instanceof Error ? err.message : 'lecture du dépôt impossible',
+      failure: 'Lecture du dépôt impossible. Le détail technique est dans les logs du serveur.',
     }
   }
 }

@@ -5,15 +5,27 @@ on:
     branches: [main]
   pull_request:
 
-# Cancel superseded runs on the same ref.
+# Annulation des runs superflus — asymétrique, et c'est délibéré.
+#
+# Défaut corrigé : `cancel-in-progress: true` s'appliquait AUSSI à `main`. Chaque
+# push sur `main` tuait le run précédent, qui n'avait pas encore conclu (voir le
+# job `sonarqube` ci-dessous). Sur les 100 derniers runs : 0 succès, 77
+# `cancelled`. Le run de `main` porte la preuve de l'état du tronc — il doit
+# atteindre un état terminal, même si un autre push suit.
+#
+# Sur une PR au contraire, un nouveau push rend le run précédent périmé : celui-là
+# est annulable sans perte.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
     name: check + build
     runs-on: ubuntu-latest
+    # Mesuré : ce job conclut en ~2 min. 20 min laisse une marge large tout en
+    # garantissant qu'une étape bloquée conclut au lieu de suspendre le run.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,11 +98,35 @@ jobs:
         if: always()
         with: { name: proof, path: proof.json, retention-days: 30 }
 
-  # SonarQube — GPU1 self-hosted runner only (Tailscale, 100.88.191.49:9010).
+  # SonarQube — OPTIONNEL, et désactivé par défaut.
+  #
+  # Ce job cible un runner self-hosted GPU1 (Tailscale). Mesuré le 2026-08-03 :
+  # `gh api repos/adrien-debug/Aigent/actions/runners` renvoie
+  # `{"total_count":0,"runners":[]}` — AUCUN runner n'est enregistré sur le
+  # dépôt. Un job dont le label ne matche aucun runner ne échoue pas : il reste
+  # `queued` indéfiniment (des runs observés à plus de 13 h), et le run entier
+  # n'atteint jamais d'état terminal. `continue-on-error: true` n'y changeait
+  # rien — il ne couvre qu'un job qui CONCLUT en échec, jamais un job qui ne
+  # démarre pas.
+  #
+  # Correctif : l'exécution est conditionnée à une variable de dépôt explicite
+  # `SONAR_SELF_HOSTED_RUNNER_ONLINE`. Tant qu'elle ne vaut pas '1', le job est
+  # `skipped` — il ne suspend plus le run et n'annule plus rien. Quand un runner
+  # GPU1 sera réellement enregistré, poser la variable à '1' le réarme, sans
+  # toucher au workflow.
+  #
+  # `timeout-minutes` est le garde-fou de dernier recours : même la variable
+  # posée à tort (runner déclaré mais hors ligne), le job meurt en 20 min au lieu
+  # de suspendre le run pendant des heures.
+  #
+  # Aucune GitHub Action n'a été ajoutée ici : le dépôt préfère les gates locales,
+  # et `npm run check` (job ci-dessus) reste la seule chaîne bloquante.
   sonarqube:
-    name: SonarQube analysis
+    name: SonarQube analysis (optional)
+    if: vars.SONAR_SELF_HOSTED_RUNNER_ONLINE == '1'
     runs-on: [self-hosted, gpu1]
     continue-on-error: true
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4

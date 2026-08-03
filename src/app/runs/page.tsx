@@ -63,12 +63,9 @@ async function loadRuns() {
   const pageDataResult = await Promise.allSettled([getRunsPageData()]).then((r) => r[0]!)
 
   if (pageDataResult.status === 'rejected') {
-    const err = pageDataResult.reason
-    return {
-      data: null,
-      provenance: null,
-      failure: err instanceof Error ? err.message : 'lecture impossible',
-    }
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[runs] lecture de la fenêtre de runs impossible', pageDataResult.reason)
+    return { data: null, provenance: null }
   }
 
   // Le flux d'événements alimente la SEULE distinction interne/consommateur.
@@ -81,18 +78,14 @@ async function loadRuns() {
     provenance = null
   }
 
-  return {
-    data: pageDataResult.value,
-    provenance,
-    failure: null as string | null,
-  }
+  return { data: pageDataResult.value, provenance }
 }
 
 export default async function RunsPage({ searchParams }: { searchParams?: Promise<SearchParams> }) {
   const params = (await searchParams) ?? {}
   const requestedRunId = firstValue(params.run)
 
-  const { data, provenance, failure } = await loadRuns()
+  const { data, provenance } = await loadRuns()
 
   // Backend muet : l'écran ne dégrade pas en « 0 run », il DIT qu'il ne sait pas.
   if (data === null) {
@@ -101,11 +94,7 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={
-            failure
-              ? `La fenêtre de runs n'a pas pu être lue — ${failure}. Aucun run n'est affiché : une liste vide laisserait croire que la flotte est au repos.`
-              : "La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos."
-          }
+          detail="La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

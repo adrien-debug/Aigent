@@ -18,22 +18,21 @@ export const dynamic = 'force-dynamic'
 async function loadCockpit() {
   const nowMs = Date.now()
   try {
-    return {
-      nowMs,
-      overview: await getDashboardOverview(nowMs),
-      failure: null as string | null,
-    }
+    return { nowMs, overview: await getDashboardOverview(nowMs) }
   } catch (err) {
-    return {
-      nowMs,
-      overview: null,
-      failure: err instanceof Error ? err.message : 'lecture impossible',
-    }
+    // Le détail réel va au LOG SERVEUR, jamais au HTML. Le message d'une
+    // erreur de data layer porte l'URL PostgREST, la table interrogée, ses
+    // filtres, parfois la liste des variables d'environnement attendues :
+    // rendu dans la page, c'est une carte du backend offerte à qui la lit.
+    // L'ÉTAT rendu ne change pas pour autant — « indisponible » reste
+    // « indisponible » (DESIGN_DOCTRINE §6) ; seul le texte technique part.
+    console.error('[cockpit] lecture du tableau de bord impossible', err)
+    return { nowMs, overview: null }
   }
 }
 
 export default async function HomePage() {
-  const { nowMs, overview, failure } = await loadCockpit()
+  const { nowMs, overview } = await loadCockpit()
 
   if (overview === null) {
     return (
@@ -41,7 +40,7 @@ export default async function HomePage() {
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide.${failure ? ` (${failure})` : ''}`}
+          detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

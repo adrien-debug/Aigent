@@ -80,26 +80,87 @@ export async function POST(request: Request) {
 
 const MAX_ATTEMPTS = 10
 const WINDOW_MS = 5 * 60 * 1000 // 5 minutes
-// Hard cap on distinct tracked clients: x-forwarded-for is attacker-supplied,
-// so without a bound a flood of spoofed keys grows this map without limit
-// (expired windows were only pruned when the SAME key came back).
+// Hard cap on distinct tracked clients: the identifying header is
+// attacker-influenced (see clientIdentifier below), so without a bound a
+// flood of spoofed keys grows this map without limit (expired windows were
+// only pruned when the SAME key came back).
 const MAX_TRACKED_CLIENTS = 10_000
 const MAX_KEY_LENGTH = 100 // longest valid textual IP is ~45 chars; don't store megabyte headers as keys
 
+// Global ceiling, independent of any per-client key. Without this, an
+// attacker who forges a fresh client identifier on every request (trivial:
+// X-Forwarded-For is attacker-supplied) bypasses the per-key limiter entirely
+// — each forged identity gets its own fresh MAX_ATTEMPTS budget. This second
+// counter caps total password guesses across ALL clients in the same window,
+// so identifier-forging narrows the attack down to "one shared budget" rather
+// than defeating throttling altogether.
+const GLOBAL_MAX_ATTEMPTS = 100
+const GLOBAL_WINDOW_MS = 5 * 60 * 1000
+let globalAttempts: number[] = []
+
 const attempts = new Map<string, number[]>()
 
-function clientIdentifier(request: Request): string {
+/**
+ * How many reverse-proxy hops between the real client and this app are
+ * trusted to have appended their own address to X-Forwarded-For. Aigent's
+ * production deployment is fronted by a single Cloudflare Tunnel hop — see the
+ * topology diagram in `deploy/app/README.md` — and no other reverse proxy sits
+ * in front of the app process. (The port numbers are deliberately NOT repeated
+ * here: `check:dev-port` bans banned-port literals in code, and a topology
+ * recopied into a comment drifts from the deploy config it claims to describe.)
+ * Kept as an explicit, named constant (not a magic "take the
+ * last element") so the trust assumption is legible and can be corrected in
+ * one place if the topology changes.
+ */
+const TRUSTED_PROXY_HOPS = 1
+
+/**
+ * Exported for direct unit testing (tests/unit/login-route-throttle.test.ts) —
+ * this is pure header-parsing logic with no shared state, so it's safe and
+ * useful to exercise directly rather than only indirectly through POST.
+ */
+export function clientIdentifier(request: Request): string {
+  // Cloudflare terminates the tunnel and sets this header itself — the
+  // client cannot forge it (Cloudflare overwrites any client-supplied
+  // CF-Connecting-IP before it reaches the origin). This is the one header
+  // that identifies the real client IP with certainty on this deployment, so
+  // it's tried first.
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
+  if (cfConnectingIp) return cfConnectingIp.trim().slice(0, MAX_KEY_LENGTH)
+
+  // Fallback for environments without the Cloudflare tunnel in front (local
+  // dev, or a future topology change). X-Forwarded-For is a comma-separated
+  // list appended-to by EACH hop between the client and us; the client
+  // controls everything EXCEPT what our own trusted proxy hops appended. The
+  // real client IP is therefore the element TRUSTED_PROXY_HOPS-from-the-end,
+  // never the leftmost one (which the client fully controls and can spoof to
+  // defeat any per-IP throttle).
   const forwardedFor = request.headers.get('x-forwarded-for')
   if (forwardedFor) {
-    const first = forwardedFor.split(',')[0]?.trim()
-    if (first) return first.slice(0, MAX_KEY_LENGTH)
+    const hops = forwardedFor.split(',').map((h) => h.trim()).filter(Boolean)
+    const index = hops.length - TRUSTED_PROXY_HOPS
+    const candidate = index >= 0 ? hops[index] : hops[0]
+    if (candidate) return candidate.slice(0, MAX_KEY_LENGTH)
   }
   const realIp = request.headers.get('x-real-ip')
   if (realIp) return realIp.trim().slice(0, MAX_KEY_LENGTH)
   return 'unknown'
 }
 
+function isGlobalRateLimited(): boolean {
+  const cutoff = Date.now() - GLOBAL_WINDOW_MS
+  globalAttempts = globalAttempts.filter((t) => t > cutoff)
+  return globalAttempts.length >= GLOBAL_MAX_ATTEMPTS
+}
+
+function recordGlobalFailedAttempt(): void {
+  const cutoff = Date.now() - GLOBAL_WINDOW_MS
+  globalAttempts = globalAttempts.filter((t) => t > cutoff)
+  globalAttempts.push(Date.now())
+}
+
 function isRateLimited(key: string): boolean {
+  if (isGlobalRateLimited()) return true
   const timestamps = attempts.get(key)
   if (!timestamps) return false
   const cutoff = Date.now() - WINDOW_MS
@@ -109,6 +170,7 @@ function isRateLimited(key: string): boolean {
 }
 
 function recordFailedAttempt(key: string): void {
+  recordGlobalFailedAttempt()
   const cutoff = Date.now() - WINDOW_MS
   if (!attempts.has(key) && attempts.size >= MAX_TRACKED_CLIENTS) {
     // Evict fully-expired windows first; if every entry is still live, drop

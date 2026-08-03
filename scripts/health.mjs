@@ -6,7 +6,7 @@
  *
  * Why this exists (AIG-STABILIZATION-004): `npm run dev` runs Next and the
  * LangGraph Agent Server under one `concurrently`. LangGraph died with SIGTERM
- * while Next kept serving, so /admin answered 200 and the stack looked green
+ * while Next kept serving, so the app answered and the stack looked green
  * while every agent run was broken. A port-open probe would have agreed. So the
  * LangGraph check does NOT stop at liveness: it asserts the `agent_builder`
  * graph declared in langgraph.json is actually registered on the server. That
@@ -47,9 +47,42 @@ const PGREST_TIMEOUT_MS = 10_000
 
 // Port de dev ABSOLU 3987, jamais 3000 ni 3210 (voir AGENTS.md). Aligné sur
 // dev-stack.mjs via AIGENT_DEV_PORT ; HEALTH_NEXT_URL reste l'override complet.
-const NEXT_URL =
-  process.env.HEALTH_NEXT_URL ||
-  `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}/admin`
+const NEXT_PORT = Number(process.env.AIGENT_DEV_PORT) || 3987
+const NEXT_ORIGIN = `http://127.0.0.1:${NEXT_PORT}`
+
+/**
+ * CIBLE DE LA SONDE NEXT — `/api/agent-ops/metrics`, et non une page.
+ *
+ * Historique du défaut : cette sonde visait `/admin`, route SUPPRIMÉE au reset
+ * du front. `src/proxy.ts` ne matche que `/api/agent-ops/**`, donc pas de
+ * redirection non plus : Next répondait 404, et 404 était classé unhealthy.
+ * `npm run health` était donc faux-rouge en permanence sur un stack sain —
+ * l'outil anti-faux-vert du dépôt était lui-même cassé.
+ *
+ * Pourquoi une route d'API gardée plutôt qu'une page :
+ *   - les PAGES ne sont pas un point d'observation stable. Elles bougent au gré
+ *     de la reconstruction du front, et l'authentification de page en cours
+ *     (`docs/CURRENT_FUNCTIONAL_CHECKLIST.md` limite 1) peut les faire répondre
+ *     302 vers un écran de connexion. Une cible dont le code varie selon l'état
+ *     de session ne prouve rien de reproductible.
+ *   - `/api/agent-ops/**` est le SEUL préfixe couvert par le matcher du proxy.
+ *     Sans credential, la réponse attendue est un 401 émis par le proxy
+ *     lui-même. Ce 401 prouve DEUX choses d'un coup : Next sert vraiment, ET la
+ *     garde d'identité est branchée et refuse. C'est un signe de SANTÉ.
+ *   - la sonde n'envoie AUCUN credential (ni cookie, ni `x-amc-key`), donc elle
+ *     ne dépend d'aucun secret et ne touche jamais la base : un 401 est renvoyé
+ *     par le proxy avant tout handler. Zéro effet de bord, zéro coût.
+ *
+ * Contrat de classification, volontairement STRICT (cf. classifyNextResult) :
+ * 401 est le seul code sain ici. Un 200 signifierait que la route gardée répond
+ * sans credential — une régression de sécurité, pas une bonne nouvelle — et un
+ * 404 signifierait que le matcher du proxy ne couvre plus la cible. Les deux
+ * sont rapportés UNHEALTHY avec la raison.
+ */
+const NEXT_PATH = '/api/agent-ops/metrics'
+const NEXT_URL = process.env.HEALTH_NEXT_URL || `${NEXT_ORIGIN}${NEXT_PATH}`
+/** Le code que la garde d'identité DOIT produire sans credential. */
+const NEXT_EXPECTED_STATUS = 401
 /** The same fail-closed local endpoint resolver used by agent runs. */
 const LANGGRAPH_URL = resolveAgentServerUrl({
   ...process.env,
@@ -96,6 +129,60 @@ export function classifyHttpResult({ status, error } = {}) {
     return { healthy: true, reason: String(status) }
   }
   return { healthy: false, reason: String(status) }
+}
+
+/**
+ * Classify the NEXT probe against a GUARDED route.
+ *
+ * Règle centrale : un 401 (ou une redirection vers un écran de connexion) N'EST
+ * PAS une panne — c'est la preuve que la garde fonctionne. Le classifieur HTTP
+ * générique ne peut pas le savoir : pour lui `>= 400` est un échec. Ici la
+ * sémantique est inversée et explicite.
+ *
+ * - transport en échec (refus, DNS, timeout) → le stack ne tourne pas ; on le
+ *   DIT, avec une raison lisible, plutôt qu'un rouge indistinct.
+ * - `expected` (401) → HEALTHY : Next sert et le proxy refuse.
+ * - 3xx → HEALTHY : une redirection est une réponse d'une app vivante (une page
+ *   protégée qui renvoie vers un écran de connexion, par exemple).
+ * - 2xx sur une route gardée → UNHEALTHY : la garde ne garde plus. Un vert ici
+ *   serait un faux vert sur une régression de sécurité.
+ * - tout le reste (404, 5xx) → UNHEALTHY avec le code.
+ *
+ * @param {{status?: number, error?: unknown}} result
+ * @param {number} [expected] statut sain attendu de la garde
+ * @returns {{healthy: boolean, reason: string, down: boolean}}
+ */
+export function classifyNextResult({ status, error } = {}, expected = NEXT_EXPECTED_STATUS) {
+  if (error) {
+    const { reason } = classifyTransportError(error)
+    // `down` distingue « le serveur n'est pas là » de « le serveur répond mal ».
+    const down = reason === 'connection refused' || reason === 'dns failure'
+    return {
+      healthy: false,
+      down,
+      reason: down ? `stack not running (${reason})` : `unreachable (${reason})`,
+    }
+  }
+  if (typeof status !== 'number') {
+    return { healthy: false, down: false, reason: 'no response' }
+  }
+  if (status === expected) {
+    return { healthy: true, down: false, reason: `${status} guarded (auth required)` }
+  }
+  if (status >= 300 && status < 400) {
+    return { healthy: true, down: false, reason: `${status} redirect (guard active)` }
+  }
+  if (status >= 200 && status < 300) {
+    return {
+      healthy: false,
+      down: false,
+      reason: `${status} — guarded route answered WITHOUT credential`,
+    }
+  }
+  if (status === 404) {
+    return { healthy: false, down: false, reason: `404 — probe target ${NEXT_PATH} not routed` }
+  }
+  return { healthy: false, down: false, reason: String(status) }
 }
 
 /**
@@ -188,7 +275,12 @@ function elapsedMs(startedAt) {
   return Math.round(performance.now() - startedAt)
 }
 
-/** NEXT — an existing route (/admin). Records status + latency. */
+/**
+ * NEXT — sonde la route gardée `/api/agent-ops/metrics` (voir NEXT_PATH pour le
+ * raisonnement complet du choix de cible). AUCUN credential n'est envoyé : le
+ * 401 attendu vient du proxy, avant tout handler, donc la sonde ne lit rien et
+ * ne coûte rien.
+ */
 async function checkNext() {
   const startedAt = performance.now()
   let outcome
@@ -199,15 +291,16 @@ async function checkNext() {
       cache: 'no-store',
       signal: AbortSignal.timeout(NEXT_TIMEOUT_MS),
     })
-    outcome = classifyHttpResult({ status: res.status })
+    outcome = classifyNextResult({ status: res.status })
   } catch (error) {
-    outcome = classifyHttpResult({ error })
+    outcome = classifyNextResult({ error })
   }
   const ms = elapsedMs(startedAt)
   return {
     name: 'NEXT',
     healthy: outcome.healthy,
     ms,
+    down: outcome.down === true,
     // Same shape either way: the status code (or transport reason) then latency.
     detail: `${outcome.reason}  ${ms}ms`,
     reason: outcome.reason,
@@ -382,6 +475,9 @@ async function main() {
             name: s.name,
             status: s.healthy ? HEALTHY : UNHEALTHY,
             healthy: s.healthy,
+            // true = le service n'est pas joignable du tout (pas démarré), à
+            // distinguer d'un service qui répond mal.
+            down: s.down === true,
             ms: s.ms,
             reason: s.reason,
           })),
@@ -395,6 +491,15 @@ async function main() {
       console.log(formatStatusLine(s.name, s.healthy ? HEALTHY : UNHEALTHY, s.detail))
     }
     console.log(formatStatusLine('STACK', verdict))
+    // Le stack absent et le stack cassé sont deux faits différents : les
+    // confondre en un rouge indistinct fait chercher un bug là où il suffisait
+    // de démarrer le serveur.
+    if (services.some((s) => s.down)) {
+      console.log(
+        `\n[health] Next ne répond pas sur ${NEXT_ORIGIN} — le stack de dev n'est pas démarré.` +
+          `\n         Lance \`npm run dev\` (port ${NEXT_PORT}), puis relance \`npm run health\`.`
+      )
+    }
   }
 
   process.exit(verdict === 'HEALTHY' ? 0 : 1)

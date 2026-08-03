@@ -185,7 +185,14 @@ describe('GET /api/agent-ops/projects/:id/team', () => {
   })
 
   it('2 — the proxy matcher covers the team route path', () => {
-    expect(proxyConfig.matcher).toContain('/api/agent-ops/:path*')
+    // On EXÉCUTE le motif au lieu de comparer sa syntaxe : depuis
+    // AIGENT-HARDENING-PRODUCTION-001 le matcher couvre tout sauf les
+    // exclusions, et une assertion sur la chaîne littérale mesurait la forme du
+    // motif, pas la couverture réelle.
+    const covers = proxyConfig.matcher.some((pattern) =>
+      new RegExp(`^${pattern.replace('/:path*', '(/.*)?')}$`).test('/api/agent-ops/projects/p_1/team'),
+    )
+    expect(covers).toBe(true)
   })
 
   it('3 — malformed project id -> 400', async () => {
