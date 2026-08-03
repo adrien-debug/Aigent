@@ -13,10 +13,10 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `885aef92960aa573df0f5239cc62745c697310d7`
-Dernière mise à jour : 2026-08-04 · mission `aigent-runtime-productization-001`
-(branche `mission/aigent-runtime-productization-001`, **non mergée** — verdict
-**PARTIAL**)
+**État de référence** — `main` = `b4675d35bb1c11cfdb2688305528ba9f332d9c3d`
+(PR #99 mergée, CI post-merge `success` — run `30857825482`)
+Dernière mise à jour : 2026-08-04 · mission `mission/settings-mobile-overflow`
+(branche **non mergée**)
 
 ---
 
@@ -114,7 +114,7 @@ fichier.
 |---|---|
 | **Qualification aval : shadow, replay, qualification runs** | code complet, **0 ligne en base**. La route de qualification ne transmet pas de driver → les étapes retombent systématiquement en « non disponible ». |
 | **Boucle d'amélioration autonome** | la fonction existe et est testée, mais **aucune route ni cron ne l'appelle**. Moteur sans surface. |
-| **Écran de comparaison V1/V2 — RENDU, non observé** | le composant existe et est testé (16 cas, dont le garde contre les scores V2 à 0 % qui afficheraient une régression inventée). Mais `improvement_proposals` est **vide en base** : la vue pleine n'a **jamais été observée rendue**. Codé et vérifié statiquement, pas constaté. |
+| **Écran de comparaison V1/V2 — RENDU, NON PROUVÉ** | le composant existe et est testé (16 cas, dont le garde contre les scores V2 à 0 % qui afficheraient une régression inventée). Mais `improvement_proposals` est **vide en base** : les trois états (V2 disponible / sans V2 / scores non mesurés) n'ont **jamais été observés rendus**. Reste NON PROUVÉ tant qu'aucune proposition réelle n'existe — une absence de donnée ne devient pas un PASS. |
 | **Export autonome d'agent** | capacité **future** (`PRODUCT_DOCTRINE.md` §3), pas l'autorité actuelle. L'artefact généré ne porte pas les outils ni les gardes de l'agent qualifié. |
 | **Canal de retour depuis un artefact autonome** | structurellement inerte : le champ qui déclenche la génération de l'émetteur n'est écrit par aucun chemin, et l'émetteur n'a aucun appelant. |
 | **Filtres autres qu'Agent et Projet** | statut, période, provider, modèle, durée, coût sont consommés **par URL** mais n'ont aucun contrôle d'interface. Le reset ne remet à zéro qu'Agent et Projet — délibérément, pour ne pas effacer en silence un paramètre invisible. |
@@ -186,10 +186,15 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 **Cohérence visuelle**
 
-17a. **`/settings` déborde horizontalement à 390 px.** Mesuré : `max right`
-    **674 px** pour un viewport de 390, sur une `<section class="aig-panel">`
-    large de 658 px — vraisemblablement une grille qui ne retombe pas en une
-    colonne. Le débordement est **clippé** : ni scrollable, ni tronqué
+17a. ~~**`/settings` déborde horizontalement à 390 px.**~~ **FERMÉE, PROUVÉE** —
+    branche `mission/settings-mobile-overflow`. Deux causes distinctes :
+    (1) les `Panel`, items de grille, gardaient `min-width: auto` et refusaient
+    de rétrécir — le `min-w-0` du conteneur ne se propage pas aux enfants ;
+    (2) le `hint` de `Panel` est rendu `ml-auto shrink-0 truncate`, où
+    `shrink-0` **annule** le `truncate`. Mesuré après correctif : **0 élément
+    débordant** et `scrollWidth === clientWidth` aux cinq viewports
+    (390/430/1280/1440/1920), focus clavier visible, console propre.
+    Preuve : `docs/visual-reviews/SETTINGS-MOBILE-OVERFLOW/`. Ancien texte : Le débordement est **clippé** : ni scrollable, ni tronqué
     proprement, donc des noms de variables apparaissent coupés sur la surface
     même qui sert à dire quoi renseigner. Un correctif sur `EnvVarNames` a été
     posé (tokens cassables) — **ce n'était pas la cause**. `/runs` et `/agents`
@@ -224,9 +229,9 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 Ordonnées par rapport valeur / risque. Les trois premières de la version
 précédente sont faites.
 
-1. **Fermer le débordement `/settings` à 390 px** (limite 17a) — la cause est
-   identifiée au niveau de la `<section aig-panel>`, pas encore corrigée.
-2. **Régénérer les preuves visuelles au HEAD final** — les captures existantes
+1. **Observer réellement les trois états V1/V2** — il faut une proposition
+   d'amélioration en base. Tant qu'il n'y en a pas, l'écran reste NON PROUVÉ.
+2. **Régénérer les preuves visuelles des autres surfaces au HEAD final** — les captures existantes
    datent d'un HEAD antérieur aux deux correctifs de ce commit, et trois
    contrôles V1/V2 restent non observables tant qu'aucune proposition
    d'amélioration n'existe en base.
@@ -256,6 +261,8 @@ précédente sont faites.
 | Run consommateur réel | `bff77516-c634-438c-8a9c-e34579e614b4` — `openai` / `gpt-5.4`, $0.019429, 2026-08-04 |
 | Installation consommateur | `inst-development-dc635c1eb45f482fbfad`, projet `proj-tradeagent` |
 | Preuve consommateur | `docs/visual-reviews/AIGENT-RUNTIME-PRODUCTIZATION-001/CONSUMER-PILOT.md` |
+| PR #99 | mergée — `b4675d35` ; CI post-merge `success` (run `30857825482`) |
+| Preuve responsive `/settings` | `docs/visual-reviews/SETTINGS-MOBILE-OVERFLOW/` — 5 captures + REVIEW, 0 débordement aux 5 viewports |
 
 > Un runId de run interne d'Aigent sera consigné ici dès qu'une mission en
 > produira un dans le cadre d'une preuve. La ligne ci-dessus référence un run
