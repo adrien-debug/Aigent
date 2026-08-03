@@ -1,5 +1,11 @@
 # Runbook — Trading Agent Factory (AIG-TRADE-001)
 
+> **ARCHIVE — observation datée, pas une règle active (bandeau posé 2026-08-03).**
+> Un runbook se lit comme un ordre : celui-ci n'en est plus un. Il décrit l'état
+> d'une mission passée et contient au moins une affirmation périmée (« there is
+> no UI: the frontend was reset »), fausse depuis la reconstruction du front.
+> L'état réel vit dans `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`.
+
 Operational procedures for the six founder trading agents. Every LLM-billed step
 is called out explicitly — **do not run those without Adrien's explicit approval**
 (`CLAUDE.md` §3 « quand demander » et §5 « actions destructives »).

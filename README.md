@@ -22,10 +22,15 @@ credentials for the provider a given run selects, data and execution paths
 return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
 
-## Frontend — 15 écrans qui tournent
+## Frontend
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
-partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, gates statiques) :
+partir du **2026-07-31**.
+
+> **Le compte d'écrans et leur état ne vivent pas ici.** Ils vivent dans
+> `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`, seule source cumulative de l'état réel.
+> Un compte recopié dans un README est faux à la mission suivante — ça a déjà
+> été le cas de celui-ci.
 
 | Route | Rôle |
 |---|---|
@@ -50,10 +55,10 @@ partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, gates s
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
 | API · Backend | **Actifs** — `src/app/api/**`, `src/lib/**`, LangGraph, migrations |
 
-**Le design est libre** : aucun layout, aucune typographie, aucune navigation ni
-esthétique permanente n'est imposée (`CLAUDE.md` §8). Sur les surfaces de
-production, les jetons `--aig-*` restent l'autorité sémantique actuelle ; le
-kit `ui/` est un outil disponible, pas une obligation globale.
+**Le Design System est obligatoire sur les surfaces de production**
+(`DESIGN_DOCTRINE.md`). Les jetons `--aig-*` sont l'autorité sémantique ; le kit
+`ui/` et Catalyst se réutilisent avant toute création maison ; toute
+modification d'une surface de production exige une preuve visuelle.
 
 `/lab` (Composer/Lab/Prototype) est une **surface d'exploration** : elle ne crée
 aucune règle produit et ne contourne ni l'accessibilité, ni la vérité des
@@ -222,16 +227,26 @@ désactive explicitement les plugins d'organisation.
 
 ## Where the rules live
 
-**Governance is 100 % local.** `CLAUDE.md` + `AGENTS.md` + the gates declared in
+**Governance is 100 % local.** Four rule files + the gates declared in
 `package.json` are the complete set of rules for this project. No remote
 repository, no external doctrine, no plugin, no governance SHA and no sync
 command is needed to work on Aigent — you can understand and develop it offline
 from this repository alone.
 
-- **`CLAUDE.md`** — autonomy, when to ask, git and `mission/*` branches, secrets,
-  destructive actions, proportionate validation, deployment.
-- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, trust
-  boundaries, data truth, frontend-reset guard.
+- **`PRODUCT_DOCTRINE.md`** — ce qu'est Aigent, qui l'utilise, la décision
+  d'architecture runtime, la boucle create → qualify → execute → observe →
+  improve, et la frontière avec les produits consommateurs.
+- **`DESIGN_DOCTRINE.md`** — le Design System des surfaces de production :
+  autorité des jetons, réutilisation du kit, états obligatoires, accessibilité,
+  preuves visuelles, régime des zones d'exploration.
+- **`AGENTS.md`** — invariants techniques : port, runtime, frontières de
+  confiance, authentification, vérité des données, migrations, shipping.
+- **`CLAUDE.md`** — méthode d'exécution : une issue / une branche / une PR,
+  autonomie, quand demander, staging nommé, STOP en review, merge et
+  déploiement sur ordre explicite.
+- **`docs/CURRENT_FUNCTIONAL_CHECKLIST.md`** — **l'état réel**, cumulatif et
+  prouvé : fonctionnel, testé, mergé, déployé, non fonctionnel, limites,
+  prochaines étapes. À reprendre à chaque mission, jamais à recréer ailleurs.
 - **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
 - **`docs/agent-authoring.md`** — authoring flow and execution paths.
 - **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.

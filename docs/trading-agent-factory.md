@@ -1,5 +1,10 @@
 # Trading Agent Factory (AIG-TRADE-001)
 
+> **ARCHIVE — observation datée, pas une règle active (bandeau posé 2026-08-03).**
+> Contient au moins une affirmation périmée (« there is no UI: the frontend was
+> reset »), fausse depuis la reconstruction du front. L'état réel vit dans
+> `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`.
+
 The mission-specific layer that turns Aigent's generic copilot lifecycle into a
 **trading** agent factory for TradeAgent's ETH-only universe. Everything lives
 under `src/lib/agent-mission-control/market/` and is **read-only, truth-aware,

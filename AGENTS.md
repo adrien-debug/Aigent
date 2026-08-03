@@ -1,285 +1,218 @@
 # AGENTS.md — invariants techniques d'Aigent
 
-> **Discipline de ce fichier** : les invariants techniques qui, s'ils sont violés,
-> cassent le produit ou produisent un mensonge. Rien d'autre.
+> **Discipline de ce fichier : les invariants techniques, et rien d'autre.**
+> Un invariant est une règle qui, violée, casse le produit ou lui fait dire
+> quelque chose de faux.
 >
-> — Méthode de travail, git, sécurité, déploiement → `CLAUDE.md`.
-> — Ce qui existe et dans quel état → `README.md`, `docs/current-capabilities.md`.
-> — Pourquoi la plateforme existe → `docs/product-vision.md`.
-> — Comment elle est structurée → `docs/architecture.md`.
-> — Ce qui manque → `docs/known-gaps.md`.
+> Ce fichier ne contient **aucune** règle de git, de mission, d'organisation ou
+> de design, et **aucun état produit daté**. S'il y en a, elles sont au mauvais
+> endroit.
 >
-> **Gouvernance 100 % locale.** `CLAUDE.md` + `AGENTS.md` + les gates de
-> `package.json` sont l'intégralité des règles de ce projet. Aucun repository
-> distant, aucune doctrine externe, aucun plugin, aucun SHA de gouvernance,
-> aucune commande de synchronisation n'entre ici. On peut comprendre et
-> développer Aigent hors ligne à partir de ce seul repository.
+> — Ce qu'est Aigent → `PRODUCT_DOCTRINE.md`
+> — Comment travailler → `CLAUDE.md`
+> — Les surfaces → `DESIGN_DOCTRINE.md`
+> — Ce qui marche aujourd'hui → `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`
 >
-> **L'état produit n'est pas de la doctrine.** Les rosters, les comptes d'agents,
-> ce qui est câblé ou partiel changent toutes les semaines : ça vit dans `docs/`,
-> pas ici. Ne recopie pas d'état volatile dans ce fichier, et ne mets pas de
-> numéro de ligne dans une règle — une ancre `fichier:ligne` est morte au premier
-> refactor et transforme un invariant vrai en affirmation fausse.
+> **Gouvernance 100 % locale.** Les quatre fichiers de règles ci-dessus et les
+> gates de `package.json` sont l'intégralité des règles de ce projet. Aucun
+> repository distant, aucune doctrine externe, aucun plugin, aucune commande de
+> synchronisation n'entre ici.
+>
+> **Une ancre `fichier:ligne` est morte au premier refactor.** On nomme un
+> fichier et un symbole, jamais un numéro de ligne.
 
-## Ce qu'est Aigent
+## Next.js — lire la doc avant de coder
 
-Le plan de contrôle où des agents LLM sont créés, qualifiés, livrés, observés et
-améliorés. Aigent n'est pas le produit que touche l'utilisateur final : les agents
-qu'il produit tournent dans des produits **consommateurs**, ces produits
-rapportent leurs runs ici, et Aigent transforme cet historique en V2 gouvernées.
+Cette version de Next a des ruptures d'API par rapport aux connaissances
+d'entraînement. Lire le guide pertinent dans `node_modules/next/dist/docs/`
+avant d'écrire du code framework.
 
-```
-   create → qualify → ship ──► PRODUIT CONSOMMATEUR exécute l'agent
-      ↑                                    │
-      └──── improve ◄──── télémétrie ◄─────┘
-```
-
-Tout est server-only et **fail-closed** : sans le backend live et sans les
-credentials du provider choisi, les chemins de données et d'exécution renvoient
-`503` / `ProviderUnavailableError`. **Il n'existe aucun chemin mock** pour
-l'authoring ni pour les runs.
-
-## Next.js — lis la doc avant de coder
-
-Ce n'est pas le Next.js de ton entraînement : cette version a des ruptures d'API,
-de conventions et de structure. Lis le guide pertinent dans
-`node_modules/next/dist/docs/` avant d'écrire du code framework, et tiens compte
-des avis de dépréciation. En particulier : la garde d'identité est `src/proxy.ts`
-(convention `proxy`) — **il n'y a pas de `middleware.ts`**.
+En particulier : **la garde d'identité est `src/proxy.ts`** (convention `proxy`).
+Il n'existe pas de `middleware.ts`.
 
 ## Port de dev — 3987
 
-Le dev Aigent tourne sur le port **3987**. Cette machine fait tourner beaucoup
-d'autres serveurs Next ; le 3000 a toujours été disputé, et le **3210 est mort le
-2026-07-30** (un autre chantier s'y est installé et a squatté Aigent). Le 3987 est
-choisi hors de la bande 3000-3400 où ils vivent tous.
+Le dev d'Aigent tourne sur **3987**.
 
-- Ne jamais lancer le dev d'Aigent sur **3000, 3001 ou 3210** — les trois ports
-  bannis par `scripts/check-dev-port.mjs`.
-- Ne jamais tuer un process sur l'un de ces ports : il ne nous appartient pas.
-- Ne jamais s'y reconnecter « juste pour vérifier » : ce qui répond là est le
-  chantier de quelqu'un d'autre, et le lire comme si c'était Aigent produit un
-  diagnostic faux.
+- **Ne jamais** lancer le dev sur **3000, 3001 ou 3210** — bannis par
+  `check:dev-port`.
+- **Ne jamais** tuer un process sur ces ports : il ne nous appartient pas.
+- **Ne jamais** s'y connecter « pour vérifier » : ce qui répond là est le
+  chantier d'un autre, et le lire comme si c'était Aigent produit un diagnostic
+  faux.
 
-`scripts/dev-stack.mjs` résout le port depuis `AIGENT_DEV_PORT` (défaut 3987) et
-refuse de tuer un listener qu'il ne peut pas prouver être son propre serveur
-(double preuve : `cwd` **et** commande). LangGraph tourne sur `:2024`.
+Le port se résout depuis `AIGENT_DEV_PORT`. Le stack de dev refuse de tuer un
+listener qu'il ne peut pas prouver être son propre serveur (double preuve : `cwd`
+**et** commande). LangGraph tourne sur `:2024`.
 
-## Frontend — en reconstruction, par blocs
-
-Gate : `npm run check:no-legacy-front`.
-
-Le front historique a été entièrement supprimé, puis **la reconstruction a
-commencé le 2026-07-31** par un premier bloc fourni par Adrien (shell applicatif :
-sidebar mobile en `Dialog`, rail desktop, colonne secondaire).
-
-- **`src/components/` est de nouveau légitime.** Le construire est le plan, pas
-  une régression — la gate ne l'interdit plus.
-- **Ce qui reste démoli et doit le rester** : la console `/admin`, le marketing
-  `(site)/`, la page `/login`, `src/theme.css`, le dossier `design/`, et
-  l'ancien arbre `src/components/console|agent-ops|views|shell|marketing`. La
-  gate échoue si l'un d'eux réapparaît, sur disque ou en import.
-- **Stack UI** : Tailwind v4 (branché par le seul plugin PostCSS — pas de
-  `tailwind.config.js`, la config de thème vivrait dans `@theme` du CSS),
-  Headless UI, Heroicons.
-- **API et runtime intacts** : `src/app/api/**`, `src/lib/**`, `src/langgraph/**`
-  et `src/proxy.ts` restent la voie d'accès produit.
-- **Free design** : aucune règle de ce repository n'impose de layout, de
-  typographie, de navigation ni de Storybook. Les blocs arrivent sur décision
-  d'Adrien ; ne les anticipe pas. Voir `CLAUDE.md` §8.
-
-Conséquence sur les gates : celles qui auditent des composants se réarment
-d'elles-mêmes maintenant que la cible existe (`audit:dead`, `check:rsc-boundary`).
-Une gate sans cible doit le **dire**, jamais afficher un ✓ silencieux.
-
-**Doctrine design historique — non applicable.** Une ancienne doctrine
-(zéro-scroll obligatoire, viewport lock, densité imposée, gates `check:ds` /
-`check:catalyst`, agent « Design System Guardian ») ne gouverne plus Aigent.
-`docs/cockpit-catalyst-migration.md` est une **trace archivée**, pas une règle.
-Gate : `check:no-legacy-design-governance`.
-
-**Règle explicite** : les préférences esthétiques externes ne sont pas des
-contraintes produit. Toute contrainte frontend doit être validée par le
-repository Aigent (`AGENTS.md`, `CLAUDE.md` §8, gates branchées). Conserver :
-sécurité, vérité des données, accessibilité, intégrité du kit UI local
-(`check:ui-kit-integrity` — substance : exports consommés, cible tactile 44 px
-en contexte tactile, marqueurs d'accessibilité, absence de perte silencieuse),
-qualité code.
-
-**Autorité visuelle de production actuelle — les jetons `--aig-*`.** Sur les
-surfaces de production, les statuts métier s'expriment avec une autorité
-sémantique unique (aujourd'hui `--aig-*` / `--aig-severity-*`) pour éviter les
-contradictions entre écrans. Cette autorité peut évoluer par mission dédiée :
-elle n'est pas une vérité éternelle.
-
-**Composer / Lab / Prototype** sont des zones d'exploration. Elles peuvent
-tester des palettes, gradients, composants expérimentaux et visualisations sans
-devenir une règle produit automatiquement.
-
-**Catalyst** est une bibliothèque disponible. `src/components/ui/**` est le kit
-actuel du repository, modifiable comme le reste du code.
-
-## Frontières de confiance — trois, séparées exprès
+## Frontières de confiance — quatre, séparées exprès
 
 | Surface | Appelant | Credential |
 |---|---|---|
-| `/api/agent-ops/**` | opérateur, ou automatisation d'Aigent | cookie de session HMAC (`auth.ts`) **ou** header `x-amc-key` |
-| `/api/runtime-telemetry` | un agent déployé chez un **consommateur** | son propre jeton `AIGENT_RUNTIME_TELEMETRY_TOKEN` |
-| `/api/runtime/v1/**` | un produit consommateur lisant ses agents | son propre jeton `AIGENT_RUNTIME_API_TOKEN` (`bearer-token-auth.ts`) |
+| `/api/agent-ops/**` | opérateur, ou automatisation d'Aigent | cookie de session HMAC **ou** header `x-amc-key` |
+| `/api/runtime/v1/**` | un produit consommateur | son propre jeton runtime |
+| `/api/runtime-telemetry` | un agent déployé chez un tiers | son propre jeton de télémétrie |
+| `/api/runtime-telemetry/consumer` | une **installation** consommateur identifiée | un jeton **par installation**, haché au repos, révocable |
 
-- **`src/proxy.ts` ne garde que `/api/agent-ops/**`** (son `matcher`). Une route
-  mutante placée ailleurs n'est gardée par **rien** : soit elle reste sous ce
-  préfixe, soit elle apporte sa propre authentification explicite — c'est ce que
-  font, délibérément, les deux surfaces runtime ci-dessus.
-- **`/api/runtime-telemetry` est monté HORS de `/api/agent-ops/**` volontairement** :
-  l'appelant est un agent déployé chez un tiers, pas un opérateur. Il s'authentifie
-  avec SON jeton, **jamais** `AMC_API_KEY`. Son payload est traité comme hostile :
-  plafond 16 Ko, schéma Zod strict, scan de motifs de secrets, et **rien n'est
-  renvoyé en écho** — pas même un `err.message`.
-- **Les valeurs de jetons ne sont jamais partagées** entre ces trois surfaces ;
-  seule la mécanique d'extraction et de comparaison constant-time est mutualisée.
-- **Fail-closed en production.** Nuance à connaître : `auth.ts` porte des
-  fallbacks **dev-only** (secret de session et mot de passe admin par défaut,
-  `authConfigured()` vrai) **inertes dès `NODE_ENV === 'production'`**. En dev,
-  sans `AMC_SESSION_SECRET`, une session reste donc frappable via
-  `POST /api/auth/login`. N'énonce jamais ce fail-closed sans le qualificatif
-  « en production ».
+Règles dures :
+
+- **`src/proxy.ts` ne garde que `/api/agent-ops/**`.** Une route mutante posée
+  ailleurs n'est gardée par **rien** : soit elle reste sous ce préfixe, soit elle
+  apporte sa propre authentification explicite.
+- **Les pages ne sont pas couvertes par le proxy.** Une surface qui lit des
+  données sans passer par une route API doit porter sa propre vérification de
+  session. Ne jamais supposer que le proxy protège un écran.
+- **Les valeurs de jetons ne sont jamais partagées** entre ces surfaces. Seules
+  la mécanique d'extraction et la comparaison constant-time sont mutualisées.
+- **Toute comparaison de secret est constant-time.** Sans exception.
+- Le payload de télémétrie est traité comme **hostile** : plafond de taille avant
+  parse, schéma strict, scan de motifs de secrets, et **rien n'est renvoyé en
+  écho** — pas même un `err.message`.
+- **Aucune réponse d'erreur ne renvoie un message interne.** Ni stack, ni corps
+  PostgREST, ni nom de variable d'environnement, ni écho d'entrée. Le détail va
+  au log serveur ; le client reçoit un message générique.
+
+## Authentification — fail-closed, sans nuance
+
+`auth.ts` est **fail-closed dans tous les environnements**. Il n'existe **aucun**
+secret de session par défaut, **aucun** mot de passe admin de repli, **aucun**
+bypass — ni en dev, ni en test, ni en production. Sans secret configuré, la
+frappe de session lève.
+
+> Cette formulation corrige une version antérieure de ce fichier qui décrivait
+> des fallbacks « dev-only » et ordonnait de qualifier le fail-closed par « en
+> production ». Ces fallbacks ont été **supprimés délibérément** et ne doivent
+> pas être réintroduits : la doctrine décrivait une posture **plus faible** que
+> le code réel.
+
+Les variables d'environnement sont lues **à chaque appel**, jamais capturées au
+chargement du module : une capture rendrait la posture dépendante de l'ordre de
+démarrage.
 
 ## Vérité des données
 
-- **Une valeur non mesurée reste `null`**, jamais coercée en `0` dans les
-  agrégations et les contrats. Une absence de run n'est pas 0 % de succès ; une
-  absence de score n'est pas un score de 0 ; une API injoignable n'est pas saine.
-  Dictionnaire : `docs/metrics-canon.md`.
-- **Aucun provider ni modèle par défaut fabriqué** dans le contrat canonique
-  (`available-agents.ts`) : non résolu → `null` + `unavailableFields`, jamais
-  `'openai'` ni `'gpt-…'`. Tenu par `check:agent-truth`.
-- **Pas de faux zéro dans la trace de cycle de vie**, et `active_in_consumer`
-  reste le littéral `'unknown'` — Aigent n'a aucun canal de lecture vers l'état
-  d'activation d'un workspace consommateur. Tenu par `check:lifecycle-truth`.
-- **La télémétrie ne fabrique pas de provider** : un provider manquant reste
-  `null` plutôt que d'être deviné — un provider inventé produirait un coût de 0,
-  c'est-à-dire un mensonge.
+- **Une valeur non mesurée reste `null`**, jamais coercée en `0`. Une absence de
+  run n'est pas 0 % de succès ; une absence de score n'est pas un score de 0 ; une
+  API injoignable n'est pas saine. Dictionnaire : `docs/metrics-canon.md`.
+- **Aucun provider ni modèle par défaut fabriqué** dans le contrat canonique :
+  non résolu → `null` + champs déclarés indisponibles.
+- **Un provider non vérifié n'est pas un provider.** Quand un runtime déclare
+  qu'il n'a pas pu prouver ce qui a exécuté, la valeur est annulée, pas recopiée.
+- **Pas de faux zéro dans la trace de cycle de vie.** L'état d'activation chez un
+  consommateur reste littéralement inconnu tant qu'Aigent n'a aucun canal de
+  lecture vers lui.
+- **Un compteur de sécurité non mesuré ne vaut jamais 0.** Zéro signifie
+  « mesuré, et propre » — l'affirmation la plus forte du système. Une absence qui
+  se lit comme une preuve de propreté est le défaut le plus grave de cette
+  famille.
 
-Ces gates sont **étroites** : `check:lifecycle-truth` ne couvre qu'un fichier, et
-aucune ne scanne les agrégations de `dashboard-overview.ts` / `agent-detail.ts` /
-`data.ts`, là où la règle compte le plus. La règle y tient par discipline, pas par
-gate — ne prétends pas l'inverse.
+**Portée réelle des gates de vérité** : `check:render-truth` couvre les surfaces
+de rendu **et** les trois agrégateurs principaux du data layer.
+`check:agent-truth` couvre le contrat canonique. Aucune ne couvre l'ensemble des
+producteurs du data layer : la règle y tient par discipline. Ne pas prétendre
+l'inverse, dans un sens comme dans l'autre.
 
-## Invariants agents & runtime
+## Runtime & exécution
 
 - **LangGraph est le seul runtime produit exécutable.** Imposé à quatre endroits
-  indépendants : la création (le schéma n'accepte que le littéral `langgraph`), la
-  garde d'exécution, le contrat canonique (`executable`), et le registre des
-  runtimes (`langgraph` est le seul `creatable`).
-- **Piège LangGraph — c'est l'ASSISTANT qui manque, pas le runtime.** Un copilot
-  en `langgraph` SANS assistant provisionné ne tombe pas en erreur : il tourne
-  contre le graphe nu, hérite des outils génériques legacy, et répond « pas de
-  données » avec `tool_call_count = 0` **en paraissant sain**. **Ordre
-  obligatoire** : `scripts/ensure-langgraph-assistants.ts` (qui transporte
-  outils / prompt / modèle dans `config.configurable` **et persiste
-  `copilots.assistant_id`**) PUIS le flip de runtime. Flipper le runtime seul
-  recrée le bug. **Aucune gate ne détecte un assistant manquant** — c'est une
-  discipline de script, pas une garantie automatique.
-- **Garde d'exécution — `POST /api/agent-ops/copilots/:id/run` est fail-closed.**
-  Un run n'est autorisé que si **les trois** conditions tiennent : `status` vaut
-  `active`, `unresolvedToolIds` est vide, **et** `runtime === 'langgraph'`. Sinon
-  409 avec les raisons concrètes. S'y ajoutent 503 (backend ou credentials
-  absents, catalogue indisponible), 404 (agent inconnu), 409 (double soumission en
-  cours) et 409 (version qui ne sert plus). **Ne recalcule jamais le statut dans
-  une route** : il vient de `getAvailableAgent`, la même dérivation que le
-  catalogue.
-- **`active` signifie PROUVÉ** : l'activation exige un run `completed`, zéro
-  tentative unsafe et un modèle vérifié. Jamais un simple changement de statut.
-- **Endpoint LangGraph** : `src/langgraph/agent-server-endpoint.mjs` refuse un
-  endpoint distant hors production **et** un endpoint local en production. En dev,
-  `LANGGRAPH_API_URL` doit viser `http://127.0.0.1:2024` — `.env.local` pointe sur
-  un hôte distant, donc **surcharge la variable dans tout script de
-  provisioning**, sinon il lève.
-- **La description d'un outil porte le contrat que le schéma ne peut pas dire.**
-  Sur le chemin LangGraph — le seul chemin produit — chaque outil est bâti avec un
-  vrai schéma Zod : la forme des arguments est bien transmise au modèle. Mais tout
-  ce que la forme n'exprime pas — quand appeler l'outil, ce que fait un appel sans
-  argument, ce que signifie un champ — ne vit que dans la description. Cas réel
-  documenté : une description muette a fait refuser au modèle un « liste les
-  projets » que l'appel sans argument satisfaisait déjà. (Sur le chemin direct
-  model-router, réservé aux runners de test/benchmark, le schéma envoyé est vide :
-  là, la description est 100 % du contrat.)
-- **Runtime multi-provider — ne pas régresser en « OpenAI-only »** : le
-  model-router direct route vers `openai`, `google` (Gemini, tool-use inclus) et
-  `local` (vLLM, opt-in explicite) ; le graphe LangGraph fait de même via
-  `src/langgraph/model-provider.mjs`. **`mistral` est le seul provider non câblé** :
-  erreur typée, jamais de fallback muet. Détail : `docs/agent-authoring.md` §3.
-- **Factory métier read-only** : le domaine trading
-  (`src/lib/agent-mission-control/market/`) n'a **aucun** chemin d'écriture réel
-  (ordres, comptes, ERP). Donnée absente → verdict `UNAVAILABLE` avec provenance,
-  jamais inventée. Un `BLOCKED` de Sentinel est **terminal** : aucun chemin de
-  code ne laisse un autre agent le renverser.
-- **Matérialisation d'agents chez un provider = étape facturée**, jamais exécutée
-  sans accord explicite (`CLAUDE.md` §3).
+  indépendants : la création, la garde d'exécution, le contrat canonique et le
+  registre des runtimes.
+- **Garde d'exécution fail-closed.** Un run n'est autorisé que si **les trois**
+  conditions tiennent : statut actif, aucun outil non résolu, runtime
+  `langgraph`. Sinon, refus avec les raisons concrètes.
+- **Ne jamais recalculer le statut dans une route.** Il vient du contrat
+  canonique — la même dérivation que le catalogue. Trois copies d'une règle de
+  sécurité divergent à la première évolution.
+- **`active` signifie PROUVÉ** : un run réussi, zéro tentative unsafe, un modèle
+  vérifié. Jamais un simple changement de statut.
+- **Piège de l'assistant manquant.** Un copilot en `langgraph` **sans assistant
+  provisionné** ne tombe pas en erreur : il tourne contre le graphe nu, hérite
+  d'outils génériques, et répond « pas de données » **en paraissant sain**.
+  L'ordre est obligatoire : **provisionner l'assistant, PUIS basculer le
+  runtime**. Aucune gate ne détecte ce cas — c'est une discipline, pas une
+  garantie.
+- **Endpoint LangGraph** : un endpoint distant est refusé hors production, un
+  endpoint local est refusé en production.
+- **La description d'un outil porte le contrat que le schéma ne peut pas dire** :
+  quand l'appeler, ce que fait un appel sans argument, ce que signifie un champ.
+  Une description muette a déjà fait refuser au modèle un appel que le schéma
+  autorisait.
+- **Multi-provider — ne pas régresser en « OpenAI-only ».** Plusieurs providers
+  sont câblés ; celui qui ne l'est pas lève une **erreur typée**, jamais un
+  fallback muet.
+- **Les plafonds sont appliqués, pas décoratifs.** Un budget de coût se vérifie
+  **avant** chaque appel facturé, pas après.
+- **Un timeout n'est pas un refus.** Une absence de réponse et une réponse
+  négative sont deux faits différents ; les confondre décrit faussement un appel
+  qui a peut-être été accepté et facturé.
+- **Factory métier read-only** : le domaine trading n'a aucun chemin d'écriture
+  réel. Donnée absente → verdict indisponible avec provenance. Un verdict
+  bloquant est **terminal** : aucun chemin ne le renverse.
+
+## Données & migrations
+
+- Postgres atteint via **PostgREST** avec une clé service-role, **server-only**.
+- **Toute nouvelle table active RLS et grante explicitement `service_role`.** Le
+  grant « on all tables » ne couvre pas le futur ; des tables ont déjà vécu sans
+  RLS pour cette raison exacte.
+- **Une migration est additive par défaut.** Une migration destructive exige un
+  accord explicite (`CLAUDE.md`).
+- **Une colonne de mesure est nullable.** `NOT NULL DEFAULT 0` sur une métrique
+  transforme structurellement une absence en zéro.
+- **Ne jamais réutiliser un numéro de migration.** Vérifier le dernier numéro
+  **sur disque**, jamais dans un document.
+- Les écritures multi-tables qui doivent être atomiques passent par une **RPC
+  transactionnelle**, pas par une séquence d'appels.
 
 ## Shipping & télémétrie
 
-- **Une écriture GitHub réelle exige DEUX verrous** : `confirm: true` dans le
-  corps **et** `GITHUB_PUSH_ENABLED=1` dans l'environnement. Sinon c'est un
-  dry-run — et c'est le défaut correct pour une écriture distante destructive.
-- **Après provisioning, Aigent ne fait que POUSSER des agents.** Les gestes
-  activate / rebind / deploy-version appartiennent au workspace consommateur
-  (`consumer-bootstrap.ts`). C'est la raison structurelle pour laquelle
-  `active_in_consumer` reste `unknown`.
-- **La télémétrie est un canal unique pour deux sources** : les runs rapportés par
-  les agents déployés ET les runs internes d'Aigent (`runner.ts` →
-  `emitInternalRunTelemetry`), plus les événements de cycle de vie. Une seule
-  table, `runtime_telemetry_events`.
-- Les agrégations (`summarizeRuntimeTelemetry`, `summarizeFleetRuntimeTelemetry`,
-  `diagnoseTelemetryHealth`, `listRecentRuntimeTelemetryEvents`) sont des
-  **consommées par `/` et `/runs`**. État chiffré et nuances :
-  `docs/known-gaps.md`, propriétaire unique de cette ligne.
+- **Une écriture distante réelle exige DEUX verrous** : une confirmation
+  explicite dans la requête **et** un armement au niveau de l'environnement.
+  Sinon c'est un dry-run — et c'est le défaut correct.
+- **Aucune mutation avant le garde.** Un dry-run qui a déjà écrit n'est pas un
+  dry-run.
+- **La télémétrie est un canal unique pour deux sources** : les runs rapportés et
+  les runs internes. Une seule table.
+- **La provenance d'un run est distinguée à la lecture.** Confondre un run
+  interne avec un run consommateur produit une conclusion fausse sur le
+  comportement en production.
 
-## Gates — celles qui tournent vraiment
+## Gates — `package.json` fait foi
 
-**`package.json` fait foi.** `npm run check` exécute, dans l'ordre :
-
-`typecheck` · `lint:fast` (oxlint) · `lint` (eslint) · `check:no-legacy-front` ·
-`check:no-legacy-design-governance` · `check:production-visual-authority` ·
-`check:ui-kit-integrity` · `check:agent-truth` ·
-`check:lifecycle-truth` ·
+`npm run check` exécute, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
+`check:no-legacy-front` · `check:no-legacy-design-governance` ·
+`check:production-visual-authority` · `check:theme-foundation` ·
+`check:ui-kit-integrity` · `check:agent-truth` · `check:lifecycle-truth` ·
 `check:registry-parity` · `check:registry-integrity` · `check:dev-port` ·
 `check:render-truth` · `check:rsc-boundary` · `check:schema-rebuildable` ·
-`check:secrets` (gitleaks) · `audit:dead`.
+`check:secrets` · `audit:dead` · `check:governance`.
 
-`npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
-`build`.
+`npm run verify` ajoute `quality:dead`, `test` et `build`.
 
-**Cette chaîne est entièrement statique et hors ligne.** Les deux gates qui
-interrogent la base live — `check:tool-rows` et `check:tool-definitions` — en sont
-volontairement sorties : sans backend elles s'auto-skippent (donc elles ne
-mesuraient rien en CI, précisément là où elles prétendaient protéger) et elles
-rendaient `npm run check` dépendant du réseau. Ce sont des **commandes
-d'exploitation**, à lancer explicitement pour auditer la base. Leur option
-`--fix` **écrit en base** : ne la passe jamais par réflexe.
-
-Hors chaîne : `test:live` (opt-in, tape GPU1 + OpenAI, coûte de l'argent).
-**Aucune gate ne mesure le rendu** — `check:ui-kit-integrity` lit du texte
-(exports, classes, marqueurs), pas des pixels. Un anneau de focus présent mais
-invisible, un contraste insuffisant ou une primitive cassée lui échappent.
+**Cette chaîne est statique et hors ligne.** Les gates qui interrogent la base
+live en sont volontairement sorties : sans backend elles s'auto-skippent, donc
+elles ne mesuraient rien là où elles prétendaient protéger. Ce sont des commandes
+d'exploitation. Leur option d'écriture ne se passe jamais par réflexe.
 
 **Une gate verte est une information étroite** : elle dit « la règle que
-j'implémente n'est pas violée », jamais « l'écran est bon ». La carte des angles
-morts est dans `scripts/README-gates.md` — la colonne « ne garantit PAS » est la
-colonne utile. Une gate qui n'a rien pu mesurer doit le **dire** ; un ✓ silencieux
-sur zéro cible est un mensonge.
+j'implémente n'est pas violée », jamais « l'écran est bon ». **Aucune gate ne
+mesure le rendu.** La carte des angles morts est dans `scripts/README-gates.md` —
+la colonne « ne garantit PAS » est la colonne utile.
+
+**Une gate qui n'a rien pu mesurer doit le dire.** Un ✓ silencieux sur zéro cible
+est un mensonge, et ce repository en a déjà produit.
 
 ## Sources de vérité, dans l'ordre
 
-1. Le **code et les contrats** du repository — l'autorité finale sur les faits.
-2. Les **gates** de `package.json` — l'autorité sur ce qui est réellement vérifié.
-3. `CLAUDE.md` et `AGENTS.md` — les règles.
-4. `README.md`, `docs/current-capabilities.md`, `docs/known-gaps.md` — l'état
-   produit : daté, faillible, à recouper avec le code.
-5. Les documents de `docs/` portant un bandeau d'archive — des **observations
-   datées**, jamais des règles.
+1. Le **code et les contrats** — l'autorité finale sur les faits.
+2. Les **gates branchées** — l'autorité sur ce qui est réellement vérifié.
+3. `PRODUCT_DOCTRINE.md`, `AGENTS.md`, `CLAUDE.md`, `DESIGN_DOCTRINE.md` — les
+   règles.
+4. `docs/CURRENT_FUNCTIONAL_CHECKLIST.md` — l'état réel, daté, avec ses preuves.
+5. Les documents `docs/` portant un bandeau **ARCHIVE** — des observations
+   datées, **jamais** des règles.
 
-Contradiction entre deux fichiers → le plus spécifique et le plus récent gagne, et
-l'écart se corrige dans le fichier propriétaire. N'ouvre jamais une troisième
+Contradiction entre deux fichiers → le plus spécifique gagne, et l'écart se
+corrige **dans le fichier propriétaire**. Ne jamais ouvrir une troisième
 doctrine.
+

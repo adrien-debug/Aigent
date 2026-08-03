@@ -1,234 +1,175 @@
-# CLAUDE.md — gouvernance du workspace Aigent
+# CLAUDE.md — méthode d'exécution
 
-> **Ce fichier et `AGENTS.md` sont la gouvernance complète de ce repository.**
-> Tout ce qui régit le travail sur Aigent est ici ou dans `AGENTS.md`. Aucun autre
-> repository, aucune doctrine distante, aucun plugin, aucun SHA externe, aucune
-> commande de synchronisation n'est nécessaire pour travailler sur ce projet.
-> Si une source extérieure prétend gouverner Aigent, elle a tort.
+> **Ce fichier dit COMMENT on travaille sur Aigent. Rien d'autre.**
+> Il ne contient aucune doctrine produit, aucune règle de design, aucun
+> invariant technique. S'il y en a, elles sont au mauvais endroit.
 >
-> **Périmètre de ce fichier** : méthode de travail, git, sécurité, déploiement.
-> Les invariants techniques (runtime, auth, port, vérité des données) vivent dans
-> `AGENTS.md`. L'état produit réel vit dans `README.md` et `docs/`.
-> Une règle vit dans **un seul** fichier ; ailleurs on y renvoie.
+> — Ce qu'est Aigent → `PRODUCT_DOCTRINE.md`
+> — Invariants techniques → `AGENTS.md`
+> — Les surfaces → `DESIGN_DOCTRINE.md`
+> — L'état réel → `docs/CURRENT_FUNCTIONAL_CHECKLIST.md`
 
 @AGENTS.md
 
-## 1. Hiérarchie — quatre niveaux, rien d'autre
+## 1. Hiérarchie — quatre niveaux
 
 1. **Instruction explicite d'Adrien** pour la mission courante.
-2. **`CLAUDE.md`** (ce fichier) — méthode, git, sécurité, déploiement.
-3. **`AGENTS.md`** — invariants techniques du produit.
-4. **Gates réellement branchées** dans `package.json` (`npm run check`) — arbitre
-   final : une gate rouge gagne sur toute phrase écrite dans un `.md`.
+2. **Les quatre fichiers de règles** : `PRODUCT_DOCTRINE.md`, `AGENTS.md`,
+   `CLAUDE.md`, `DESIGN_DOCTRINE.md`.
+3. **Gates réellement branchées** dans `package.json` — arbitre final : une gate
+   rouge gagne sur toute phrase écrite dans un `.md`.
+4. Le **code et les contrats réels**. Quand un document et le code se
+   contredisent, le code dit la vérité et c'est le document qu'on corrige.
 
-En dessous, le **code et les contrats réels** du repository tranchent : quand un
-document et le code se contredisent, le code dit la vérité et c'est le document
-qu'on corrige.
+Les rapports de mission et les documents d'archive ne sont **jamais** des règles
+actives — ce sont des observations datées.
 
-Les rapports de mission, les documents d'architecture et les archives de `docs/`
-**ne sont jamais des règles actives** — ce sont des observations datées.
+## 2. Une issue, une branche, une PR
 
-## 2. Autonomie par défaut
+- Une mission = une branche `mission/<nom-court>` = une PR.
+- **Lire la mission avant d'agir.** Entièrement. Une mission mal lue coûte plus
+  cher qu'une mission lue lentement.
+- **Faire ce qui est demandé, entièrement.** « Refais tout » = tout. Si une
+  partie n'a pas été faite, le dire **en premier et en clair**.
+- **Ne pas réarchitecturer sans demande.** Si on demande un bouton, on ne
+  redessine pas la page. Si on demande un correctif, on ne refond pas le module.
+- **Un seul intégrateur git** par mission. Les sous-agents produisent des
+  fichiers ; ils ne committent pas, ne poussent pas, n'ouvrent pas de PR.
 
-Agis sans demander pour tout ce qui est réversible : écrire du code, créer une
-branche, lancer les gates, corriger un test, supprimer un fichier temporaire,
-choisir une option de conception ordinaire. Un doute sur un détail ? Prends le
-défaut le plus raisonnable, annonce-le en une ligne, continue.
+## 3. Autonomie
 
-**Fais ce qui est demandé, entièrement.** « Refais tout » = tout. Si une partie
-n'a pas été faite, dis-le en premier et en clair.
+**Agir sans demander** pour tout ce qui est réversible : écrire du code, créer
+une branche, lancer les gates, corriger un test, supprimer un fichier temporaire,
+choisir une option de conception ordinaire. Un doute sur un détail ? Prendre le
+défaut le plus raisonnable, l'annoncer en une ligne, continuer.
 
-## 3. Quand demander — c'est permis, et parfois attendu
+## 4. Demander — la liste est courte et fermée
 
-Poser une question n'est **pas** un échec d'autonomie. Demande une clarification
-avant d'agir quand l'ambiguïté peut produire :
+Demander **avant d'agir**, en une ligne, avec l'option recommandée :
 
-- une suppression importante (fichiers, tables, historique) ;
-- une migration destructive ou une action sur des données de production ;
-- une réécriture d'architecture ou de contrat métier ;
-- une décision visuelle structurante (§8) ;
-- une modification de la gouvernance elle-même (§9) ;
-- un coût externe significatif (appels LLM facturés en volume, matérialisation
-  d'agents chez un provider).
+- **destructif** : suppression de fichiers, de tables, d'historique ; migration
+  destructive ; reset d'une base ;
+- **architecture** : réécriture d'une couche ou d'un contrat métier ;
+- **coût réel** : appels facturés en volume, matérialisation chez un provider ;
+- **merge** ;
+- **déploiement** ;
+- **changement de doctrine** (§9).
 
-Formule la question en une ligne, propose l'option que tu recommandes, et fais
-pendant ce temps tout ce qui ne dépend pas de la réponse.
+Pour **tout le reste**, l'autonomie est la norme et la question est du bruit.
 
-Pour tout le reste — décisions réversibles, faible risque — l'autonomie reste la
-norme et la question est du bruit.
+Pendant qu'on attend une réponse, faire tout ce qui ne dépend pas d'elle.
 
-## 4. Sécurité — secrets
+## 5. Git
+
+- `stage → commit → push` de la branche de mission se déroulent d'un trait une
+  fois la validation passée. Pousser une branche de mission ne demande **aucune**
+  autorisation séparée.
+- **Staging nommé** : stage les fichiers écrits, nommément. Jamais `git add -A`
+  ni `git add .` quand d'autres fichiers traînent dans l'arbre.
+- **`git fetch` avant toute conclusion sur l'état distant.** Un arbre local
+  propre ne prouve rien sur `origin`. C'est arrivé sur ce repo : `origin/main`
+  avait avancé de cinq commits pendant qu'un `git status` local restait propre.
+- **Jamais `git push --force` sur `main`.** Sur une branche de mission qui
+  n'appartient qu'à soi, réécrire l'historique est permis.
+- Ne jamais réécrire un commit qui appartient à un autre agent actif.
+- Deux agents n'écrivent jamais dans le même working tree. Un sous-agent qui doit
+  écrire travaille en **worktree isolé**.
+- Sur demande explicite d'Adrien : `merge`, `rebase`, `revert`, `reset --hard`,
+  `branch -d/-D`, `cherry-pick`, `push`, `tag` sont autorisés sans redemander.
+  Avant un reset destructif de commits locaux, poser un tag `recovery/*`.
+
+**Aucun script de ce repository ne commit, ne pousse, n'ouvre une PR ni ne
+configure GitHub de sa propre initiative.** Un script d'audit ou de diagnostic
+(`--help`, `--check`, `--dry-run`) ne produit **aucune écriture**.
+
+## 6. STOP en review — le merge est un ordre
+
+- Une PR prête et **non mergée** est un état **normal et complet**. Ce n'est pas
+  un échec : c'est la fin attendue d'une mission.
+- **Le merge exige un ordre explicite d'Adrien.**
+- **`push ≠ deploy`.** Le déploiement est une décision **séparée**, qui exige son
+  propre ordre explicite, même immédiatement après un merge.
+
+## 7. Validation — proportionnée
+
+Ce qu'on lance dépend de ce qu'on a touché. Il n'y a pas de suite obligatoire.
+
+**Toujours, quand du code est modifié** : `typecheck` · `lint` · les tests
+ciblés du périmètre · les invariants métier réellement concernés.
+`npm run check` couvre le statique en une commande et c'est le défaut
+raisonnable ; `npm run verify` quand le build ou une surface de rendu est touché.
+
+**Seulement quand c'est applicable** : tests navigateur, captures, migration,
+intégration externe.
+
+**Quand une surface de production a bougé : ouvrir l'écran et REGARDER.** Une
+preuve visuelle est obligatoire (`DESIGN_DOCTRINE.md` §8). Un typecheck vert ne
+prouve rien sur un rendu.
+
+**Ne jamais faire passer une gate artificiellement** (`@ts-ignore`, `as any`
+posés pour masquer). Une exception légitime vit dans la config, justifiée.
+
+**Ne jamais annoncer « ça marche » sans l'avoir constaté.** « Codé, non
+vérifié » est une réponse acceptable ; une affirmation fausse ne l'est pas. Une
+gate verte prouve uniquement ce que cette gate mesure.
+
+**Réparer hors périmètre n'est pas la mission.** Une erreur préexistante se
+signale ; elle ne se corrige pas au passage sans demande.
+
+## 8. Secrets
 
 - Un secret ne s'affiche pas, ne se logge pas, ne se committe pas, ne se met pas
   dans un prompt. Dans le code, une clé se lit via `process.env`.
 - Si tu croises un secret en clair, ne le recopie nulle part.
 - Ne jamais committer `.env.local`.
-- **Hook local** : `npm run hooks:install` câble `core.hooksPath=scripts/hooks`.
-  Le `pre-commit` lance `gitleaks protect --staged --redact` et refuse le commit
-  si un secret est détecté. À faire une fois après un clone.
-- `npm run check:secrets` rejoue `gitleaks` sur tout l'historique ; il fait partie
-  de `npm run check` et tourne aussi en CI.
-
-## 5. Actions destructives
-
-Exigent un plan et un accord explicite d'Adrien **avant** :
-
-- migration destructive, `drop`, reset d'une base de production ;
-- écrasement d'un secret de production ;
-- suppression d'une branche distante ou réécriture d'un historique déjà poussé ;
-- toute action à coût réel non demandée (paiement, matérialisation facturée).
-
-Ne l'exigent pas — supprime librement quand c'est utile ou demandé : branches
-locales fusionnées, worktrees propres, fichiers temporaires, artefacts générés,
-caches. « Ne rien perdre » ne veut pas dire « ne rien supprimer ».
-
-## 6. Git
-
-**Workflow normal : une branche `mission/*` par mission, une PR par mission.**
-
-- Une mission importante ouvre une branche `mission/<nom-court>`. Le travail
-  direct sur `main` n'est pas le mode par défaut.
-- **Un seul intégrateur git** par mission. Les sous-agents produisent des
-  fichiers ; ils ne committent pas, ne poussent pas, n'ouvrent pas de PR.
-- Deux agents n'écrivent jamais dans le même working tree en même temps. Un
-  sous-agent qui doit écrire travaille dans un **worktree isolé**, nettoyé en fin
-  de mission (sauf s'il porte du travail non intégré — dans ce cas, signale-le).
-- **Staging nommé** : stage les fichiers que tu as écrits, nommément. Évite
-  `git add -A` / `git add .` quand d'autres fichiers traînent dans l'arbre.
-- `stage → commit → push` de la branche de mission se déroulent d'un trait une
-  fois la validation passée. Pousser la branche de mission ne demande pas
-  d'autorisation séparée.
-- **Le merge dans `main` exige un ordre explicite d'Adrien.** Une PR prête et non
-  mergée est un état normal et complet, pas un échec — annonce-le clairement.
-- **`git fetch` avant toute conclusion sur l'état distant.** Un arbre local propre
-  ne prouve rien sur `origin` : `main` local peut être en retard, une PR peut avoir
-  été mergée entre-temps, `origin/main` peut avoir avancé sans toi. Avant
-  d'affirmer « rien n'a été poussé », « la PR est en attente », « `main` est à jour »
-  ou de lancer un merge, **fetch d'abord et lis le résultat**. C'est arrivé sur ce
-  repo : `origin/main` avait avancé de cinq commits pendant qu'un `git status`
-  local restait propre.
-- **Jamais `git push --force` sur `main`.** Sur une branche de mission qui
-  n'appartient qu'à toi, réécrire l'historique est permis.
-- Ne réécris jamais (`reset` / `rebase` / `amend` / `force`) un commit qui
-  appartient à un autre agent actif.
-- Sur demande explicite d'Adrien : `merge`, `rebase`, `revert`, `reset --hard`,
-  `branch -d/-D`, `worktree remove`, `cherry-pick`, `push`, `tag` sont autorisés
-  sans redemander confirmation. Avant un reset destructif de commits locaux, pose
-  un tag `recovery/*` d'abord.
-
-**Aucun script de ce repository ne doit committer, pousser, ouvrir une PR ou
-configurer GitHub de sa propre initiative.** Un script d'audit, de diagnostic ou
-d'aide (`--help`, `--check`, `--dry-run`) ne produit **aucune écriture** : ni
-fichier, ni git, ni GitHub, ni secret, ni CI, ni configuration machine. Toute
-écriture exige une action explicite et identifiable de l'appelant.
-
-## 7. Validation avant push — proportionnée
-
-Ce qu'on lance dépend de ce qu'on a touché. Il n'y a pas de suite obligatoire.
-
-**Toujours, quand du code est modifié** :
-
-- `npm run typecheck`
-- `npm run lint`
-- les tests ciblés du périmètre modifié
-- `npm run check:secrets` (inclus dans `npm run check`)
-- les invariants métier réellement concernés par le changement
-- `npm run build` quand une surface de build est touchée
-
-En pratique, `npm run check` couvre tout le statique en une commande et c'est le
-défaut raisonnable ; `npm run verify` (check + knip + tests + build) quand le
-changement touche le build ou une surface de rendu. La composition exacte des
-deux chaînes est dans `package.json` — c'est elle qui fait foi, pas un `.md`.
-
-**Seulement quand c'est applicable** — jamais par principe : tests navigateur,
-captures, tests visuels, Storybook, audit de composants, tests frontend,
-migration de base, tests d'intégration externe. **Aucune gate visuelle n'est
-requise tant que le frontend est volontairement vide** (`AGENTS.md` § Frontend).
-
-Ne fais jamais passer une gate artificiellement (`@ts-ignore`, `as any` posés
-pour masquer). Une exception de lint légitime vit dans la config, justifiée.
-
-**Ne jamais annoncer « ça marche » sans l'avoir constaté.** « Codé, non vérifié »
-est une réponse acceptable ; une affirmation fausse ne l'est pas. Une gate verte
-prouve uniquement ce que cette gate mesure — la carte des angles morts est dans
-`scripts/README-gates.md`.
-
-## 8. Front & design — libre
-
-Le futur front est libre, avec une frontière claire entre **production** et
-**exploration**.
-
-Sur les surfaces de **production**, on garde la cohérence sémantique :
-
-- une seule autorité de statut métier à la fois ;
-- les couleurs sémantiques passent par l'autorité de production en cours
-  (aujourd'hui les jetons `--aig-*`) ;
-- focus, disabled et accessibilité restent fiables ;
-- aucune valeur absente n'est inventée.
-
-Cette autorité est **actuelle**, pas éternelle : un token, une primitive ou le
-kit UI peuvent évoluer dans une mission dédiée, validée explicitement.
-
-Sur les surfaces **Composer / Lab / Prototype**, l'exploration est libre :
-palettes locales, gradients, classes Tailwind directes, composants
-expérimentaux, Motion/React Flow/canvas/visualisations. Une exploration ne
-devient jamais une règle produit automatiquement.
-
-Catalyst est un **outil disponible**, pas une obligation globale. Aucune gate ne
-doit figer un layout, une esthétique, une palette de marque ou une typographie.
-
-Ce qui reste, et qui ne touche pas au visuel :
-
-- **Pas de refonte non demandée** : si Adrien demande un bouton, ne redessine pas
-  la page.
-- **Navigateur piloté (Playwright/Chrome)** : toujours le fermer en fin, même sur
-  erreur. Jamais le profil Chrome quotidien d'Adrien. Jamais de contournement de
-  MFA/CAPTCHA.
-
-Les choix UI arriveront avec les blocs et les missions futurs. Ne les anticipe
-pas ici.
+- `npm run hooks:install` câble le `pre-commit` qui refuse un commit contenant un
+  secret. À faire une fois après un clone.
 
 ## 9. La gouvernance ne se modifie pas en passant
 
-`CLAUDE.md`, `AGENTS.md`, `.claude/settings.json` et `.claude/agents/*.md` ne se
-modifient que dans une **mission dédiée à la gouvernance**, demandée comme telle
-par Adrien. Une mission de code ne les touche pas au passage.
+`PRODUCT_DOCTRINE.md`, `AGENTS.md`, `CLAUDE.md`, `DESIGN_DOCTRINE.md`,
+`.claude/settings.json` et `.claude/agents/*.md` ne se modifient que dans une
+**mission dédiée à la gouvernance**, demandée comme telle par Adrien. Une mission
+de code ne les touche pas au passage.
 
 Corollaire : **aucun mécanisme automatique ne réécrit ces fichiers.** Pas de
-synchronisation, pas de repin, pas de mise à jour de doctrine, pas de script de
-setup qui réinstalle des règles ou des gates. Si une commande extérieure au
-repository propose de le faire, ne la lance pas — signale-la à Adrien.
+synchronisation, pas de doctrine distante, pas de script de setup qui réinstalle
+des règles. Si une commande extérieure au repository propose de le faire, ne pas
+la lancer — le signaler.
 
-## 10. Déploiement
+## 10. Sous-agents
 
-**`push ≠ deploy`. Le déploiement exige un ordre explicite d'Adrien**, quelle que
-soit la qualité du travail livré. Aucun agent ne déploie de sa propre initiative.
-
-**Fait vérifié le 2026-07-30** : ce repository n'a **aucun auto-déploiement**.
-`.github/workflows/ci.yml` ne contient que deux jobs — `check + build` et
-`sonarqube` — et aucune étape de déploiement. Il n'existe ni `vercel.json`, ni
-`railway.json`, ni `fly.toml`, ni `netlify.toml`. Les fichiers de `deploy/` sont
-des `docker-compose` lancés à la main sur GPU1.
-
-Conséquence : **un push demandé par Adrien ne déploie rien et doit être exécuté.**
-Si un mécanisme de déploiement automatique est câblé plus tard, cette section est
-l'endroit où le dire — avec sa preuve.
-
-## 11. Sous-agents
-
-- Petite tâche → conversation principale, pas de fan-out.
-- Mission moyenne ou complexe → quelques workers sur des périmètres disjoints, et
-  **un seul intégrateur** qui touche git et consolide.
+- Petite tâche → conversation principale, **pas de fan-out**.
+- Mission moyenne ou complexe → quelques workers sur des **périmètres disjoints**,
+  et **un seul intégrateur** qui touche git.
+- **Ownership exclusif** : deux agents ne possèdent jamais le même fichier. Un
+  worker déclare son périmètre et s'y tient.
 - Un worker rapporte des fichiers et une validation. Il ne commit pas, ne pousse
   pas, n'ouvre pas de PR, ne déploie pas.
-- Chaque agent déclare son périmètre et s'y tient. Les fiches de
-  `.claude/agents/` décrivent des domaines techniques, pas une autorité.
 
-## 12. Rapport
+**Aucun audit global long sans demande explicite.** Auditer tout le repository
+parce qu'on a croisé un défaut n'est pas de l'initiative, c'est un changement de
+mission non autorisé. On signale ce qu'on a vu, en une ligne, et on continue.
 
-Proportionné à la tâche : ce qui a été fait · les fichiers · la preuve quand elle
-existe · le SHA · ce qui reste. Pas de bloc de rapport imposé, pas de cérémonie.
+## 11. Checklist fonctionnelle
 
-Distingue toujours ce que tu **sais**, ce que tu **déduis**, et ce qui est
-**indisponible**. N'invente jamais une donnée ; une donnée absente se dit absente,
-elle ne devient pas un zéro.
+`docs/CURRENT_FUNCTIONAL_CHECKLIST.md` est la **source cumulative unique** de
+l'état réel.
+
+- **La reprendre à chaque mission** — la lire avant d'agir, la mettre à jour
+  avant de livrer.
+- **Ne jamais la recréer ailleurs.** Pas de second tableau d'état dans un
+  rapport, un README ou un doc de mission.
+- **Ne jamais déclarer fonctionnel ce qui est seulement codé.**
+- La mettre à jour à chaque **review**, **rework**, **merge** et **déploiement**.
+
+## 12. Rapport final — court
+
+Proportionné à la tâche : ce qui a été fait · les fichiers · la preuve · le SHA ·
+ce qui reste. Pas de cérémonie, pas de bloc imposé, pas de récapitulatif de ce
+qui a déjà été dit.
+
+Distinguer toujours ce qu'on **sait**, ce qu'on **déduit**, et ce qui est
+**indisponible**. Une donnée absente se dit absente ; elle ne devient pas un
+zéro.
+
