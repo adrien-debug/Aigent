@@ -95,6 +95,18 @@ function firstValue(raw: string | string[] | undefined): string {
 }
 
 /**
+ * Alias historique de `agent`. L'onglet « Historique » d'une fiche Agent
+ * (`object-tabs.ts`) pointe vers `/runs?copilot=<id>` — le vocabulaire du data
+ * layer (`AgentRun.copilotId`), pas celui de ce filtre. Les deux sont acceptés
+ * ICI, dans l'unique parseur, plutôt que réconciliés dans la page : un second
+ * endroit qui traduit `copilot` → `agent` serait une deuxième logique de
+ * parsing, exactement ce qu'on refuse. `agent` gagne quand les deux sont
+ * présents, et c'est la seule forme réécrite dans l'URL par
+ * `serializeRunsFilters`.
+ */
+export const AGENT_PARAM_ALIASES = ['agent', 'copilot'] as const
+
+/**
  * URL → filter state. Unknown/By-hand values fall back to the default rather
  * than filtering everything out: a hand-edited `?status=banana` shows the full
  * list (and the Status select reads "All"), never a silently empty table that
@@ -110,7 +122,7 @@ export function parseRunsFilters(params: RawSearchParams | undefined): RunsFilte
 
   return {
     q: firstValue(params.q).slice(0, 200),
-    agent: firstValue(params.agent),
+    agent: firstValue(params.agent) || firstValue(params.copilot),
     project: firstValue(params.project),
     status: isStatus(status) ? status : '',
     period: isPeriod(period) ? period : DEFAULT_RUNS_FILTERS.period,
@@ -134,6 +146,25 @@ export function serializeRunsFilters(state: RunsFilterState): string {
   if (state.duration) params.set('duration', state.duration)
   if (state.cost) params.set('cost', state.cost)
   return params.toString()
+}
+
+/**
+ * État de filtre → URL `/runs` complète, avec la sélection de run optionnelle.
+ *
+ * UNE seule construction d'URL pour cet écran. Le serveur l'utilise pour les
+ * liens de ligne (`buildHref`) et le client pour la navigation de filtre : deux
+ * appelants, une seule règle d'ordre et d'omission des défauts. Une deuxième
+ * concaténation à la main dériverait au premier filtre ajouté.
+ *
+ * `run` est écrit EN DERNIER et n'est jamais recopié depuis l'état de filtre :
+ * la sélection n'est pas un filtre, elle se compose avec lui.
+ */
+export function buildRunsHref(state: RunsFilterState, runId?: string | null): string {
+  const qs = serializeRunsFilters(state)
+  const params = new URLSearchParams(qs)
+  if (runId) params.set('run', runId)
+  const query = params.toString()
+  return query ? `/runs?${query}` : '/runs'
 }
 
 export function hasActiveFilters(state: RunsFilterState): boolean {

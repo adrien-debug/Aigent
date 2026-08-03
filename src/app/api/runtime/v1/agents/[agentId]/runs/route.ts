@@ -6,7 +6,8 @@ import { getPublishedAgent } from '@/lib/agent-mission-control/runtime-catalogue
 import {
   RUNTIME_CONTRACT_VERSION,
   isValidAgentId,
-  requireRuntimeApiAuth,
+  resolveRuntimeTenant,
+  tenantCanSeeProject,
   toRuntimeRunStatus,
 } from '@/lib/agent-mission-control/runtime-api-types'
 import type { ModelProvider } from '@/lib/agent-mission-control/types'
@@ -38,8 +39,9 @@ function upstreamFailureStatus(err: unknown): 502 | 504 {
  * still declare a tool that resolves to no registered handler.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ agentId: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const tenant = auth.tenant
 
   const { agentId } = await params
   if (!isValidAgentId(agentId)) {
@@ -81,9 +83,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
   const idempotencyKey = (request.headers.get('idempotency-key') ?? '').trim().slice(0, 200) || null
   if (idempotencyKey) {
     try {
+      // Scoped by project_id when the tenant is an installation, so a replayed
+      // idempotency key cannot surface another tenant's prior run — this select
+      // is a read, and a read of a foreign tenant's run is exactly the leak
+      // this mission closes.
+      const scopeFilter =
+        tenant.kind === 'installation' ? `&project_id=eq.${encodeURIComponent(tenant.projectId)}` : ''
       const existing = await pgrest<Record<string, unknown>[]>(
         'GET',
-        `agent_runs?copilot_id=eq.${encodeURIComponent(agentId)}&client_run_id=eq.${encodeURIComponent(idempotencyKey)}&select=id,status,output_summary,latency_ms,cost_usd,resolved_model,resolved_provider&limit=1`
+        `agent_runs?copilot_id=eq.${encodeURIComponent(agentId)}&client_run_id=eq.${encodeURIComponent(idempotencyKey)}${scopeFilter}&select=id,status,output_summary,latency_ms,cost_usd,resolved_model,resolved_provider&limit=1`
       )
       const prior = existing[0]
       if (prior) {
@@ -109,7 +117,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
   // --- The gate, re-read now ------------------------------------------------
   let agent: Awaited<ReturnType<typeof getPublishedAgent>>
   try {
-    agent = await getPublishedAgent(agentId)
+    agent = await getPublishedAgent(agentId, tenant)
   } catch (err) {
     console.error('[runtime/v1/agents/:id/runs] catalogue unavailable', err)
     return NextResponse.json({ error: 'catalogue unavailable' }, { status: 503 })
@@ -153,6 +161,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
       { error: 'agent is not executable', agentId, status: agent.status, reasons: ['missing version or project'] },
       { status: 409 }
     )
+  }
+  // Belt-and-braces re-check: `getPublishedAgent` above already filtered by
+  // tenant, but this row was fetched by a separate query keyed only on
+  // `agentId` — re-verify here so a future refactor of either path cannot
+  // silently let a cross-tenant execution through. Same 404 shape as "agent
+  // not found": existence of another tenant's agent is not revealed.
+  if (!tenantCanSeeProject(tenant, projectId)) {
+    return NextResponse.json({ error: 'agent not found' }, { status: 404 })
   }
 
   let systemPromptSummary = `You are ${copilotRow.name as string}, an autonomous agent.`

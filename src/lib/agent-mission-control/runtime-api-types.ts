@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { authenticateInstallation } from './consumer-installations'
 import { extractBearerToken, timingSafeEqual } from './bearer-token-auth'
 import type { AgentRunStatus } from './types'
 
@@ -146,6 +147,109 @@ export function requireRuntimeApiAuth(request: Request): RuntimeAuthResult {
     return { ok: false, status: 401, error: 'unauthorized' }
   }
   return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// Tenant resolution — CENTRALIZED. Every /api/runtime/v1/** route calls
+// `resolveRuntimeTenant` and nothing else derives tenant scope. Two callers
+// deriving "who is this" independently is exactly how two systems drift apart
+// (AGENTS.md: "ne jamais recalculer ... dans une route").
+// ---------------------------------------------------------------------------
+
+/**
+ * A resolved tenant identity for one request.
+ *
+ *  - `kind: 'installation'` — a per-installation token (consumer_installations,
+ *    migration 0045) authenticated successfully. `projectId` is the tenant
+ *    boundary: every route MUST filter its data access to this project and
+ *    treat any other project's rows as nonexistent (404, never 403 — see
+ *    `resolveRuntimeTenant`'s doc for why).
+ *  - `kind: 'legacy-unscoped'` — the single shared `AIGENT_RUNTIME_API_TOKEN`
+ *    matched. This is the PRE-EXISTING global token (TradeAgent's Bitcoin
+ *    Advisory uses it today) kept for backward compatibility. It is an
+ *    OPERATOR-GRADE credential, not a tenant credential: `projectId: null`
+ *    means "not scoped to one tenant", and a route seeing this kind may serve
+ *    the full fleet exactly as it does today. New consumers should be
+ *    provisioned an installation token instead — this path is compatibility,
+ *    not the intended shape going forward.
+ */
+export type RuntimeTenant =
+  | { kind: 'installation'; projectId: string; installationId: string }
+  | { kind: 'legacy-unscoped'; projectId: null; installationId: null }
+
+export type RuntimeTenantResult = { ok: true; tenant: RuntimeTenant } | { ok: false; status: 401 | 503; error: string }
+
+/**
+ * Resolve the calling tenant for one `/api/runtime/v1/**` request. Call this
+ * FIRST, before any DB read — fail-closed, same shape as `requireRuntimeApiAuth`.
+ *
+ * Two credential forms are accepted, tried in this order:
+ *
+ *  1. Installation token — `x-aigent-installation-id` header naming the
+ *     installation, plus a bearer/`x-aigent-runtime-token` token that must hash
+ *     to that installation's `token_hash` in `consumer_installations` AND be
+ *     `status = 'active'`. This is the scoped, tenant-aware path: the
+ *     resolution reuses `authenticateInstallation` (consumer-installations.ts)
+ *     rather than re-implementing hash/compare/revocation-check here.
+ *
+ *     An installation whose `project_id` is null (UNPROVISIONED — a row that
+ *     predates migration 0045's `project_id` column) is refused: a tenant
+ *     identity with no provable project can grant no scoped access. Fail
+ *     closed, never treat null as "sees everything".
+ *
+ *  2. Legacy shared token — `AIGENT_RUNTIME_API_TOKEN`, exactly the
+ *     pre-existing global credential. Kept so the existing caller (TradeAgent's
+ *     Bitcoin Advisory) does not break. Resolves to `legacy-unscoped`.
+ *
+ * If neither credential is present or valid: 401. If the runtime API has no
+ * configured credential at all (`AIGENT_RUNTIME_API_TOKEN` unset AND no
+ * installation-token header supplied), routes that need backend config still
+ * answer 503 via their own checks — this function returns 401 for a bad/absent
+ * credential and never leaks which of the two paths was attempted.
+ */
+export async function resolveRuntimeTenant(request: Request): Promise<RuntimeTenantResult> {
+  const installationId = request.headers.get('x-aigent-installation-id')?.trim() || null
+  const installationToken = extractBearerToken(request, 'x-aigent-runtime-token')
+
+  if (installationId) {
+    // An installation id was presented: this request claims the scoped path.
+    // Never silently fall through to the legacy token on failure — that would
+    // let a caller probe for the weaker credential.
+    const installation = await authenticateInstallation(installationToken, installationId)
+    if (!installation) {
+      return { ok: false, status: 401, error: 'unauthorized' }
+    }
+    if (!installation.projectId) {
+      // UNPROVISIONED (pre-migration row, or never assigned a project). Fail
+      // closed rather than guessing a scope.
+      return { ok: false, status: 401, error: 'unauthorized' }
+    }
+    return {
+      ok: true,
+      tenant: { kind: 'installation', projectId: installation.projectId, installationId: installation.id },
+    }
+  }
+
+  // Fall back to the legacy shared operator token.
+  const legacy = requireRuntimeApiAuth(request)
+  if (!legacy.ok) {
+    return legacy
+  }
+  return { ok: true, tenant: { kind: 'legacy-unscoped', projectId: null, installationId: null } }
+}
+
+/**
+ * True when `tenant` may see/act on a row belonging to `projectId`.
+ *
+ * `legacy-unscoped` sees every project — the compatibility contract for the
+ * pre-existing global token. An `installation` tenant sees only its own
+ * project. `resourceProjectId === null` (a row with no resolved project) is
+ * never visible to a scoped tenant: a null project is not "everyone's", it is
+ * unresolved, and unresolved data must not leak across a tenant boundary.
+ */
+export function tenantCanSeeProject(tenant: RuntimeTenant, resourceProjectId: string | null): boolean {
+  if (tenant.kind === 'legacy-unscoped') return true
+  return resourceProjectId !== null && resourceProjectId === tenant.projectId
 }
 
 // ---------------------------------------------------------------------------

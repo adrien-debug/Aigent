@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { getPublishedAgents } from '@/lib/agent-mission-control/runtime-catalogue'
-import { RUNTIME_CONTRACT_VERSION, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
+import { RUNTIME_CONTRACT_VERSION, resolveRuntimeTenant } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
  * GET /api/runtime/v1/agents — the published agent catalogue.
@@ -16,11 +16,11 @@ import { RUNTIME_CONTRACT_VERSION, requireRuntimeApiAuth } from '@/lib/agent-mis
  * because "some agents" is indistinguishable from "these are all the agents".
  */
 export async function GET(request: Request) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   try {
-    const agents = await getPublishedAgents()
+    const agents = await getPublishedAgents(auth.tenant)
     return NextResponse.json({
       contractVersion: RUNTIME_CONTRACT_VERSION,
       count: agents.length,

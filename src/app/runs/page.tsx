@@ -9,6 +9,12 @@ import { SurfaceUnavailable } from '@/components/surface-shell'
 import { listRecentRuntimeTelemetryEvents } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import { deriveRunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
+import {
+  applyRunsFilters,
+  buildRunsHref,
+  hasActiveFilters,
+  parseRunsFilters,
+} from '@/lib/runs-console/runs-filters'
 
 /**
  * Surface « /runs » — historique des exécutions, en maître-détail.
@@ -34,6 +40,21 @@ import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
  *     pathname reste exactement `/runs`.
  * Un id inconnu ne 404 pas — il rend la liste + un détail qui DIT que le run
  * demandé n'est pas dans la fenêtre chargée (voir `resolveSelectedRun`).
+ *
+ * FILTRES (AIGENT-RUNTIME-PRODUCTIZATION-001). `parseRunsFilters` existait,
+ * était testé, et n'était appelé par AUCUNE page : l'URL affichait le filtre et
+ * la page renvoyait TOUT. Concrètement, l'onglet « Historique » d'une fiche
+ * Agent (`/runs?copilot=X`) et l'onglet « Runs » d'une fiche Projet
+ * (`/runs?project=X`) menaient à la flotte entière, et `buildHref` reconduisait
+ * fidèlement le paramètre inerte à chaque clic. Il est maintenant branché ici,
+ * et c'est le SEUL point de parsing — le composant de barre de filtres reçoit
+ * l'état déjà parsé et ne le relit jamais.
+ *
+ * Le filtrage est un NARROWING EN MÉMOIRE de la fenêtre déjà lue : il ne relit
+ * pas la base et ne prétend jamais atteindre plus loin que ce que
+ * `getRunsPageData` a chargé. Les mesures sont ensuite dérivées du tableau
+ * RÉELLEMENT rendu — filtrer la liste sans refiltrer les KPI afficherait des
+ * chiffres qui ne décrivent pas ce qui est à l'écran.
  */
 const ENTRY = navEntry('/runs')
 
@@ -100,30 +121,59 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
     )
   }
 
+  // L'UNIQUE lecture de l'URL en état de filtre. `copilot=` est absorbé ici,
+  // dans le parseur, pas réconcilié dans la page (voir `AGENT_PARAM_ALIASES`).
+  const filters = parseRunsFilters(params)
+
+  // Narrowing en mémoire de la fenêtre déjà lue. `applyRunsFilters` est la même
+  // fonction que celle couverte par les tests ; il n'y a pas de second « quels
+  // runs comptent » dans cet écran.
+  const visibleRuns = applyRunsFilters(data.runs, filters, {
+    agentNameById: data.agentNameById,
+    projectNameById: data.projectNameById,
+    nowMs: data.nowMs,
+  })
+
   // UNE seule dérivation des mesures, sur le tableau réellement rendu.
-  const metrics = deriveRunsMetrics(data.runs)
+  const metrics = deriveRunsMetrics(visibleRuns)
 
   /**
-   * Lien profond d'un run, filtres préservés. Tout ce qui était dans l'URL y
-   * reste : cliquer une ligne ne doit pas réinitialiser silencieusement un
-   * filtre que l'opérateur a posé.
+   * Les options des sélecteurs sont dérivées de la FENÊTRE COMPLÈTE, pas du
+   * sous-ensemble filtré. Les dériver du filtré viderait la liste dès le premier
+   * choix : après avoir sélectionné l'agent A, A serait la seule option, et
+   * l'opérateur ne pourrait plus passer à B sans réinitialiser.
+   *
+   * Un id sans libellé résolu (lecture du roster dégradée) reste affiché comme
+   * id brut : c'est ce que l'écran sait, et un nom inventé serait pire.
    */
-  const buildHref = (runId: string): string => {
-    const next = new URLSearchParams()
-    for (const [key, raw] of Object.entries(params)) {
-      if (key === 'run') continue
-      const value = firstValue(raw)
-      if (value !== null && value !== '') next.set(key, value)
-    }
-    next.set('run', runId)
-    return `/runs?${next.toString()}`
-  }
+  const agentOptions = [...new Set(data.runs.map((run) => run.copilotId))]
+    .map((id) => ({ id, name: data.agentNameById.get(id) ?? id }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+  const projectOptions = [
+    ...new Set(data.runs.flatMap((run) => (run.projectId ? [run.projectId] : []))),
+  ]
+    .map((id) => ({ id, name: data.projectNameById.get(id) ?? id }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+  /**
+   * Lien profond d'un run, filtres préservés. Il passe par `buildRunsHref`, la
+   * même construction d'URL que la barre de filtres : cliquer une ligne ne
+   * réinitialise aucun filtre, et l'URL produite est normalisée (`copilot=`
+   * arrivé de l'onglet Agent ressort en `agent=`).
+   */
+  const buildHref = (runId: string): string => buildRunsHref(filters, runId)
 
   return (
     <AppShell>
       <RunsScreen
-        runs={data.runs}
+        runs={visibleRuns}
         metrics={metrics}
+        filters={filters}
+        filtersActive={hasActiveFilters(filters)}
+        windowHasRuns={data.runs.length > 0}
+        agentOptions={agentOptions}
+        projectOptions={projectOptions}
         agentNameById={data.agentNameById}
         projectNameById={data.projectNameById}
         selectedRunId={requestedRunId}

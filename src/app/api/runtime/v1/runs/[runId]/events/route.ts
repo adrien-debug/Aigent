@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
-import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
+import { isValidRunId, resolveRuntimeTenant, tenantCanSeeProject } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
  * GET /api/runtime/v1/runs/:runId/events — the ordered event log for one run.
@@ -11,7 +11,7 @@ import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control
  * cannot tell apart from "a run with no steps"); backend unreachable → 502/504.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ runId: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { runId } = await params
@@ -24,9 +24,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
     // confused with "no such run" (404).
     const runRows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id&limit=1`
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,project_id&limit=1`
     )
-    if (!runRows[0]) {
+    const runRow = runRows[0]
+    if (!runRow) {
+      return NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+    // Another tenant's run reads as nonexistent — 404, never 403.
+    if (!tenantCanSeeProject(auth.tenant, (runRow.project_id as string | null) ?? null)) {
       return NextResponse.json({ error: 'run not found' }, { status: 404 })
     }
 

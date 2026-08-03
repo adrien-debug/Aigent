@@ -2,7 +2,7 @@ import 'server-only'
 
 import { getAvailableAgent, getAvailableAgents, type AvailableAgent } from './available-agents'
 import { getCopilot } from './data'
-import { toRuntimeRunStatus, type PublishedAgent } from './runtime-api-types'
+import { tenantCanSeeProject, toRuntimeRunStatus, type PublishedAgent, type RuntimeTenant } from './runtime-api-types'
 import type { AgentRunStatus } from './types'
 
 /** Internal run statuses the runner ever writes — the exhaustive input set. */
@@ -103,16 +103,36 @@ export async function toPublishedAgent(agent: AvailableAgent): Promise<Published
   }
 }
 
-/** The full published catalogue, ordered by name for a stable consumer view. */
-export async function getPublishedAgents(): Promise<PublishedAgent[]> {
+/**
+ * The full published catalogue, ordered by name for a stable consumer view.
+ *
+ * `tenant` is REQUIRED — this is the one place `/api/runtime/v1/**` narrows the
+ * fleet-wide derivation to what one caller may see. A `legacy-unscoped` tenant
+ * (the pre-existing global `AIGENT_RUNTIME_API_TOKEN`) sees everything, exactly
+ * as before this mission. An `installation` tenant sees only agents whose
+ * `projectKey` matches its resolved project — every other agent is filtered
+ * out here, not in the route, so no route can forget the filter.
+ */
+export async function getPublishedAgents(tenant: RuntimeTenant): Promise<PublishedAgent[]> {
   const agents = await getAvailableAgents()
-  const published = await Promise.all(agents.map(toPublishedAgent))
+  const scoped = agents.filter((a) => tenantCanSeeProject(tenant, a.projectId))
+  const published = await Promise.all(scoped.map(toPublishedAgent))
   return published.toSorted((a, b) => a.name.localeCompare(b.name))
 }
 
-/** One published agent, or `undefined` when no canonical row carries that id. */
-export async function getPublishedAgent(agentId: string): Promise<PublishedAgent | undefined> {
+/**
+ * One published agent, scoped to `tenant`.
+ *
+ * Returns `undefined` both when no canonical row carries that id AND when the
+ * row exists but belongs to a different tenant — the two cases MUST be
+ * indistinguishable to the caller (see `resolveRuntimeTenant`'s doc: an agent
+ * belonging to another tenant reads as "not found", never as "forbidden",
+ * because revealing existence is itself information the other tenant did not
+ * consent to leak).
+ */
+export async function getPublishedAgent(agentId: string, tenant: RuntimeTenant): Promise<PublishedAgent | undefined> {
   const agent = await getAvailableAgent(agentId)
   if (agent === undefined) return undefined
+  if (!tenantCanSeeProject(tenant, agent.projectId)) return undefined
   return toPublishedAgent(agent)
 }

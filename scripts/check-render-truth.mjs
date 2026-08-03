@@ -94,6 +94,12 @@ const SCANNED_DIRS = [
   // exactement là qu'un `?? 0` transformerait une absence en fait rassurant.
   join(ROOT, 'src/components/actions'),
   join(ROOT, 'src/components/learning'),
+  // Réglages : surface de posture. Elle rend des plafonds de coût, des états de
+  // provider et des instants de relevé — tous nullables. Un `?? 0` y afficherait
+  // « plafond 0 $ » là où aucun plafond n'est configuré, et un `?? 'OK'` y
+  // afficherait sain ce qui n'a jamais été mesuré. Ce répertoire est né hors du
+  // scan : la gate sortait verte sans avoir lu une ligne de cette surface.
+  join(ROOT, 'src/components/settings'),
 ]
 const SCANNED_FILES = [
   join(ROOT, 'src/lib/agent-mission-control/dashboard-overview.ts'),
