@@ -88,7 +88,6 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   }
 
   let bundle: ProjectBuilderConversationBundle | null = null
-  let failure: string | null = null
 
   // La lecture du projet est isolée dans son propre `try` et ne contient AUCUN
   // `notFound()` : ce dernier fonctionne en levant une erreur de contrôle, qu'un
@@ -99,13 +98,14 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   try {
     project = await getProject(projectId)
   } catch (err) {
-    const failure = err instanceof Error ? err.message : 'lecture impossible'
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[builder] lecture du projet impossible', projectId, err)
     return (
       <AppShell>
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`La conversation d’authoring n’a pas pu être lue — ${failure}.`}
+          detail="Le projet n’a pas pu être lu. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )
@@ -121,7 +121,8 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   try {
     bundle = await getProjectBuilderConversationBundle(projectId)
   } catch (err) {
-    failure = err instanceof Error ? err.message : 'lecture impossible'
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[builder] lecture de la conversation d’authoring impossible', projectId, err)
   }
 
   if (bundle === null) {
@@ -130,11 +131,7 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={
-            failure
-              ? `La conversation d’authoring n’a pas pu être lue — ${failure}.`
-              : 'La conversation d’authoring n’a pas pu être lue.'
-          }
+          detail="La conversation d’authoring n’a pas pu être lue. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

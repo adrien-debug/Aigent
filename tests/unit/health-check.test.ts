@@ -13,6 +13,7 @@ import {
   aggregateVerdict,
   classifyAssistantsSearch,
   classifyHttpResult,
+  classifyNextResult,
   classifyTransportError,
   formatStatusLine,
 } from '../../scripts/health.mjs'
@@ -218,5 +219,75 @@ describe('formatStatusLine', () => {
   it('does not truncate a name or status longer than its column', () => {
     expect(formatStatusLine('POSTGREST', 'UNHEALTHY', 'x')).toContain('POSTGREST')
     expect(formatStatusLine('POSTGREST', 'UNHEALTHY', 'x')).toContain('UNHEALTHY')
+  })
+})
+
+/**
+ * The NEXT probe targets a GUARDED route, so its semantics are inverted versus
+ * the generic HTTP classifier: a 401 is the PROOF the identity gate works, and a
+ * 200 would mean the gate stopped guarding. These tests pin both directions —
+ * the regression being fixed here was a permanently false-red probe pointed at
+ * a route deleted during the frontend reset.
+ */
+describe('classifyNextResult', () => {
+  it('treats the expected 401 from the guard as HEALTHY, not as a failure', () => {
+    const result = classifyNextResult({ status: 401 })
+    expect(result.healthy).toBe(true)
+    expect(result.down).toBe(false)
+    expect(result.reason).toContain('401')
+  })
+
+  it('treats a redirect as HEALTHY — a live app sending an anonymous caller to a login screen', () => {
+    expect(classifyNextResult({ status: 302 }).healthy).toBe(true)
+    expect(classifyNextResult({ status: 307 }).healthy).toBe(true)
+  })
+
+  it('treats a 200 on the guarded route as UNHEALTHY — the guard answered without a credential', () => {
+    const result = classifyNextResult({ status: 200 })
+    expect(result.healthy).toBe(false)
+    expect(result.reason).toMatch(/WITHOUT credential/)
+  })
+
+  it('treats a 404 as UNHEALTHY and names the missing target — the exact bug being fixed', () => {
+    const result = classifyNextResult({ status: 404 })
+    expect(result.healthy).toBe(false)
+    expect(result.reason).toContain('404')
+  })
+
+  it('classifies a 5xx as UNHEALTHY', () => {
+    expect(classifyNextResult({ status: 503 }).healthy).toBe(false)
+  })
+
+  it('reports a refused connection as "stack not running" rather than an indistinct red', () => {
+    const error = Object.assign(new TypeError('fetch failed'), {
+      cause: { code: 'ECONNREFUSED' },
+    })
+    const result = classifyNextResult({ error })
+    expect(result.healthy).toBe(false)
+    expect(result.down).toBe(true)
+    expect(result.reason).toContain('stack not running')
+  })
+
+  it('does NOT mark a timeout as "not running" — a hung server is running but broken', () => {
+    const error = Object.assign(new Error('timed out'), { name: 'TimeoutError' })
+    const result = classifyNextResult({ error })
+    expect(result.healthy).toBe(false)
+    expect(result.down).toBe(false)
+  })
+
+  it('never leaks the probe target from a transport error message', () => {
+    const error = Object.assign(new TypeError('Failed to parse URL from https://secret-host/x'), {
+      cause: { code: 'ENOTFOUND' },
+    })
+    expect(classifyNextResult({ error }).reason).not.toContain('secret-host')
+  })
+
+  it('treats a missing status as UNHEALTHY — unproven is never a pass', () => {
+    expect(classifyNextResult({}).healthy).toBe(false)
+  })
+
+  it('honours an explicit expected status', () => {
+    expect(classifyNextResult({ status: 403 }, 403).healthy).toBe(true)
+    expect(classifyNextResult({ status: 401 }, 403).healthy).toBe(false)
   })
 })

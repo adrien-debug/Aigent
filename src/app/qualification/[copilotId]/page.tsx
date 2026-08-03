@@ -50,13 +50,14 @@ export default async function Page({ params }: PageProps) {
   try {
     detail = await loadQualificationDetail(copilotId)
   } catch (err) {
-    const failure = err instanceof Error ? err.message : 'lecture impossible'
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[qualification] lecture de la fiche de qualification impossible', copilotId, err)
     return (
       <AppShell>
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`La fiche de qualification n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
+          detail="La fiche de qualification n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

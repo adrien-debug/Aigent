@@ -35,17 +35,16 @@ export const dynamic = 'force-dynamic'
 
 async function loadBench() {
   try {
-    return { read: await loadDeliveryRoster(), failure: null as string | null }
+    return { read: await loadDeliveryRoster() }
   } catch (err) {
-    return {
-      read: null,
-      failure: err instanceof Error ? err.message : 'lecture impossible',
-    }
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[delivery] lecture du registre des copilots impossible', err)
+    return { read: null }
   }
 }
 
 export default async function Page() {
-  const { read, failure } = await loadBench()
+  const { read } = await loadBench()
 
   // Registre muet : l'écran DIT qu'il ne sait pas. Il ne rend pas une liste
   // vide, qui se lirait comme « aucun agent à livrer » — l'inverse de la vérité.
@@ -55,7 +54,7 @@ export default async function Page() {
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`Le registre des copilots n’a pas pu être lu. Aucun banc de livraison n’est affiché — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.${failure ? ` (${failure})` : ''}`}
+          detail="Le registre des copilots n’a pas pu être lu. Aucun banc de livraison n’est affiché — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

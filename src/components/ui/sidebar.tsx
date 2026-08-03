@@ -111,6 +111,12 @@ export const SidebarItem = forwardRef(function SidebarItem(
           {...props}
           className={classes}
           data-current={current ? 'true' : undefined}
+          // `data-current` est un crochet de STYLE : il ne dit rien à un lecteur
+          // d'écran. Sans `aria-current`, « vous êtes ici » n'existe que
+          // visuellement — le liseré de gauche est un <span aria-hidden>. La
+          // valeur `page` (et non `true`) est celle que la spec réserve à un
+          // lien pointant vers la page courante, ce qu'est une entrée de rail.
+          aria-current={current ? 'page' : undefined}
           ref={ref}
         >
           <TouchTarget>{children}</TouchTarget>
@@ -120,6 +126,10 @@ export const SidebarItem = forwardRef(function SidebarItem(
           {...props}
           className={clsx('cursor-default', classes)}
           data-current={current ? 'true' : undefined}
+          // `true` et non `page` ici : cette branche rend un <button>, pas un
+          // lien vers une page. `aria-current="page"` sur un bouton annoncerait
+          // une navigation qui n'a pas lieu.
+          aria-current={current ? 'true' : undefined}
           ref={ref}
         >
           <TouchTarget>{children}</TouchTarget>

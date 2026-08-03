@@ -32,13 +32,14 @@ export default async function Page() {
   try {
     roster = await loadQualificationRoster()
   } catch (err) {
-    const failure = err instanceof Error ? err.message : 'lecture impossible'
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[qualification] lecture du banc de qualification impossible', err)
     return (
       <AppShell>
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`Le banc de qualification n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun candidat », ce qui n’est pas ce qui est su.${failure ? ` (${failure})` : ''}`}
+          detail="Le banc de qualification n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun candidat », ce qui n’est pas ce qui est su. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

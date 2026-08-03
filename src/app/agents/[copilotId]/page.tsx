@@ -55,13 +55,14 @@ export default async function Page({ params }: PageProps) {
   try {
     detail = await getAgentDetail(copilotId)
   } catch (err) {
-    const failure = err instanceof Error ? err.message : 'lecture impossible'
+    // Détail réel au log serveur uniquement — jamais dans le HTML.
+    console.error('[agents] lecture de la fiche agent impossible', copilotId, err)
     return (
       <AppShell>
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={`La fiche de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
+          detail="La fiche de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )
@@ -80,10 +81,10 @@ export default async function Page({ params }: PageProps) {
         const gate = await evaluateReleaseGate(copilotId, candidateVersionId)
         return { gate, failure: null as string | null }
       } catch (err) {
-        return {
-          gate: null,
-          failure: err instanceof Error ? err.message : 'évaluation impossible',
-        }
+        // La DISTINCTION d'état est portée par `failure !== null`, pas par son
+        // contenu : le libellé reste générique, le détail va au log serveur.
+        console.error('[agents] évaluation de la release gate impossible', copilotId, err)
+        return { gate: null, failure: 'évaluation impossible' }
       }
     })(),
     (async () => {
@@ -92,10 +93,8 @@ export default async function Page({ params }: PageProps) {
         const run = await getLatestQualificationRun(copilotId, candidateVersionId)
         return { run, failure: null as string | null }
       } catch (err) {
-        return {
-          run: null,
-          failure: err instanceof Error ? err.message : 'lecture impossible',
-        }
+        console.error('[agents] lecture du run de qualification impossible', copilotId, err)
+        return { run: null, failure: 'lecture impossible' }
       }
     })(),
   ])

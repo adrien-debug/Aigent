@@ -1,6 +1,13 @@
 /**
  * API identity gate — `/api/agent-ops/**` behind session or `x-amc-key`.
- * Admin UI routes were removed in frontend reset; matcher is API-only.
+ *
+ * AIGENT-HARDENING-PRODUCTION-001 : le matcher n'est PLUS « API-only ». Il
+ * couvre désormais tout ce qui n'est pas explicitement exclu, parce que les
+ * pages lisaient PostgREST sans aucune garde. Ce fichier teste toujours la
+ * même chose — la DÉCISION prise sur `/api/agent-ops/**` — mais la couverture
+ * du matcher se vérifie en exécutant son motif, et non en comparant sa syntaxe
+ * à une chaîne littérale. La posture d'une garde ne se lit pas dans la forme
+ * du motif.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -36,11 +43,18 @@ function request(path: string, headers: Record<string, string> = {}) {
   } as unknown as Parameters<typeof proxy>[0]
 }
 
+/**
+ * Exécute le motif du matcher. Il accepte les deux formes rencontrées dans ce
+ * repository : la syntaxe Next `:path*` et une expression régulière brute.
+ */
 function matcherCovers(path: string): boolean {
   return config.matcher.some((pattern) => {
     if (pattern.endsWith('/:path*')) {
       const prefix = pattern.slice(0, -'/:path*'.length)
       return path === prefix || path.startsWith(`${prefix}/`)
+    }
+    if (pattern.startsWith('/(') || pattern.includes('(?!')) {
+      return new RegExp(`^${pattern}$`).test(path)
     }
     return path === pattern
   })
@@ -51,9 +65,14 @@ describe('API identity gate — matcher', () => {
     expect(matcherCovers('/api/agent-ops/copilots')).toBe(true)
   })
 
-  it('does not run the proxy on removed admin UI routes', () => {
-    expect(matcherCovers('/admin')).toBe(false)
-    expect(matcherCovers('/admin/runs')).toBe(false)
+  it('runs the proxy on pages too — elles lisaient PostgREST sans garde', () => {
+    expect(matcherCovers('/')).toBe(true)
+    expect(matcherCovers('/agents')).toBe(true)
+  })
+
+  it('leaves Next static assets out of the matcher', () => {
+    expect(matcherCovers('/_next/static/chunk.js')).toBe(false)
+    expect(matcherCovers('/favicon.ico')).toBe(false)
   })
 })
 

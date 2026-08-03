@@ -2,6 +2,14 @@
   "name": "agent-mission-control",
   "version": "0.1.0",
   "private": true,
+  "comments": {
+    "overrides": "Advisories de production sur des dépendances TRANSITIVES : aucun paquet direct ne les déclare, donc seul un `overrides` les corrige. Les trois restent dans la même ligne majeure (postcss 8.x, sharp 0.x/libvips, tar 7.x) — aucune montée majeure, aucune migration d'API. postcss est forcé parce que next@16.2.12 épingle 8.4.31, lui-même dans la plage vulnérable (<=8.5.22)."
+  },
+  "overrides": {
+    "postcss": "^8.5.25",
+    "sharp": "^0.35.3",
+    "tar": "^7.5.22"
+  },
   "scripts": {
     "audit:dead": "node scripts/audit-dead.mjs",
     "build": "next build",
@@ -70,7 +78,7 @@
     "@xyflow/react": "12.11.2",
     "clsx": "^2.1.1",
     "motion": "^12.43.0",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "openai": "^6.46.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -83,7 +91,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.12",
     "happy-dom": "^20.11.0",
     "jscpd": "^5.0.12",
     "knip": "^6.29.0",

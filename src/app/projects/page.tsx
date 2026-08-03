@@ -44,14 +44,17 @@ async function loadProjects() {
   try {
     // En parallèle : les deux lectures sont indépendantes.
     const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
-    return { items: buildProjectList(buildProjectOverview(projects, copilots)), failure: null }
+    return { items: buildProjectList(buildProjectOverview(projects, copilots)) }
   } catch (err) {
-    return { items: null, failure: err instanceof Error ? err.message : 'lecture impossible' }
+    // Détail réel au log serveur uniquement — un message de data layer nomme
+    // la table et ses filtres. L'état rendu reste « indisponible ».
+    console.error('[projects] lecture de la liste des projets impossible', err)
+    return { items: null }
   }
 }
 
 export default async function Page() {
-  const { items, failure } = await loadProjects()
+  const { items } = await loadProjects()
 
   if (items === null) {
     return (
@@ -59,11 +62,7 @@ export default async function Page() {
         <SurfaceUnavailable
           title={ENTRY.name}
           description={ENTRY.purpose}
-          detail={
-            failure
-              ? `La liste des projets n’a pas pu être lue — ${failure}. Aucun projet n’est affiché — ce n’est pas un catalogue vide, c’est un catalogue inconnu.`
-              : 'La liste des projets n’a pas pu être lue. Aucun projet n’est affiché — ce n’est pas un catalogue vide, c’est un catalogue inconnu.'
-          }
+          detail="La liste des projets n’a pas pu être lue. Aucun projet n’est affiché — ce n’est pas un catalogue vide, c’est un catalogue inconnu. Le détail technique est dans les logs du serveur."
         />
       </AppShell>
     )

@@ -90,8 +90,19 @@ function githubHeaders() {
  * to "" and strips a leading "./" or "/" from real paths, so "foo/bar",
  * "/foo/bar" and "./foo" all resolve to the repo-relative path GitHub expects.
  *
+ * SECURITY: this function is the ONLY thing standing between a model-supplied
+ * path and a raw string concatenation into the GitHub Contents API URL
+ * (`.../contents/${encodedPath}`). `encodeURIComponent('..') === '..'` — a
+ * segment doesn't get neutralised by percent-encoding, so a caller that only
+ * escapes-then-joins can walk the URL path straight out of the scoped repo
+ * (`../../../victim/private/contents/README.md` resolves against a DIFFERENT
+ * repo, still fetched with this server's GITHUB_TOKEN). Every `..` segment —
+ * literal or percent-encoded (`%2e%2e`, `.%2e`, double-encoded, etc.) — is
+ * therefore rejected outright, never silently stripped.
+ *
  * @param {unknown} p the path the model supplied (may be undefined/null/".")
  * @returns {string} "" for the root, else the cleaned repo-relative path
+ * @throws {Error} if any path segment is (or decodes to) ".."
  */
 function normalizeRepoPath(p) {
   // Missing / non-string → root.
@@ -101,7 +112,44 @@ function normalizeRepoPath(p) {
   if (s === '' || s === '.' || s === '/' || s === './') return ''
   // Strip a single leading "./" or "/" so "./foo" and "/foo/bar" become
   // "foo" / "foo/bar". A bare dotfile like ".env" is untouched (no slash).
-  return s.replace(/^\.?\//, '')
+  const cleaned = s.replace(/^\.?\//, '')
+  assertNoTraversal(cleaned)
+  return cleaned
+}
+
+/**
+ * Reject any path containing a ".." segment, checking both the raw string and
+ * every layer of percent-decoding (a client can send `%2e%2e`, `.%2e`, or a
+ * double-encoded `%252e%252e` — decode repeatedly until stable, then split on
+ * "/" and compare each segment). Throws rather than stripping, so a rejected
+ * path never silently becomes a different (still wrong) path.
+ *
+ * @param {string} cleanPath already root-normalised path (no leading slash)
+ * @throws {Error} if traversal is detected
+ */
+function assertNoTraversal(cleanPath) {
+  let decoded = cleanPath
+  // Decode repeatedly (bounded) so multi-encoded forms can't hide "..".
+  for (let i = 0; i < 5; i++) {
+    let next
+    try {
+      next = decodeURIComponent(decoded)
+    } catch {
+      break // malformed percent-escape — stop decoding, still checked below
+    }
+    if (next === decoded) break
+    decoded = next
+  }
+  const segments = decoded.split(/[/\\]/)
+  if (segments.some((seg) => seg === '..' || seg === '.')) {
+    throw new Error('invalid path: traversal ("..") is not allowed')
+  }
+  // Also refuse a raw, undecoded ".." that decoding may have missed (e.g. a
+  // segment that isn't validly percent-encoded but still literally contains
+  // the two dots), and any backslash-based segment split.
+  if (/(^|[/\\])\.\.([/\\]|$)/.test(cleanPath)) {
+    throw new Error('invalid path: traversal ("..") is not allowed')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -120,8 +168,15 @@ function makeReadRepoFile(scope) {
         return JSON.stringify({ ok: false, error: 'GITHUB_TOKEN not set in the graph server env' })
       }
       // Normalise "." / "/" / "./" / missing → "" (root) so the model can't 404
-      // the repo root; strip leading "./" or "/" from real paths.
-      const cleanPath = normalizeRepoPath(path)
+      // the repo root; strip leading "./" or "/" from real paths. Throws on any
+      // ".." traversal attempt (raw or percent-encoded) — caught below so a
+      // malicious path becomes a clean refusal, never an uncaught exception.
+      let cleanPath
+      try {
+        cleanPath = normalizeRepoPath(path)
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) })
+      }
       // Refuse secret/credential-looking paths BEFORE ever hitting GitHub —
       // .env, *.pem, id_rsa, *secret*, *.key, credentials*, *.pfx, *.p12.
       if (isSecretPath(cleanPath)) {
@@ -173,8 +228,22 @@ function makeListRepoTree(scope) {
       }
       // Normalise "." / "/" / "./" / missing → "" (root). The Contents API wants
       // "" for the root — "." or "/" would 404 and the model would think the
-      // repo root doesn't exist.
-      const cleanPath = normalizeRepoPath(path)
+      // repo root doesn't exist. Throws on any ".." traversal attempt — caught
+      // below so it becomes a clean refusal, never an uncaught exception.
+      let cleanPath
+      try {
+        cleanPath = normalizeRepoPath(path)
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) })
+      }
+      // Refuse a secret/credential-looking DIRECTORY being listed directly —
+      // previously isSecretPath only filtered the RETURNED entries, so listing
+      // e.g. ".secrets/" itself (a path that IS secret-looking, not just
+      // containing secret-looking children) fell through and leaked its
+      // contents' names. Check the requested path itself first.
+      if (isSecretPath(cleanPath)) {
+        return JSON.stringify({ ok: false, error: 'refused: this path looks like a secret/credential file and cannot be listed' })
+      }
       const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/')
       const url = `https://api.github.com/repos/${repo}/contents/${encodedPath}`
       try {
