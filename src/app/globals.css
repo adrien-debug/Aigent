@@ -19,13 +19,95 @@
  * Grammaire de surface : `src/theme/utilities.css` (AIGENT-DS-REFACTOR-001). */
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   background-color: var(--aig-subtle);
+}
+
+/* L'îlot sombre garde son propre `color-scheme` : sans lui, les contrôles
+   natifs rendus dedans (scrollbars, champs) resteraient en clair. */
+.aig-dark {
+  color-scheme: dark;
 }
 
 .aig-scope :focus-visible {
   outline: var(--border-width-strong) solid var(--aig-accent);
   outline-offset: 2px;
+}
+
+/*
+ * QUAND LE PRODUIT POSE UNE COULEUR DE TEXTE, ELLE GAGNE.
+ *
+ * Les primitives Catalyst portent leur propre couleur (`Text` → `text-zinc-500`,
+ * `TableHead` → idem). Un `className="aig-text-muted"` passé à `<Text>` produit
+ * donc DEUX déclarations de même spécificité (0,1,0) dans la même couche, et
+ * c'est l'ordre du fichier qui tranche — en pratique le zinc du kit l'emportait
+ * et le jeton produit n'était jamais appliqué. Mesuré sur la fiche Agent : les
+ * libellés de `DetailField` rendaient zinc-500 à 4.2:1 au lieu du jeton demandé.
+ *
+ * On ne recolore PAS le kit (`check:ui-kit-integrity`, et la mission l'interdit) :
+ * on donne à l'intention explicite du produit la spécificité qui lui revient.
+ * `:where()` garde le sélecteur de scope à spécificité nulle, de sorte que ces
+ * règles pèsent (0,2,0) — au-dessus d'une classe utilitaire seule, en dessous de
+ * tout style inline ou `!important`.
+ */
+:where(.aig-scope) .aig-text.aig-text {
+  color: var(--aig-text);
+}
+:where(.aig-scope) .aig-text-muted.aig-text-muted {
+  color: var(--aig-text-muted);
+}
+:where(.aig-scope) .aig-text-faint.aig-text-faint {
+  color: var(--aig-text-faint);
+}
+:where(.aig-scope) .aig-accent.aig-accent {
+  color: var(--aig-accent);
+}
+
+/*
+ * RECALIBRAGE CATALYST POUR FOND CLAIR — depuis le scope, jamais dans le kit.
+ *
+ * Catalyst tient son texte secondaire en `zinc-500` (#71717a). Sur blanc pur il
+ * passe (4.83:1), mais dès qu'il atterrit sur une surface produit — panneau à
+ * oklch 0.9755, ligne de table zébrée — il tombe sous 4.5:1 (4.20:1 mesuré sur
+ * la fiche Agent et la table des runs). Le kit ne se modifie pas
+ * (`check:ui-kit-integrity`) : on descend d'un cran la teinte DANS notre scope,
+ * ce qui vaut zinc-600 (7.73:1 sur blanc) et laisse le kit intact sur disque.
+ *
+ * Les `Badge` colorés du kit posent le même problème en pire : leurs paires
+ * texte/fond (`text-lime-700` sur `bg-lime-500/15`, etc.) sont calibrées pour un
+ * usage décoratif, pas pour porter un statut lisible — 3.98:1 mesuré sur
+ * « Non mesuré ». On assombrit le texte du badge sans toucher à son fond, ce qui
+ * préserve l'identité colorée de chaque statut.
+ */
+:where(.aig-scope) .text-zinc-500 {
+  color: var(--color-zinc-600);
+}
+
+:where(.aig-scope) [data-slot='badge'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-lime-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-emerald-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-green-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-teal-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-cyan-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-sky-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-blue-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-indigo-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-violet-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-purple-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-fuchsia-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-pink-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-rose-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-red-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-amber-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-yellow-'],
+:where(.aig-scope) .rounded-md.font-medium[class*='text-orange-'] {
+  color: color-mix(in oklab, currentcolor 68%, black);
+}
+
+/* L'îlot sombre reprend les teintes natives du kit : elles y sont déjà lisibles,
+   les assombrir les ferait disparaître. */
+:where(.aig-dark) [data-slot='badge'] {
+  color: revert-layer;
 }
 
 body {

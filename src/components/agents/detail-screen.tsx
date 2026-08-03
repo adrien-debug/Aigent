@@ -208,7 +208,12 @@ function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
           <Button outline href={`/qualification/${copilot.id}`}>
             Qualification
           </Button>
-          <Button color="dark/zinc" href={`/delivery/${copilot.id}`}>
+          {/* `aig-btn-accent` et non `color="dark/zinc"` : sur le graphite, un
+              bouton noir se fondait dans la page et passait pour secondaire ;
+              sur le canvas clair il devient l'objet le plus lourd de l'écran et
+              entre en concurrence avec l'accent, qui est censé être le seul
+              signal d'action. L'Aperçu porte déjà cette classe sur son CTA. */}
+          <Button className="aig-btn-accent" href={`/delivery/${copilot.id}`}>
             Livraison
           </Button>
         </>
@@ -298,7 +303,7 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
               reste dans le graphite du texte : elle se lit, elle n'alarme pas. */}
           <p
             className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
-            style={blocked ? { color: SEVERITY.bad } : undefined}
+            style={blocked ? { color: 'var(--aig-severity-bad-ink)' } : undefined}
           >
             {VERDICT_TITLE[verdict]}
           </p>
@@ -347,7 +352,7 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
                     <Strong className="block">{blocker.label}</Strong>
                     <Text
                       className={proven ? 'mt-1 text-sm' : 'aig-text-muted mt-1 text-sm'}
-                      style={proven ? { color: SEVERITY.bad } : undefined}
+                      style={proven ? { color: 'var(--aig-severity-bad-ink)' } : undefined}
                     >
                       {blocker.detail}
                     </Text>

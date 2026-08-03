@@ -64,6 +64,10 @@ const REQUIRED = {
   'divider.tsx': ['Divider'],
   'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Fieldset', 'Label', 'Legend'],
   'heading.tsx': ['Heading', 'Subheading'],
+  // Consommée depuis AIGENT-DS-SURFACES-001 : le démonstrateur `/lab/surfaces`
+  // rend un champ réel pour contrôler son état au repos et désactivé sur fond
+  // clair. La gate a signalé l'écart d'elle-même — c'est exactement son rôle.
+  'input.tsx': ['Input'],
   'link.tsx': ['Link'],
   'navbar.tsx': ['Navbar'],
   'sidebar.tsx': [

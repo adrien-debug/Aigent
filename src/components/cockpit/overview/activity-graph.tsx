@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
-import { SEVERITY } from '@/lib/cockpit/status'
 
 const WIDTH = 600
 const HEIGHT = 220
@@ -95,8 +94,8 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         >
           <defs>
             <linearGradient id="activity-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={SEVERITY.good} stopOpacity="0.22" />
-              <stop offset="100%" stopColor={SEVERITY.good} stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--aig-accent)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--aig-accent)" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -127,7 +126,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
           <motion.path
             d={linePath}
             fill="none"
-            stroke={SEVERITY.good}
+            stroke="var(--aig-accent)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -152,7 +151,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
               style={{
                 left: `${(point.x / WIDTH) * 100}%`,
                 top: `${(point.y / HEIGHT) * 100}%`,
-                boxShadow: `0 0 0 1.5px ${SEVERITY.good}`,
+                boxShadow: '0 0 0 1.5px var(--aig-accent)',
               }}
               animate={{ scale: hovered === index ? 1.6 : 1 }}
               variants={{ hidden: { scale: 0, opacity: 0 }, visible: { scale: 1, opacity: 1 } }}

@@ -46,8 +46,22 @@ export default function RootLayout({
    * zone. Chaque maillon flex intermédiaire sous `main` garde `min-h-0` (sans
    * lui, `flex-1` refuse de descendre sous la taille de son contenu).
    */
+  /*
+   * AIGENT-DS-SURFACES-001 — LE DOCUMENT EST CLAIR, LA NAVIGATION EST SOMBRE.
+   *
+   * La classe `dark` a été RETIRÉE de `<html>`, pas déplacée : elle basculait
+   * le kit Catalyst entier sur ses couleurs sombres. Le kit rend désormais sa
+   * palette zinc claire native — toujours sans qu'une ligne du kit change
+   * (`check:ui-kit-integrity` tient toujours).
+   *
+   * La surface sombre ne disparaît pas pour autant : elle devient un ÎLOT.
+   * `app-shell.tsx` pose `dark aig-dark` sur la seule navigation, ce qui y
+   * réactive à la fois le sombre Catalyst et l'échelle graphite `--aig-*`
+   * (`tokens.css`). Les deux échelles coexistent donc dans la même page, ce que
+   * la direction « sidebar noire, body clair » exige.
+   */
   return (
-    <html lang="fr" className="dark aig-scope h-svh overflow-hidden">
+    <html lang="fr" className="aig-scope h-svh overflow-hidden">
       <body className="aig-subtle h-svh overflow-hidden antialiased">
         <MotionProvider>{children}</MotionProvider>
       </body>

@@ -1,84 +1,119 @@
 /* AIGENT-DS-REFACTOR-001 — utilitaires @utility aig-* (grammaire de surface). */
 
 @utility aig-base {
-  background-color: #09090b;
-  color: white;
+  background-color: var(--aig-subtle);
+  color: var(--aig-text);
 }
 
 @utility aig-subtle {
-  background-color: #09090b;
-  color: white;
+  background-color: var(--aig-subtle);
+  color: var(--aig-text);
 }
 
 @utility aig-raised {
-  background-color: #111111;
-  color: white;
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
   box-shadow: var(--aig-elevation-raised);
 }
 
 @utility aig-overlay {
-  background-color: color-mix(in oklab, #111111 92%, transparent);
+  background-color: color-mix(in oklab, var(--aig-raised) 92%, transparent);
   backdrop-filter: blur(12px);
-  color: white;
+  color: var(--aig-text);
   box-shadow: var(--aig-elevation-overlay);
 }
 
 @utility aig-surface-elevated {
-  background-color: color-mix(in oklab, white 2%, transparent);
-  background-image:
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
-    linear-gradient(135deg, color-mix(in oklab, white 4%, transparent) 0%, transparent 100%);
-  border: 1px solid color-mix(in oklab, white 10%, transparent);
-  box-shadow: 0 16px 40px -8px oklch(0 0 0 / 0.8), inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
-  backdrop-filter: blur(16px);
+  /* SURFACE 2 — panneau fonctionnel. Le grain, le dégradé et le
+     `backdrop-filter` qui vivaient ici étaient des artifices de fond sombre :
+     sur un canvas clair ils produisent un voile sale sans ajouter de
+     profondeur. La séparation vient du liseré et d'un demi-ton de clarté. */
+  background-color: var(--aig-raised);
+  border: 1px solid var(--aig-line-soft);
+  box-shadow: var(--aig-elevation-flat);
 }
 
 @utility aig-line {
-  border-color: color-mix(in oklab, white 10%, transparent);
+  border-color: var(--aig-line);
 }
 
 @utility aig-line-soft {
-  border-color: color-mix(in oklab, white 5%, transparent);
+  border-color: var(--aig-line-soft);
 }
 
 @utility aig-text {
-  color: white;
+  color: var(--aig-text);
 }
 
 @utility aig-text-muted {
-  color: color-mix(in oklab, white 60%, transparent);
+  color: var(--aig-text-muted);
 }
 
 @utility aig-text-faint {
-  color: color-mix(in oklab, white 40%, transparent);
+  color: var(--aig-text-faint);
 }
 
 @utility aig-accent {
-  color: #CD7F32;
+  color: var(--aig-accent);
 }
 
+/*
+ * BOUTON D'ACTION PRINCIPALE — cuivre.
+ *
+ * DEUX PIÈGES, tous deux constatés au rendu et non déduits :
+ *
+ * 1. `--btn-border` PORTE LE FOND en thème clair. Catalyst n'applique
+ *    `bg-(--btn-bg)` que sous `dark:` ; en clair l'aplat vient de
+ *    `bg-(--btn-border)` plus un `::before` en `--btn-bg`. Les deux variables
+ *    doivent donc porter le cuivre.
+ *
+ * 2. SANS `color=`, `<Button>` retombe sur sa variante `dark/zinc`, qui pose
+ *    `[--btn-bg:var(--color-zinc-900)]` — une classe utilitaire de MÊME
+ *    spécificité que la nôtre, écrite plus loin dans la feuille, donc gagnante.
+ *    Le bouton rendait noir malgré des variables correctes. `.aig-btn-accent`
+ *    doublé porte la spécificité à (0,2,0) et reprend la main sans que le kit
+ *    soit modifié.
+ */
 @utility aig-btn-accent {
-  --btn-bg: #CD7F32;
-  --btn-border: #8B5A2B;
-  --btn-hover-overlay: color-mix(in oklab, white 10%, transparent);
-  color: white;
+  --btn-hover-overlay: color-mix(in oklab, black 10%, transparent);
+  --btn-icon: white;
   transition:
     background-color 160ms ease,
     color 160ms ease,
     box-shadow 160ms ease;
 }
 
-.aig-btn-accent:hover {
-  --btn-bg: color-mix(in oklab, #CD7F32 80%, white);
+.aig-btn-accent.aig-btn-accent {
+  --btn-bg: var(--aig-accent);
+  --btn-border: var(--aig-accent);
+  /* Blanc EXPLICITE : le texte est posé sur l'aplat cuivre, pas sur le canvas
+     du thème — `--aig-text` y serait du graphite sur cuivre (2.4:1). */
+  color: white;
 }
 
-.aig-btn-accent:focus-visible {
-  outline: 2px solid color-mix(in oklab, #CD7F32 62%, white);
+.aig-btn-accent.aig-btn-accent:hover {
+  --btn-bg: color-mix(in oklab, var(--aig-accent) 88%, black);
+  --btn-border: color-mix(in oklab, var(--aig-accent) 88%, black);
+}
+
+/*
+ * L'anneau de focus se pose SUR LE CANVAS, pas sur le bouton.
+ *
+ * L'anneau était un cuivre éclairci, à 2 px d'offset donc entièrement dans le
+ * canvas — mais mesuré à 1:1 contre le bouton cuivre au moment où le navigateur
+ * le compose. Un anneau doit contraster avec ce qui l'entoure : sur une surface
+ * claire, c'est le graphite du texte qui tranche (≈ 12:1), pas une nuance de
+ * l'accent. Le liseré blanc intérieur le détache du bouton lui-même, de sorte
+ * que l'anneau reste visible quel que soit le fond des deux côtés.
+ */
+.aig-btn-accent.aig-btn-accent:focus-visible {
+  outline: 2px solid var(--aig-text);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--aig-base);
 }
 
 @utility aig-link-accent {
-  color: #CD7F32;
+  color: var(--aig-accent);
   text-decoration: none;
   transition:
     color 150ms ease,
@@ -87,65 +122,97 @@
 
 .aig-link-accent:hover,
 .aig-link-accent:focus-visible {
-  color: color-mix(in oklab, #CD7F32 80%, white);
+  color: color-mix(in oklab, var(--aig-accent) 82%, white);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .aig-link-accent:focus-visible {
-  outline: 2px solid color-mix(in oklab, #CD7F32 45%, transparent);
+  outline: 2px solid color-mix(in oklab, var(--aig-accent) 45%, transparent);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
 @utility aig-panel {
-  background-color: #09090b;
-  color: white;
-  border: 1px solid color-mix(in oklab, white 5%, transparent);
+  background-color: var(--aig-subtle);
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line-soft);
   border-radius: var(--aig-radius);
   box-shadow: var(--aig-elevation-flat);
 }
 
 @utility aig-panel-raised {
-  background-color: #111111;
-  color: white;
-  border: 1px solid color-mix(in oklab, white 10%, transparent);
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line);
   border-radius: var(--aig-radius);
   box-shadow: var(--aig-elevation-raised);
 }
 
 @utility aig-stage {
-  background: #09090b;
-  color: white;
-  border: 1px solid color-mix(in oklab, white 5%, transparent);
+  background: var(--aig-base);
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line-soft);
   border-radius: var(--radius-lg);
-  box-shadow:
-    inset 0 1px 0 oklch(1 0 0 / 0.06),
-    0 1px 2px oklch(0 0 0 / 0.35);
+  box-shadow: var(--aig-elevation-raised);
 }
 
+/*
+ * SURFACE DE SECOND RANG — une surface, pas un voile.
+ *
+ * `aig-quiet` consommait `--aig-scrim`, qui est le VOILE de modale (un noir
+ * translucide destiné à assombrir ce qu'il recouvre). Sur fond graphite les
+ * deux se ressemblaient assez pour que la confusion passe inaperçue ; sur fond
+ * clair, la grille de faits de la fiche Agent se retrouvait avec un fond sombre
+ * sous du texte graphite — 1.76:1 mesuré. Les deux rôles sont désormais
+ * distincts : `--aig-scrim` reste au backdrop, `aig-quiet` prend le rang de
+ * surface qu'il occupe réellement.
+ */
 @utility aig-quiet {
-  background-color: color-mix(in oklab, #09090b 62%, transparent);
-  color: white;
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
   border-radius: var(--aig-radius);
 }
 
+/*
+ * CREUX — la seule surface qui descend au lieu de monter. Sur fond sombre elle
+ * était un noir absolu ; sur fond clair, « en creux » se dit par un gris
+ * légèrement plus soutenu que le canvas, plus un liseré. Sans ce liseré elle se
+ * confondrait avec `aig-subtle`, ce qui coûterait un rang de surface.
+ */
 @utility aig-inset {
-  background-color: #000000;
+  background-color: color-mix(in oklab, var(--aig-line-soft) 42%, var(--aig-subtle));
+  border: 1px solid var(--aig-line-soft);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 4px oklch(0 0 0 / 0.8);
+  box-shadow: var(--aig-elevation-flat);
 }
 
 @utility aig-inset-fill {
   border-radius: 0;
 }
 
+/*
+ * Barre de squelette — l'attente doit se VOIR, sans rien affirmer.
+ *
+ * Piège payé une fois : `aig-inset-fill` ne pose qu'un `border-radius: 0`, pas
+ * de fond. Employé pour un squelette il rend des barres entièrement
+ * transparentes — l'état de chargement disparaît de l'écran tout en semblant
+ * codé. D'où cet utilitaire, qui porte un vrai aplat.
+ *
+ * Le ton est délibérément calme : un squelette trop contrasté se lit comme du
+ * contenu réel, et un compteur à zéro pendant l'attente serait une mesure
+ * fausse (`check:render-truth`). Il ne dit rien — c'est exact.
+ */
+@utility aig-skeleton-bar {
+  background-color: color-mix(in oklab, var(--aig-line-soft) 62%, var(--aig-base));
+}
+
 @utility aig-hairline {
   background: linear-gradient(
     90deg,
     transparent,
-    color-mix(in oklab, white 10%, transparent) 18%,
-    color-mix(in oklab, white 10%, transparent) 82%,
+    var(--aig-line) 18%,
+    var(--aig-line) 82%,
     transparent
   );
   height: 1px;
@@ -153,13 +220,13 @@
 }
 
 @utility aig-display {
-  color: white;
+  color: var(--aig-text);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
 @utility aig-h2 {
-  color: white;
+  color: var(--aig-text);
   font-size: 1.125rem;
   line-height: 1.5rem;
   font-weight: 600;
@@ -167,7 +234,7 @@
 }
 
 @utility aig-h3 {
-  color: white;
+  color: var(--aig-text);
   font-size: 0.8125rem;
   line-height: 1.125rem;
   font-weight: 600;
@@ -176,7 +243,7 @@
 }
 
 @utility aig-kpi-lead {
-  color: white;
+  color: var(--aig-text);
   font-size: 1.75rem;
   line-height: 1;
   font-weight: 600;
@@ -185,7 +252,7 @@
 }
 
 @utility aig-kpi-quiet {
-  color: color-mix(in oklab, white 60%, transparent);
+  color: var(--aig-text-muted);
   font-size: 1.25rem;
   line-height: 1.2;
   font-weight: 600;
@@ -203,43 +270,48 @@
   font-weight: 500;
 }
 
+/* Tons de sévérité sur fond clair — le texte est descendu à 52 % de la teinte
+ * pure. Les teintes de `--aig-severity-*` sont calibrées pour ÉMETTRE sur du
+ * graphite ; posées telles quelles sur un pastel clair, l'ambre tombait à
+ * 4.48:1. Le fond garde la teinte à 12 %, le texte porte le contraste.
+ */
 @utility aig-chip-good {
-  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
-  color: #CD7F32;
+  background-color: color-mix(in oklab, var(--aig-severity-good) 12%, transparent);
+  color: color-mix(in oklab, var(--aig-severity-good) 52%, black);
 }
 
 @utility aig-chip-running {
-  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
-  color: #CD7F32;
+  background-color: color-mix(in oklab, var(--aig-severity-running) 12%, transparent);
+  color: color-mix(in oklab, var(--aig-severity-running) 52%, black);
 }
 
 @utility aig-chip-warn {
-  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
-  color: #CD7F32;
+  background-color: color-mix(in oklab, var(--aig-severity-warn) 12%, transparent);
+  color: color-mix(in oklab, var(--aig-severity-warn) 52%, black);
 }
 
 @utility aig-chip-blocked {
-  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
-  color: #CD7F32;
+  background-color: color-mix(in oklab, var(--aig-severity-blocked) 12%, transparent);
+  color: color-mix(in oklab, var(--aig-severity-blocked) 52%, black);
 }
 
 @utility aig-chip-bad {
-  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
-  color: #CD7F32;
+  background-color: color-mix(in oklab, var(--aig-severity-bad) 12%, transparent);
+  color: color-mix(in oklab, var(--aig-severity-bad) 52%, black);
 }
 
 @utility aig-chip-neutral {
-  background-color: color-mix(in oklab, white 5%, transparent);
-  color: color-mix(in oklab, white 60%, transparent);
+  background-color: var(--aig-line-soft);
+  color: var(--aig-text-muted);
 }
 
 @utility aig-callout {
-  border-left: var(--border-width-default) solid color-mix(in oklab, white 10%, transparent);
+  border-left: var(--border-width-default) solid var(--aig-line);
   padding-left: 0.75rem;
 }
 
 @utility aig-empty-well {
-  border: var(--border-width-default) dashed color-mix(in oklab, white 10%, transparent);
+  border: var(--border-width-default) dashed var(--aig-line);
   border-radius: var(--radius-md);
   background-color: transparent;
   padding: 0.375rem 0.5rem;
@@ -259,14 +331,14 @@
   border-radius: var(--radius-full);
   background: linear-gradient(
     180deg,
-    #CD7F32,
-    color-mix(in oklab, #CD7F32 15%, transparent)
+    var(--aig-accent),
+    color-mix(in oklab, var(--aig-accent) 15%, transparent)
   );
 }
 
 @utility scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, white 10%, transparent) transparent;
+  scrollbar-color: var(--aig-line) transparent;
 }
 
 .scroll-thin::-webkit-scrollbar {
@@ -279,12 +351,12 @@
 }
 
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, white 10%, transparent);
+  background: var(--aig-line);
   border-radius: var(--radius-full);
 }
 
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, white 20%, transparent);
+  background: var(--aig-text-faint);
 }
 
 @utility pulse-live {

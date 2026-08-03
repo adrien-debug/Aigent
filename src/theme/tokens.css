@@ -19,44 +19,118 @@
   --radius-full: 9999px;
 }
 
+/*
+ * AIGENT-DS-SURFACES-001 — DEUX ÉCHELLES, UN SEUL CONTRAT.
+ *
+ * `:root` porte désormais la DIRECTION CLAIRE (body blanc cassé, texte
+ * graphite) ; l'échelle sombre historique n'est pas supprimée, elle est
+ * déplacée sous `.aig-dark` et reste sélectionnable telle quelle. Les deux
+ * échelles définissent EXACTEMENT les mêmes noms de jetons : aucun composant
+ * n'a à savoir laquelle est active, et aucun `aig-*` existant ne casse.
+ *
+ * POURQUOI PAS UN REMPLACEMENT SEC. La sidebar reste sombre sur un body clair :
+ * les deux échelles doivent donc coexister DANS LA MÊME PAGE, pas se succéder
+ * dans le temps. `.aig-dark` est ce qui rend l'îlot sombre possible — c'est une
+ * couche, pas un vestige.
+ *
+ * L'ORDRE EST UN INVARIANT, dans les deux sens de lecture :
+ *   clair  : canvas (le plus clair) > scène > élevé (le plus contrasté)
+ *   sombre : canvas (le plus foncé) < scène < élevé
+ * `--aig-raised` est TOUJOURS le rang le plus détaché de son canvas.
+ */
 :root {
   /*
-   * Graphite — paliers de clarté, pas de noir absolu.
+   * Surfaces claires — quatre rangs séparés par la CLARTÉ, pas par l'ombre.
    *
-   * ÉCHELLE RÉÉTALONNÉE (2026-08-02, DESIGN-POLISH-002 phase 3). L'échelle
-   * précédente logeait ses cinq rangs entre `rgb(7)` et `rgb(49)` : 42 niveaux
-   * sur 255 pour porter toute la hiérarchie. Mesuré au navigateur, l'écart entre
-   * deux rangs adjacents tombait à 1.04–1.12 de ratio — au-dessous du seuil où
-   * l'œil sépare deux aplats.
-   *
-   * L'ORDRE EST UN INVARIANT : canvas < creux < scène < élevé.
+   * Écarts choisis pour rester distinguables sans ombre portée : chaque rang
+   * descend d'environ 0.02–0.025 de clarté OKLCH, ce qui suffit à séparer deux
+   * aplats voisins sur un écran calibré tout en gardant l'ensemble calme. Le
+   * blanc clinique (oklch 1) n'apparaît nulle part — le canvas est un blanc
+   * cassé chaud, très légèrement désaturé vers le bleu pour ne pas jaunir.
    */
-  --aig-subtle: oklch(0.165 0.006 264); /* CANVAS */
-  --aig-base: oklch(0.243 0.007 264); /* SCÈNE */
-  --aig-raised: oklch(0.298 0.009 264); /* ÉLEVÉ */
-  --aig-line-soft: oklch(0.342 0.009 264);
-  --aig-line: oklch(0.408 0.01 264);
+  /*
+   * LE PLANCHER DE CLARTÉ EST FIXÉ PAR CATALYST, PAS PAR NOUS.
+   *
+   * `Text` et `TableHead` du kit rendent `text-zinc-500` (#71717a) et le kit ne
+   * se recolore pas (`check:ui-kit-integrity`, et la mission l'interdit). Ce
+   * zinc mesure 4.5:1 à partir d'un fond ≈ oklch 0.975 : toute surface plus
+   * SOMBRE que ce seuil fait tomber sous WCAG AA tout texte secondaire du kit.
+   * Mesuré : `--aig-raised` à 0.955 donnait 4.17:1 sur la fiche Agent.
+   *
+   * Les quatre rangs sont donc resserrés vers le haut, entre 0.972 et 1.0. Ils
+   * restent séparables parce que la hiérarchie est portée par le LISERÉ autant
+   * que par la clarté — c'est le contrat de `aig-surface-elevated`.
+   */
+  --aig-subtle: oklch(0.982 0.0015 264); /* SURFACE 0 — canvas global */
+  --aig-base: oklch(1 0 0); /* SURFACE 1 — zone de contenu */
+  --aig-raised: oklch(0.9755 0.002 264); /* SURFACE 2 — panneau fonctionnel */
+  --aig-line-soft: oklch(0.912 0.003 264);
+  --aig-line: oklch(0.855 0.004 264);
 
-  --aig-text: oklch(0.93 0.004 264);
-  --aig-text-muted: oklch(0.71 0.006 264);
-  --aig-text-faint: oklch(0.645 0.006 264);
-  --aig-text-display: oklch(0.97 0.004 250);
+  /*
+   * Textes — graphite, jamais noir pur : le noir absolu sur blanc cassé fatigue
+   * en lecture longue. `muted` et `faint` sont posés pour tenir 4.5:1 sur le
+   * canvas ET sur le panneau, pas seulement sur le blanc pur.
+   */
+  /*
+   * Textes secondaires calibrés sur la SURFACE LA PLUS SOMBRE qu'ils peuvent
+   * rencontrer, pas sur le canvas. Un `muted` validé à 4.6:1 sur le canvas
+   * (0.976) retombe à 4.17:1 sur un panneau `--aig-raised` (0.955) — mesuré sur
+   * la fiche Agent, qui pose l'essentiel de ses libellés dans des panneaux.
+   * Les deux jetons tiennent désormais 4.5:1 sur les DEUX fonds.
+   */
+  --aig-text: oklch(0.255 0.006 264);
+  --aig-text-muted: oklch(0.448 0.007 264);
+  --aig-text-faint: oklch(0.512 0.007 264);
+  --aig-text-display: oklch(0.205 0.007 264);
 
-  --aig-accent: oklch(0.72 0.11 52);
-  --aig-accent-quiet: oklch(0.45 0.06 52);
-  --aig-scrim: color-mix(in oklab, var(--aig-subtle) 72%, transparent);
+  /*
+   * Accent cuivre — assombri par rapport à l'échelle sombre. La teinte de la
+   * sidebar (0.72) tombe à 2.2:1 sur blanc : inutilisable pour du texte ou un
+   * anneau de focus. 0.545 la ramène au-dessus de 4.5:1 sur le canvas tout en
+   * gardant le cuivre reconnaissable. Même teinte (52), même identité.
+   */
+  --aig-accent: oklch(0.545 0.132 52);
+  --aig-accent-quiet: oklch(0.93 0.03 52);
+  --aig-scrim: color-mix(in oklab, oklch(0.255 0.006 264) 45%, transparent);
 
+  /*
+   * Sévérité — DEUX REGISTRES, une seule identité.
+   *
+   * `--aig-severity-*` reste le miroir exact de `SEVERITY` (`status.ts`, qui
+   * demeure l'autorité) : ces teintes servent aux PASTILLES, RAILS et TRACÉS,
+   * c'est-à-dire à des aplats et des traits, où elles se lisent parfaitement.
+   *
+   * Elles ne conviennent PAS au TEXTE sur fond clair : calibrées pour émettre
+   * sur graphite, elles y tombent entre 2.79:1 et 4.44:1 (mesuré sur `/agents`
+   * et `/runtime`). `--aig-severity-*-ink` est leur version encre, assombrie
+   * jusqu'à passer 4.5:1 sur nos surfaces claires, à teinte constante — même
+   * couleur perçue, lisibilité en plus. Ne jamais utiliser `-ink` pour un aplat,
+   * ni la teinte nue pour du texte.
+   */
   --aig-severity-good: #0da87f;
   --aig-severity-running: #3d82ee;
   --aig-severity-warn: #be850f;
   --aig-severity-blocked: #8e63ee;
   --aig-severity-bad: #e8455f;
 
-  --aig-elevation-flat: inset 0 1px 0 oklch(1 0 0 / 0.04);
-  --aig-elevation-raised:
-    inset 0 1px 0 oklch(1 0 0 / 0.05), 0 1px 2px oklch(0 0 0 / 0.4);
+  --aig-severity-good-ink: oklch(0.46 0.1 168);
+  --aig-severity-running-ink: oklch(0.46 0.16 258);
+  --aig-severity-warn-ink: oklch(0.46 0.11 78);
+  --aig-severity-blocked-ink: oklch(0.46 0.19 292);
+  --aig-severity-bad-ink: oklch(0.47 0.18 20);
+
+  /*
+   * Élévations claires — la profondeur vient du LISERÉ, pas de l'ombre. Sur
+   * fond clair une ombre portée lit immédiatement « carte SaaS » ; l'ombre est
+   * donc réduite à un halo de contact quasi nul, et c'est `--aig-line-soft` qui
+   * sépare les rangs. Seul l'overlay (dialog, menu) garde une vraie ombre : lui
+   * doit flotter au-dessus du document.
+   */
+  --aig-elevation-flat: 0 0 0 0 transparent;
+  --aig-elevation-raised: 0 1px 2px oklch(0.255 0.006 264 / 0.05);
   --aig-elevation-overlay:
-    inset 0 1px 0 oklch(1 0 0 / 0.06), 0 16px 40px -12px oklch(0 0 0 / 0.7);
+    0 1px 3px oklch(0.255 0.006 264 / 0.08), 0 12px 32px -8px oklch(0.255 0.006 264 / 0.16);
 
   --aig-radius: var(--radius-md);
 
@@ -71,4 +145,53 @@
   --shadow-sm: var(--aig-elevation-flat);
   --shadow-md: var(--aig-elevation-raised);
   --shadow-lg: var(--aig-elevation-overlay);
+}
+
+/*
+ * ÎLOT SOMBRE — l'échelle graphite historique, intégralement conservée.
+ *
+ * Elle a servi de direction produit jusqu'au 2026-08-03 et reste la seule
+ * autorité à l'intérieur de ce scope. Deux usages :
+ *   1. la sidebar, surface sombre indépendante posée sur le body clair ;
+ *   2. toute zone qui doit rester sombre (visualisations, futur mode nuit).
+ *
+ * Les valeurs sont celles de l'échelle réétalonnée du 2026-08-02
+ * (DESIGN-POLISH-002 phase 3) : cinq rangs entre oklch 0.165 et 0.408, calibrés
+ * pour que deux rangs adjacents restent séparables à l'œil. Ne pas les
+ * resserrer — l'échelle précédente tenait dans 42 niveaux sur 255 et les aplats
+ * se confondaient.
+ */
+.aig-dark {
+  /* Le canvas de l'îlot descend sous l'échelle 2026-08-02 : posé à côté d'un
+     body blanc cassé, un gris à 0.165 lit « gris foncé », pas « noir mat
+     architectural ». Les rangs au-dessus sont inchangés — c'est la profondeur
+     du fond qui change, pas la hiérarchie. */
+  --aig-subtle: oklch(0.135 0.005 264); /* CANVAS */
+  --aig-base: oklch(0.243 0.007 264); /* SCÈNE */
+  --aig-raised: oklch(0.298 0.009 264); /* ÉLEVÉ */
+  --aig-line-soft: oklch(0.342 0.009 264);
+  --aig-line: oklch(0.408 0.01 264);
+
+  --aig-text: oklch(0.93 0.004 264);
+  --aig-text-muted: oklch(0.71 0.006 264);
+  --aig-text-faint: oklch(0.645 0.006 264);
+  --aig-text-display: oklch(0.97 0.004 250);
+
+  --aig-accent: oklch(0.72 0.11 52);
+  --aig-accent-quiet: oklch(0.45 0.06 52);
+  --aig-scrim: color-mix(in oklab, var(--aig-subtle) 72%, transparent);
+
+  --aig-elevation-flat: inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --aig-elevation-raised:
+    inset 0 1px 0 oklch(1 0 0 / 0.05), 0 1px 2px oklch(0 0 0 / 0.4);
+  --aig-elevation-overlay:
+    inset 0 1px 0 oklch(1 0 0 / 0.06), 0 16px 40px -12px oklch(0 0 0 / 0.7);
+
+  /* Sur graphite, la teinte nue EST déjà l'encre lisible : l'assombrir la
+     rendrait illisible. `-ink` retombe donc sur la teinte d'origine. */
+  --aig-severity-good-ink: var(--aig-severity-good);
+  --aig-severity-running-ink: var(--aig-severity-running);
+  --aig-severity-warn-ink: var(--aig-severity-warn);
+  --aig-severity-blocked-ink: var(--aig-severity-blocked);
+  --aig-severity-bad-ink: var(--aig-severity-bad);
 }
