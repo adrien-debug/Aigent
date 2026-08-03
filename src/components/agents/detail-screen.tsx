@@ -30,6 +30,8 @@ import {
   RuntimeStatusBadge,
   StageBadge,
 } from './atoms'
+import ComparePanel from './compare-panel'
+import { buildCompareView, type CompareAbsence } from './compare-model'
 import {
   blockerNature,
   serviceVerdict,
@@ -710,6 +712,65 @@ function QualificationSection({
   )
 }
 
+/**
+ * COMPARAISON V1 / V2 — la donnée qui était calculée puis jetée.
+ *
+ * `getAgentDetail` appelle DÉJÀ `compareImprovementVersions` à chaque lecture de
+ * cette fiche, avec son aller-retour live, et posait le résultat dans
+ * `detail.improveComparison` — que rien ne rendait. On demandait donc à un
+ * humain d'approuver une V2 sans lui montrer ce qui change. Cette section ne
+ * mesure rien de neuf : elle rend ce qui était déjà payé.
+ *
+ * LES TROIS ABSENCES SONT DISTINGUÉES ICI, pas dans le panneau : c'est le seul
+ * endroit qui a la donnée pour trancher, et les replier serait rendre un
+ * « aucune proposition » comme un « aucune différence ».
+ */
+function ComparisonSection({ detail }: Readonly<{ detail: AgentDetail }>) {
+  const { improveProposal, improveComparison, versions, manifest } = detail
+
+  let absence: CompareAbsence | null = null
+  if (improveProposal === null) {
+    // Le résolveur rend `null` sur une lecture ÉCHOUÉE comme sur une absence
+    // réelle de ligne (fail-soft documenté). On ne peut donc pas distinguer les
+    // deux ici, et on prend la formulation la plus prudente des deux : « aucun
+    // cycle ouvert » décrit ce que la page peut honnêtement affirmer.
+    absence = 'no-proposal'
+  } else if (improveProposal.v2VersionId === null) {
+    absence = 'no-v2'
+  } else if (improveComparison === null) {
+    // La proposition ET sa V2 existent, mais la comparaison n'a pas pu être
+    // lue : c'est une panne, pas une égalité. Le panneau le dit avec ce mot.
+    absence = 'unread'
+  }
+
+  /*
+   * On construit la vue DÈS QUE la V2 existe, même quand la comparaison live a
+   * échoué : les écarts de manifeste (prompt, garde-fous, limites) viennent de
+   * `manifestChanges`, qui est persisté sur la proposition et ne dépend pas de
+   * cette lecture. Les scores, eux, se rendront « non mesurés » — ce qui est
+   * exactement la vérité dans ce cas.
+   */
+  const view =
+    improveProposal !== null && improveProposal.v2VersionId !== null
+      ? buildCompareView({
+          proposal: improveProposal,
+          comparison: improveComparison,
+          versions,
+          manifest,
+        })
+      : null
+
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        title="Comparaison V1 / V2"
+        description="Ce qui change entre la version en place et le brouillon proposé par la boucle d’amélioration. Cette section se lit avant une décision — elle n’en prend aucune."
+      />
+      <ComparePanel view={view} absence={view === null ? (absence ?? 'unread') : null} />
+    </section>
+  )
+}
+
 function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   const { manifest, agent, tools, versions, currentVersion } = detail
   const resolvedTools = agent?.tools ?? []
@@ -975,6 +1036,7 @@ export default function AgentDetailScreen({
           qualification={qualification}
           qualificationFailure={qualificationFailure}
         />
+        <ComparisonSection detail={detail} />
         <ConfigurationSection detail={detail} />
       </PageBody>
     </>

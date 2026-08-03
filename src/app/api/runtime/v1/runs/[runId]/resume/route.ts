@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
-import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
+import { isValidRunId, resolveRuntimeTenant, tenantCanSeeProject } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
  * POST /api/runtime/v1/runs/:runId/resume — resume a run that is
@@ -15,7 +15,7 @@ import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control
  * Wiring the real interruption/resume path lands with the async run store.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ runId: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { runId } = await params
@@ -26,9 +26,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ run
   try {
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id&limit=1`
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,project_id&limit=1`
     )
-    if (!rows[0]) {
+    const run = rows[0]
+    if (!run) {
+      return NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+    // Another tenant's run reads as nonexistent — 404, never 403.
+    if (!tenantCanSeeProject(auth.tenant, (run.project_id as string | null) ?? null)) {
       return NextResponse.json({ error: 'run not found' }, { status: 404 })
     }
     return NextResponse.json(

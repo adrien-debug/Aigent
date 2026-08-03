@@ -37,8 +37,11 @@ import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { RunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
 import { formatUsd } from '@/lib/agent-mission-control/format'
+import type { RunsFilterState } from '@/lib/runs-console/runs-filters'
 import RunDetail from './run-detail'
 import RunList from './run-list'
+import RunsFilterBar from './runs-filter-bar'
+import type { FilterOption } from './runs-filter-bar'
 import TrafficProvenance from './traffic-provenance'
 import { resolveSelectedRun } from './run-view-model'
 import type { ProvenanceBreakdown } from './run-view-model'
@@ -119,6 +122,11 @@ function HeaderMeta({ label, value }: Readonly<{ label: string; value: string }>
 export default function RunsScreen({
   runs,
   metrics,
+  filters,
+  filtersActive,
+  windowHasRuns,
+  agentOptions,
+  projectOptions,
   agentNameById,
   projectNameById,
   selectedRunId,
@@ -130,8 +138,21 @@ export default function RunsScreen({
   degradedDetail,
   buildHref,
 }: Readonly<{
+  /** Les runs RÉELLEMENT rendus — déjà filtrés par la page. */
   runs: AgentRun[]
+  /** Mesures dérivées de `runs`, donc de la vue filtrée, jamais de la fenêtre. */
   metrics: RunsMetrics
+  filters: RunsFilterState
+  filtersActive: boolean
+  /**
+   * La fenêtre 24 h contenait-elle des runs AVANT filtrage ? C'est ce booléen
+   * qui sépare « aucun run pour ce filtre » de « aucun run du tout » : sans lui,
+   * `runs.length === 0` est ambigu et le message choisi serait faux une fois sur
+   * deux.
+   */
+  windowHasRuns: boolean
+  agentOptions: readonly FilterOption[]
+  projectOptions: readonly FilterOption[]
   agentNameById: Map<string, string>
   projectNameById: Map<string, string>
   selectedRunId: string | null
@@ -146,10 +167,18 @@ export default function RunsScreen({
 }>) {
   const { run: selected, notFound } = resolveSelectedRun(runs, selectedRunId)
 
-  // Le total de la FENÊTRE, pas la taille de la tranche rendue : afficher 200
-  // quand la fenêtre en contient 640 serait un total faux.
+  /**
+   * Le total de la FENÊTRE, pas la taille de la tranche rendue : afficher 200
+   * quand la fenêtre en contient 640 serait un total faux.
+   *
+   * Sous filtre, ce libellé change de nature : « N affichés sur M » décrirait le
+   * plafond de lecture, alors que la réduction vient du filtre choisi par
+   * l'opérateur. Les deux causes de réduction ne se disent pas de la même façon.
+   */
   const capped = windowRunCount > runs.length
-  const windowHint = windowPanelHint(capped, runs.length, windowRunCount)
+  const windowHint = filtersActive
+    ? `${runs.length} run(s) filtré(s) sur ${windowRunCount} dans la fenêtre`
+    : windowPanelHint(capped, runs.length, windowRunCount)
 
   return (
     <>
@@ -192,6 +221,20 @@ export default function RunsScreen({
             </div>
           </div>
 
+          {/*
+            La barre de filtres est placée AU-DESSUS des mesures, pas à côté de
+            la liste : elle qualifie tout ce qui suit — les KPI, la courbe et le
+            flux sont tous dérivés du sous-ensemble qu'elle définit. La poser
+            près de la seule liste laisserait croire qu'elle ne réduit que la
+            liste, pendant que les chiffres du haut auraient déjà bougé.
+          */}
+          <RunsFilterBar
+            filters={filters}
+            agentOptions={agentOptions}
+            projectOptions={projectOptions}
+            selectedRunId={selected?.id ?? selectedRunId}
+          />
+
           <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="flex min-w-0 flex-col">
               <div className="grid grid-cols-3 gap-x-5 gap-y-4 pb-2">
@@ -211,17 +254,36 @@ export default function RunsScreen({
               <div className="aig-hairline mb-3" />
 
               <div>
-                <RunsActivityCanvas runs={runs} nowMs={nowMs} />
+                <RunsActivityCanvas runs={runs} nowMs={nowMs} windowRunCount={windowRunCount} />
               </div>
 
               <div className="aig-hairline my-3" />
 
               <div>
                 {runs.length === 0 ? (
-                  <Unavailable
-                    reason="no-data"
-                    detail="Aucun run opérationnel sur les dernières 24 heures. La lecture a réussi — la fenêtre est réellement vide."
-                  />
+                  /*
+                    DEUX vides, deux phrases. Le troisième état — « lecture
+                    impossible » — ne passe jamais ici : la page rend
+                    `SurfaceUnavailable` à la place de tout l'écran quand la
+                    fenêtre n'a pas pu être lue, précisément pour qu'un backend
+                    muet ne puisse pas se déguiser en flotte au repos.
+
+                    Confondre les deux vides restants serait le même mensonge à
+                    plus petite échelle : dire « la flotte n'a rien exécuté »
+                    alors que l'opérateur regarde un agent qui, lui, n'a rien
+                    exécuté, cache un incident derrière un filtre.
+                  */
+                  windowHasRuns ? (
+                    <Unavailable
+                      reason="no-data"
+                      detail={`Aucun run ne correspond à ce filtre. La fenêtre 24 h en contient ${windowRunCount} — élargissez le filtre ou revenez à la vue complète.`}
+                    />
+                  ) : (
+                    <Unavailable
+                      reason="no-data"
+                      detail="Aucun run opérationnel sur les dernières 24 heures. La lecture a réussi — la fenêtre est réellement vide."
+                    />
+                  )
                 ) : (
                   <RunList
                     runs={runs}

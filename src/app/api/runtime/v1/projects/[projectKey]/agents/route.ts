@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { getPublishedAgents } from '@/lib/agent-mission-control/runtime-catalogue'
-import { isValidProjectKey, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
+import { isValidProjectKey, resolveRuntimeTenant, tenantCanSeeProject } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
  * GET /api/runtime/v1/projects/:projectKey/agents — the DOCUMENTED per-project
@@ -17,7 +17,7 @@ import { isValidProjectKey, requireRuntimeApiAuth } from '@/lib/agent-mission-co
  * "you have no agents"). A project with genuinely zero agents returns `[]`.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ projectKey: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { projectKey } = await params
@@ -25,8 +25,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     return NextResponse.json({ error: 'invalid projectKey' }, { status: 400 })
   }
 
+  // An installation tenant asking for a project that is not its own is
+  // indistinguishable from asking for a nonexistent project — same 404-style
+  // "no agents" shape (empty catalogue), never a 403 revealing the project is
+  // real but off-limits.
+  if (!tenantCanSeeProject(auth.tenant, projectKey)) {
+    return NextResponse.json({ ok: true, projectKey, count: 0, agents: [] })
+  }
+
   try {
-    const agents = (await getPublishedAgents()).filter((a) => a.projectKey === projectKey)
+    const agents = (await getPublishedAgents(auth.tenant)).filter((a) => a.projectKey === projectKey)
     return NextResponse.json({ ok: true, projectKey, count: agents.length, agents })
   } catch (err) {
     console.error('[runtime/v1/projects/:projectKey/agents] catalogue read failed', err)

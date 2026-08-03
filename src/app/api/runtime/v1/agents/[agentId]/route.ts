@@ -5,7 +5,7 @@ import { getPublishedAgent } from '@/lib/agent-mission-control/runtime-catalogue
 import {
   RUNTIME_CONTRACT_VERSION,
   isValidAgentId,
-  requireRuntimeApiAuth,
+  resolveRuntimeTenant,
 } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
@@ -17,7 +17,7 @@ import {
  * failure answers 503 here and never a bare 404.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ agentId: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { agentId } = await params
@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
   }
 
   try {
-    const agent = await getPublishedAgent(agentId)
+    const agent = await getPublishedAgent(agentId, auth.tenant)
     if (agent === undefined) {
       return NextResponse.json({ error: 'agent not found' }, { status: 404 })
     }

@@ -13,9 +13,10 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `5ffb22e11a713923bd986f0c24b7b89151445d21`
-Dernière mise à jour : 2026-08-03 · mission `aigent-hardening-production-001`
-(branche `mission/aigent-hardening-production-001`, **non mergée**)
+**État de référence** — `main` = `885aef92960aa573df0f5239cc62745c697310d7`
+Dernière mise à jour : 2026-08-04 · mission `aigent-runtime-productization-001`
+(branche `mission/aigent-runtime-productization-001`, **non mergée** — verdict
+**PARTIAL**)
 
 ---
 
@@ -44,12 +45,18 @@ Capacités dont l'exécution réelle a été constatée.
 | **CI concluante** | run `30843292019` — `success` ; le job sans runner est `skipped`, il ne suspend plus rien |
 | **Navigation annoncée aux lecteurs d'écran** | `aria-current="page"` constaté dans le DOM servi, **unique** par page, absent (pas `false`) sur les entrées inactives, et suit la navigation au clic réel |
 | **Les 11 pages assainies vérifiées en session authentifiée** | 11/11 en 200, aucune trace de pile, aucun SQLSTATE, aucune mention PostgREST, aucune erreur console critique |
+| **Isolation tenant du runtime** | jeton d'installation scopé : 7 agents rendus sur 14 en flotte ; agent d'un autre projet → **404** (contrôle négatif fait : agent du propre projet → 200) ; jeton valide + mauvaise installation → **401** |
+| **Parcours consommateur de bout en bout** | installation `inst-development-dc635c1eb45f482fbfad` (HTTP 201) → jeton scopé → run réel → persistance |
+| **Run réel via le runtime gouverné** | runId `bff77516-c634-438c-8a9c-e34579e614b4` · `openai` / `gpt-5.4` (`modelUnverified: false`) · **$0.019429** · `completed` 18 410 ms · dispatché sur l'**assistant dédié**, pas le graphe nu |
+| **Zéro exécution de trading** | 5 outils tous `read_*` · `improvement_proposals` reste à 0 · **aucune table d'ordre n'existe** — structurellement impossible, pas seulement non advenu |
+| **Filtres Runs réellement consommés** | `parseRunsFilters` branché ; `?agent=` réduit la liste ; alias `copilot` accepté pour les liens déjà partagés |
+| **Surface `/settings` en lecture seule** | posture des providers, runtime, endpoints assainis, plafonds, LangGraph, télémétrie — **aucune valeur de secret**, sondé avec une fuite masquée (préfixe tronqué) |
 
 ## Testé
 
 | Suite | État |
 |---|---|
-| `npm run test` (unitaire, hors ligne) | **2 462 tests passés + 1 échec attendu**, 192 fichiers |
+| `npm run test` (unitaire, hors ligne) | **2 516 tests passés + 1 échec attendu**, 197 fichiers |
 | `npm run typecheck` | **0 erreur** |
 | `npm run build` | **OK** |
 | `npm run check` | **exit 0** — 19 gates |
@@ -107,11 +114,10 @@ fichier.
 |---|---|
 | **Qualification aval : shadow, replay, qualification runs** | code complet, **0 ligne en base**. La route de qualification ne transmet pas de driver → les étapes retombent systématiquement en « non disponible ». |
 | **Boucle d'amélioration autonome** | la fonction existe et est testée, mais **aucune route ni cron ne l'appelle**. Moteur sans surface. |
-| **Écran de comparaison V1/V2** | la donnée est **calculée à chaque lecture de fiche agent puis jetée** — aucun composant ne la rend. On demande une décision humaine sans montrer le diff. |
+| **Écran de comparaison V1/V2 — RENDU, non observé** | le composant existe et est testé (16 cas, dont le garde contre les scores V2 à 0 % qui afficheraient une régression inventée). Mais `improvement_proposals` est **vide en base** : la vue pleine n'a **jamais été observée rendue**. Codé et vérifié statiquement, pas constaté. |
 | **Export autonome d'agent** | capacité **future** (`PRODUCT_DOCTRINE.md` §3), pas l'autorité actuelle. L'artefact généré ne porte pas les outils ni les gardes de l'agent qualifié. |
 | **Canal de retour depuis un artefact autonome** | structurellement inerte : le champ qui déclenche la génération de l'émetteur n'est écrit par aucun chemin, et l'émetteur n'a aucun appelant. |
-| **Surface `/settings`** | placeholder ; son contrat backend existe et n'a aucun appelant. |
-| **Filtres de runs et d'agents par URL** | le parseur de filtres n'est appelé par **aucune page** : l'URL affiche un filtre, la page renvoie tout. |
+| **Filtres autres qu'Agent et Projet** | statut, période, provider, modèle, durée, coût sont consommés **par URL** mais n'ont aucun contrôle d'interface. Le reset ne remet à zéro qu'Agent et Projet — délibérément, pour ne pas effacer en silence un paramètre invisible. |
 
 ## Limites connues
 
@@ -180,7 +186,29 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 **Cohérence visuelle**
 
-17b. **`/runtime` affiche le NOM d'une variable d'environnement** dans un
+17a. **`/settings` déborde horizontalement à 390 px.** Mesuré : `max right`
+    **674 px** pour un viewport de 390, sur une `<section class="aig-panel">`
+    large de 658 px — vraisemblablement une grille qui ne retombe pas en une
+    colonne. Le débordement est **clippé** : ni scrollable, ni tronqué
+    proprement, donc des noms de variables apparaissent coupés sur la surface
+    même qui sert à dire quoi renseigner. Un correctif sur `EnvVarNames` a été
+    posé (tokens cassables) — **ce n'était pas la cause**. `/runs` et `/agents`
+    sont propres au même point de rupture.
+    Piège de mesure à connaître : `documentElement.scrollWidth > clientWidth`
+    renvoie **faux** ici parce que le document ne scrolle pas ; il faut mesurer
+    `getBoundingClientRect().right` élément par élément.
+
+17b. **Le contrat de lecture d'un run n'expose pas sa provenance de coût.**
+    `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût,
+    ni latence — ils n'existent que dans la réponse du `POST`. Un consommateur
+    qui relit un run *a posteriori* ne peut pas reconstituer ce qu'il a payé ni
+    ce qui a tourné. Champs **absents**, pas des faux zéros.
+    Point associé : `GET /projects/{key}/agents` répond 200/vide pour un projet
+    étranger au lieu de 404 — **sans fuite** (un projet fictif donne la réponse
+    identique, donc pas d'énumération possible), mais asymétrique avec le 404
+    de `/agents/{agentId}`.
+
+17c. **`/runtime` affiche le NOM d'une variable d'environnement** dans un
     diagnostic de configuration (`AIGENT_RUNTIME_TELEMETRY_TOKEN est absent…`).
     **Revu et conservé délibérément** : c'est un nom, jamais une valeur, sur une
     surface désormais authentifiée, et dire à l'opérateur quelle variable
@@ -196,12 +224,18 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 Ordonnées par rapport valeur / risque. Les trois premières de la version
 précédente sont faites.
 
-1. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
+1. **Fermer le débordement `/settings` à 390 px** (limite 17a) — la cause est
+   identifiée au niveau de la `<section aig-panel>`, pas encore corrigée.
+2. **Régénérer les preuves visuelles au HEAD final** — les captures existantes
+   datent d'un HEAD antérieur aux deux correctifs de ce commit, et trois
+   contrôles V1/V2 restent non observables tant qu'aucune proposition
+   d'amélioration n'existe en base.
+3. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
    sécurité non mesuré coercé en 0, un provider écrit en dur, une télémétrie qui
    ne distingue pas la provenance.
-2. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
+4. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
    distantes sur un double-clic.
-3. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
+5. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
    `/agents`, `/runs` ont été vérifiées aux deux points de rupture.
 5. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
    preuves visuelles.
@@ -219,6 +253,9 @@ précédente sont faites.
 | Audit de référence | 2026-08-03, 10 périmètres, lecture seule, arbre inchangé |
 | Run runtime réel | 2026-08-03 — `openai` / `gpt-5.4`, coût mesuré, provider recoupé en base |
 | Déploiement | **aucun** — absence de mécanisme vérifiée le 2026-08-03 |
+| Run consommateur réel | `bff77516-c634-438c-8a9c-e34579e614b4` — `openai` / `gpt-5.4`, $0.019429, 2026-08-04 |
+| Installation consommateur | `inst-development-dc635c1eb45f482fbfad`, projet `proj-tradeagent` |
+| Preuve consommateur | `docs/visual-reviews/AIGENT-RUNTIME-PRODUCTIZATION-001/CONSUMER-PILOT.md` |
 
 > Un runId de run interne d'Aigent sera consigné ici dès qu'une mission en
 > produira un dans le cadre d'une preuve. La ligne ci-dessus référence un run

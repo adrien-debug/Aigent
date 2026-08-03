@@ -72,7 +72,10 @@ export function agentTabs(copilotId: string): readonly ObjectTab[] {
     {
       id: 'runs',
       name: 'Historique',
-      href: `/runs?copilot=${encodeURIComponent(copilotId)}`,
+      // `agent=` est le nom canonique du filtre (`runs-filters.ts`). L'ancien
+      // `copilot=` reste accepté par le parseur — les liens déjà partagés
+      // continuent de marcher — mais on n'en émet plus de nouveaux.
+      href: `/runs?agent=${encodeURIComponent(copilotId)}`,
       purpose: 'Les exécutions de cet agent : statut, latence, coût, outils appelés.',
     },
   ] as const

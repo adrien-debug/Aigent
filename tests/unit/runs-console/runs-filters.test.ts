@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_RUNS_FILTERS,
   applyRunsFilters,
+  buildRunsHref,
   hasActiveFilters,
   parseRunsFilters,
   serializeRunsFilters,
@@ -66,6 +67,61 @@ describe('parseRunsFilters', () => {
 
   it('returns defaults when there are no search params at all', () => {
     expect(parseRunsFilters(undefined)).toEqual(DEFAULT_RUNS_FILTERS)
+  })
+
+  /**
+   * The agent card's "Historique" tab shipped `/runs?copilot=X` while the parser
+   * only ever read `agent`. Combined with the parser being unwired, that link
+   * displayed a filter in the URL and rendered the WHOLE fleet. The alias is the
+   * half of the fix that keeps already-shared links working.
+   */
+  it('accepts `copilot` as an alias of `agent`', () => {
+    expect(parseRunsFilters({ copilot: 'copilot-a' }).agent).toBe('copilot-a')
+  })
+
+  it('prefers `agent` when both spellings are present', () => {
+    expect(parseRunsFilters({ agent: 'copilot-a', copilot: 'copilot-b' }).agent).toBe('copilot-a')
+  })
+
+  it('normalises the alias away on the next serialization', () => {
+    // A link arriving as `copilot=` leaves as `agent=`: one spelling in the URL
+    // the operator ends up sharing, two accepted on the way in.
+    const qs = serializeRunsFilters(parseRunsFilters({ copilot: 'copilot-a' }))
+    expect(qs).toBe('agent=copilot-a')
+  })
+})
+
+describe('buildRunsHref', () => {
+  it('returns a bare /runs for the unfiltered view', () => {
+    expect(buildRunsHref(DEFAULT_RUNS_FILTERS)).toBe('/runs')
+  })
+
+  it('composes the run selection with the active filters', () => {
+    const href = buildRunsHref(state({ agent: 'copilot-a', status: 'failed' }), 'run-7')
+    const params = new URLSearchParams(href.slice('/runs?'.length))
+
+    expect(params.get('agent')).toBe('copilot-a')
+    expect(params.get('status')).toBe('failed')
+    expect(params.get('run')).toBe('run-7')
+  })
+
+  /**
+   * The shareable-link contract, end to end: what the screen puts in the URL is
+   * exactly what the server reads back out of it. A filter that survives the
+   * round trip is a filter a pasted link reproduces.
+   */
+  it('round-trips through the parser so a pasted link reproduces the view', () => {
+    const original = state({ agent: 'copilot-a', project: 'proj-b', status: 'failed', period: '1h' })
+    const href = buildRunsHref(original, 'run-7')
+    const params = Object.fromEntries(new URLSearchParams(href.slice('/runs?'.length)))
+
+    expect(parseRunsFilters(params)).toEqual(original)
+    // The selection rides alongside the filters without being one of them.
+    expect(params.run).toBe('run-7')
+  })
+
+  it('omits an absent selection rather than writing an empty run param', () => {
+    expect(buildRunsHref(state({ agent: 'copilot-a' }), null)).toBe('/runs?agent=copilot-a')
   })
 })
 

@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import {
   isValidRunId,
-  requireRuntimeApiAuth,
+  resolveRuntimeTenant,
+  tenantCanSeeProject,
   toRuntimeRunStatus,
 } from '@/lib/agent-mission-control/runtime-api-types'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
@@ -19,7 +20,7 @@ import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
  * the published RuntimeRunStatus contract, never the internal value.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ runId: string }> }) {
-  const auth = requireRuntimeApiAuth(request)
+  const auth = await resolveRuntimeTenant(request)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { runId } = await params
@@ -34,6 +35,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
     )
     const run = rows[0]
     if (!run) {
+      return NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+    // A run belonging to another tenant reads as "not found" — 404, never 403.
+    // The run's existence is itself information the owning tenant did not
+    // consent to leak.
+    if (!tenantCanSeeProject(auth.tenant, (run.project_id as string | null) ?? null)) {
       return NextResponse.json({ error: 'run not found' }, { status: 404 })
     }
     return NextResponse.json({
