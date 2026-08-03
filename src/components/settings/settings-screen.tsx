@@ -224,12 +224,31 @@ export default function SettingsScreen({
         {/* Deux colonnes en large, une seule en étroit. Aucune colonne n'est
             masquée sous un point de rupture : elles s'empilent — un état caché
             sur petit écran serait un écran qui ment par omission. */}
+        {/*
+          `min-w-0` sur CHAQUE Panel, et pas seulement sur la grille.
+
+          Mesuré dans le DOM à 390 px : les `<section class="flex flex-col
+          aig-panel">` sortaient à 658 px avec `min-width: auto`. Un item de
+          grille (comme un item de flex) a `min-width: auto` par défaut : il
+          refuse de rétrécir sous la largeur intrinsèque de son contenu. Le
+          `min-w-0` du conteneur ne se propage pas aux enfants — c'est chaque
+          item qui doit renoncer à son plancher.
+
+          Le débordement était CLIPPÉ, donc ni scrollable ni tronqué proprement :
+          des noms de variables apparaissaient coupés sur la surface même qui
+          sert à dire quoi renseigner.
+
+          Corrigé ICI et non dans `Panel` : la primitive est consommée par 31
+          fichiers, et lui imposer `min-w-0` changerait le comportement de onze
+          écrans qui ne sont pas dans le périmètre de cette mission.
+        */}
         <div className="grid min-w-0 gap-5 xl:grid-cols-2">
           <Panel
             title="Providers de modèle"
             hint={providers.message}
             padded={false}
             scrollable
+            className="min-w-0"
             bodyClassName="max-h-[26rem]"
           >
             <div className="min-w-0">
@@ -244,6 +263,7 @@ export default function SettingsScreen({
             hint={runtimes.message}
             padded={false}
             scrollable
+            className="min-w-0"
             bodyClassName="max-h-[26rem]"
           >
             <ul className="min-w-0">
@@ -253,7 +273,7 @@ export default function SettingsScreen({
             </ul>
           </Panel>
 
-          <Panel title="Frontières et endpoints" padded={false} scrollable bodyClassName="max-h-[26rem]">
+          <Panel title="Frontières et endpoints" padded={false} scrollable className="min-w-0" bodyClassName="max-h-[26rem]">
             <div className="min-w-0">
               <CapabilityRow
                 label="Authentification opérateur"
@@ -328,7 +348,7 @@ export default function SettingsScreen({
             </div>
           </Panel>
 
-          <Panel title="Télémétrie et observabilité" padded={false} scrollable bodyClassName="max-h-[26rem]">
+          <Panel title="Télémétrie et observabilité" padded={false} scrollable className="min-w-0" bodyClassName="max-h-[26rem]">
             <div className="min-w-0">
               <CapabilityRow
                 label="Ingestion de télémétrie runtime"
@@ -366,14 +386,25 @@ export default function SettingsScreen({
             </div>
           </Panel>
 
+          {/*
+            `hint` NON utilisé ici, délibérément. Le `hint` de `Panel` est rendu
+            en `ml-auto shrink-0 truncate` : `shrink-0` annule le `truncate`,
+            donc une phrase longue pousse la ligne d'en-tête au-delà du
+            viewport. Mesuré à 390 px : ce seul `<p>` sortait à 624 px de large,
+            dernier débordement de la page une fois les Panels corrigés.
+
+            Le message vit donc dans le CORPS du panneau, où il peut passer à la
+            ligne. `Panel` n'est pas modifié : 31 fichiers le consomment, et son
+            en-tête convient aux hints courts pour lesquels il a été écrit.
+          */}
           <Panel
             title="Plafonds de coût"
-            hint={costLimits.message}
             padded={false}
             scrollable
             bodyClassName="max-h-[26rem]"
-            className="xl:col-span-2"
+            className="min-w-0 xl:col-span-2"
           >
+            <p className="aig-text-muted min-w-0 px-4 pt-3 text-sm">{costLimits.message}</p>
             <ul className="min-w-0">
               {costLimits.items.map((item) => (
                 <CostLimitRow key={item.scope} item={item} />

@@ -101,3 +101,12 @@ tmp/
 # respecte la doctrine. Les captures des deux points de rupture sont donc
 # livrées avec la PR. Le reste de `docs/visual-reviews/` reste ignoré.
 !docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/
+
+# EXCEPTION CIBLÉE — SETTINGS-MOBILE-OVERFLOW.
+#
+# `DESIGN_DOCTRINE.md` §8 exige une preuve visuelle datée pour toute
+# modification d'une surface de production. Le correctif porte précisément sur
+# le RESPONSIVE : sans les captures aux points de rupture, le relecteur devrait
+# croire sur parole une correction qu'aucune gate ne mesure (aucune gate de ce
+# dépôt ne lit un pixel). Le reste de `docs/visual-reviews/` reste ignoré.
+!docs/visual-reviews/SETTINGS-MOBILE-OVERFLOW/
