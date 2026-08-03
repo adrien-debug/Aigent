@@ -164,6 +164,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <AppShell>
       <ProjectDetailScreen
+        projectId={id}
         name={name ?? id}
         graph={graph}
         repo={repo}

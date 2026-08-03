@@ -71,56 +71,103 @@ export function FluxAbsentLine() {
 }
 
 /**
- * Ligne de projet. Un projet vide ne répète PAS « aucun agent dans ce
- * projet » : la phrase revenait à l'identique ligne après ligne et devenait le
- * texte le plus présent de la page. L'absence se dit une fois, dans la colonne
- * de droite, avec le libellé d'absence du produit.
+ * CARTE DE PROJET — AIGENT-UX-IA-001 remplace la ligne de liste par une carte.
+ *
+ * POURQUOI UNE CARTE ICI, alors que #94 a chassé les cartes du bandeau de
+ * mesures. Ce n'est pas contradictoire : #94 interdit la carte comme EMBALLAGE
+ * d'un chiffre nu — six boîtes pour six nombres. Une carte de projet porte, elle,
+ * un OBJET composite qu'on peut ouvrir : identité, activité, progression,
+ * alerte. C'est le critère que l'issue pose elle-même — « cartes uniquement
+ * lorsqu'elles portent une vraie fonction ».
+ *
+ * CHAQUE CHAMP EST MESURÉ, AUCUN N'EST INVENTÉ. `runsLast24h` distingue trois
+ * états (`0` mesuré, `n` mesuré, `null` non mesurable) et la carte les rend
+ * différemment : un projet dont aucun agent n'a prouvé son compte affiche
+ * l'absence, jamais « 0 run ». Même règle pour `passRate`.
  */
-function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
+function ProjectCard({ project }: Readonly<{ project: ProjectOverviewItem }>) {
   const empty = project.copilotCount === 0
+  const ratio = empty ? 0 : project.activeCount / project.copilotCount
+  // Une alerte n'est levée que sur une mesure PROUVÉE : un `passRate` non lu
+  // n'est pas un mauvais taux, et signaler l'inconnu comme un incident userait
+  // le signal jusqu'à ce que l'opérateur l'ignore.
+  const alert = project.passRate !== null && project.passRate < 0.5
 
   return (
-    <li>
+    <li className="min-w-0">
       <Link
         href={`/projects/${project.id}`}
-        className="overview-row -mx-2 flex min-w-0 items-center gap-3 px-2 py-2.5 no-underline"
+        className="overview-row aig-surface-elevated flex min-w-0 flex-col gap-3 rounded-lg p-3.5 no-underline"
       >
-        <Avatar
-          square
-          initials={initialsOf(project.name)}
-          className={clsx('size-7 shrink-0', empty && 'opacity-50')}
-        />
-
-        <div className="min-w-0 flex-1">
-          <span
-            className={clsx(
-              'block truncate text-sm',
-              empty ? 'aig-text-muted' : 'aig-text font-medium',
-            )}
-          >
-            {project.name}
-          </span>
-          <span className="aig-text-muted block truncate text-2xs uppercase tracking-[0.08em]">
-            {project.repoFullName ?? 'aucun dépôt lié'}
-          </span>
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/*
+            MONOGRAMME, PAS `logoUrl`. L'issue demande « logo réel OU monogramme
+            propre » — j'ai d'abord câblé `logoUrl`/`imageUrl`, et les trois
+            projets qui en portent un ont produit trois 404 :
+            `/projects/tradeagent/logo.svg`, `/projects/aigent-builder/cover.png`,
+            `/projects/bull21/cover.png`. Le dossier `public/projects/` n'existe
+            pas — ces chemins sont déclarés en base sans fichier en face, et
+            AUCUN autre écran ne les consommait, ce qui explique que le trou
+            n'ait jamais été visible.
+            Un logo cassé dégrade plus qu'un monogramme ne manque : on rend donc
+            le monogramme jusqu'à ce que les assets existent réellement. Les
+            champs restent dans le contrat, prêts à être rebranchés.
+          */}
+          <Avatar
+            square
+            initials={initialsOf(project.name)}
+            className={clsx('size-8 shrink-0', empty && 'opacity-50')}
+          />
+          <div className="min-w-0 flex-1">
+            <span
+              className={clsx(
+                'block truncate text-sm',
+                empty ? 'aig-text-muted' : 'aig-text font-medium',
+              )}
+            >
+              {project.name}
+            </span>
+            <span className="aig-text-muted block truncate text-2xs uppercase tracking-[0.08em]">
+              {project.repoFullName ?? 'aucun dépôt lié'}
+            </span>
+          </div>
+          {alert ? (
+            <SeverityChip tone="warn" className="shrink-0 text-3xs uppercase tracking-[0.1em]">
+              À revoir
+            </SeverityChip>
+          ) : null}
         </div>
 
-        <div className="w-16 shrink-0 text-right">
-          {empty ? (
-            <NotMeasured label="—" why="Aucun agent dans ce projet." />
-          ) : (
-            <>
-              <div className="aig-text text-2xs font-medium tabular-nums">
-                {project.activeCount}
-                <span className="aig-text-muted"> / {project.copilotCount}</span>
-              </div>
-              <BarMeter
-                ratio={project.activeCount / project.copilotCount}
-                color={ACCENT}
-                className="mt-1.5"
-              />
-            </>
-          )}
+        <div className="flex min-w-0 items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="aig-text-muted text-2xs uppercase tracking-[0.08em]">Runs 24 h</p>
+            <div className="mt-0.5 min-h-5">
+              {project.runsLast24h === null ? (
+                <NotMeasured
+                  label="—"
+                  why="Aucun agent de ce projet n'a prouvé son compte de runs."
+                />
+              ) : (
+                <span className="aig-text text-base font-semibold tabular-nums">
+                  {project.runsLast24h}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="w-20 shrink-0 text-right">
+            {empty ? (
+              <NotMeasured label="—" why="Aucun agent dans ce projet." />
+            ) : (
+              <>
+                <div className="aig-text text-2xs font-medium tabular-nums">
+                  {project.activeCount}
+                  <span className="aig-text-muted"> / {project.copilotCount}</span>
+                </div>
+                <BarMeter ratio={ratio} color={ACCENT} className="mt-1.5" />
+              </>
+            )}
+          </div>
         </div>
       </Link>
     </li>
@@ -173,13 +220,17 @@ export function ProjectsBlock({
         <EmptyOverviewLine detail="Aucun projet dans le catalogue." />
       ) : (
         <>
-          <ul className="min-w-0">
+          {/* Grille de cartes, plus une liste (AIGENT-UX-IA-001). Deux colonnes
+              dès `sm` : à une seule, cinq cartes rendraient la colonne plus
+              haute que la zone de signaux d'en face et rouvriraient le besoin
+              d'un scroller — précisément ce que l'issue interdit. */}
+          <ul className="grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2">
             {shown.map((project) => (
-              <ProjectRow key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} />
             ))}
           </ul>
           {hidden > 0 ? (
-            <p className="aig-text-muted mt-2 text-2xs uppercase tracking-[0.08em]">
+            <p className="aig-text-muted mt-3 text-2xs uppercase tracking-[0.08em]">
               {`+ ${hidden} autre(s) sur /projects`}
             </p>
           ) : null}

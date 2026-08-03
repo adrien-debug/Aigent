@@ -27,7 +27,7 @@ import * as Headless from '@headlessui/react'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
 
-import { NAVIGATION, activeNavHref } from '@/components/navigation'
+import { MAIN_NAV_ENTRIES, activeNavHref } from '@/components/navigation'
 import { Avatar } from '@/components/ui/avatar'
 import {
   Sidebar,
@@ -103,7 +103,7 @@ function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
       <SidebarBody>
         <SidebarSection>
           <SidebarHeading className="aig-text-faint">Surfaces</SidebarHeading>
-          {NAVIGATION.map((entry) => {
+          {MAIN_NAV_ENTRIES.map((entry) => {
             const isCurrent = current === entry.href
             return (
               <div key={entry.href} className="relative">

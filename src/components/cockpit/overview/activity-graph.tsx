@@ -88,7 +88,13 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="none"
-          className="h-48 w-full overflow-visible xl:h-56"
+          /* TRAIT FIN, HAUTEUR CONTENUE (AIGENT-UX-IA-001). Le graphe montait
+             à 192 px (224 en `xl`) pour porter une courbe d'activité que
+             l'opérateur lit en une seconde. Sur un Aperçu qui doit tenir la
+             promesse « tout est visible sans défiler », cette hauteur était
+             prise sur les projets. `h-36` garde la forme lisible sans lui
+             donner le poids d'un écran d'observabilité. */
+          className="h-36 w-full overflow-visible xl:h-40"
           role="img"
           aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
         >
@@ -127,7 +133,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
             d={linePath}
             fill="none"
             stroke="var(--aig-accent)"
-            strokeWidth="2"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"

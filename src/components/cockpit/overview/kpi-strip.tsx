@@ -137,6 +137,32 @@ export default function KpiStrip({
           : null,
     },
     {
+      /*
+        LEARNING — la boucle d'amélioration, mesurée et non simulée.
+        (AIGENT-UX-IA-001, #93 : « Learning » rejoint le bandeau.)
+
+        `readyForManualTest` était DÉJÀ calculé par `getDashboardOverview` et
+        n'était affiché nulle part : ce sont les versions livrées qui attendent
+        une revue humaine, c'est-à-dire l'entrée de la boucle d'amélioration.
+        Il porte la même discipline que les autres rangs — `null` quand la
+        lecture des événements de livraison échoue, jamais un zéro de confort,
+        ce qui dirait « personne n'attend » là où le fait est « on n'a pas pu
+        vérifier ».
+
+        Les propositions d'amélioration (`improvement_decision`) auraient été
+        l'autre candidat, mais l'Aperçu ne les lit pas : elles demandent un scan
+        borné à trente copilots que seule `/actions` paie. Les afficher ici
+        aurait exigé une lecture supplémentaire — hors périmètre de cette
+        mission, qui interdit de toucher au backend.
+      */
+      key: 'learning',
+      label: 'Learning',
+      value: kpis.readyForManualTest,
+      support:
+        kpis.readyForManualTest === null ? 'revue non lue' : 'versions en attente de revue',
+      actionable: kpis.readyForManualTest !== null && kpis.readyForManualTest > 0,
+    },
+    {
       key: 'deliveries',
       label: 'Livraisons',
       value: blocked,
@@ -152,8 +178,13 @@ export default function KpiStrip({
     },
   ]
 
+  // SEPT colonnes en `xl`, pas six : la mesure « Learning » ajoutée par
+  // AIGENT-UX-IA-001 aurait sinon basculé seule sur une deuxième ligne, et un
+  // bandeau qui se lit « six mesures puis une » n'est plus une composition. En
+  // `lg` on reste à quatre par ligne (4 + 3), ce qui garde des colonnes assez
+  // larges pour que les libellés ne se tronquent pas.
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-8">
+    <div className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 xl:gap-x-6">
       {measures.map((measure) => (
         <MeasureCell key={measure.key} measure={measure} />
       ))}
