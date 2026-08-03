@@ -41,6 +41,9 @@ Capacités dont l'exécution réelle a été constatée.
 | **Surface de connexion `/sign-in`** | flux complet exercé au navigateur : formulaire → `POST /api/auth/login` → cookie `httpOnly`/`SameSite=Lax` → retour vers `next=` honoré |
 | **`npm run health` dit la vérité** | `STACK HEALTHY` constaté ; sondé dans les deux sens (stack up / Next injoignable) |
 | **`npm run check` vert et identique partout** | exit 0, 19 gates ; l'écart local/CI est fermé |
+| **CI concluante** | run `30843292019` — `success` ; le job sans runner est `skipped`, il ne suspend plus rien |
+| **Navigation annoncée aux lecteurs d'écran** | `aria-current="page"` constaté dans le DOM servi, **unique** par page, absent (pas `false`) sur les entrées inactives, et suit la navigation au clic réel |
+| **Les 11 pages assainies vérifiées en session authentifiée** | 11/11 en 200, aucune trace de pile, aucun SQLSTATE, aucune mention PostgREST, aucune erreur console critique |
 
 ## Testé
 
@@ -50,7 +53,8 @@ Capacités dont l'exécution réelle a été constatée.
 | `npm run typecheck` | **0 erreur** |
 | `npm run build` | **OK** |
 | `npm run check` | **exit 0** — 19 gates |
-| Validation navigateur (Chromium, 1440×900 et 390×844) | 10 captures + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` |
+| Validation navigateur (Chromium) | **19 captures** + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` — `/sign-in`, `/`, `/agents`, `/runs` aux **deux** points de rupture ; les 8 pages restantes en 1440×900 |
+| Garde de régression `aria-current` | `tests/unit/sidebar-aria-current.test.ts` — 3 cas, **sondé rouge** quand l'attribut disparaît |
 | `check:secrets` (gitleaks) | propre sur l'historique complet |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
 
@@ -141,7 +145,10 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 6. ~~**`npm run check` rouge en local, vert en CI.**~~ **FERMÉE** — exit 0, 19 gates ; portée d'ignore étroite, sondée dans les deux sens. Ancien texte : et vert en CI : le linter voit des
    fichiers vendorés que git ignore. Même commande, deux verdicts.
-7. ~~**La CI ne conclut jamais.**~~ **CORRIGÉE, NON PROUVÉE EN EXÉCUTION** — job SonarQube conditionné, `timeout-minutes`, `cancel-in-progress` asymétrique. Le vérifier exige de pousser. Ancien texte : : un job cible un runner inexistant, et
+7. ~~**La CI ne conclut jamais.**~~ **FERMÉE, PROUVÉE EN EXÉCUTION** — run
+   `30843292019` : `conclusion=success`, `check + build` **success**,
+   `SonarQube analysis (optional)` **skipped** au lieu de rester `queued`.
+   Premier run terminal du dépôt après 100 runs sans succès. Ancien texte : : un job cible un runner inexistant, et
    l'annulation en cascade fait qu'aucun run n'atteint un état terminal. `main`
    n'a aucune protection de branche ni check requis.
 8. **Deux gates prouvées contournables** : le détecteur de code mort accepte une
@@ -173,6 +180,13 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 **Cohérence visuelle**
 
+17b. **`/runtime` affiche le NOM d'une variable d'environnement** dans un
+    diagnostic de configuration (`AIGENT_RUNTIME_TELEMETRY_TOKEN est absent…`).
+    **Revu et conservé délibérément** : c'est un nom, jamais une valeur, sur une
+    surface désormais authentifiée, et dire à l'opérateur quelle variable
+    renseigner est le service attendu d'un plan de contrôle. Le message est en
+    anglais alors que l'UI est en français — cosmétique, non traité ici.
+
 18. **Deux autorités de statut coexistent** sur les mêmes écrans : les jetons
     sémantiques et une palette de composant. La gate en place ne voit pas la
     seconde. `DESIGN_DOCTRINE.md` tranche désormais ; l'application reste à faire.
@@ -182,13 +196,13 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 Ordonnées par rapport valeur / risque. Les trois premières de la version
 précédente sont faites.
 
-1. **Prouver la CI en exécution** (limite 7) — le correctif est codé et
-   syntaxiquement validé, jamais constaté sur un run réel. Se vérifie au premier
-   push de cette branche.
-2. **`aria-current` sur la navigation** — `DESIGN_DOCTRINE.md` §7 l'impose,
-   `sidebar.tsx` ne projette que `data-current`. Écart préexistant relevé par la
-   validation navigateur ; correctif d'une ligne dans le kit.
-3. **Fermer les faux verts de mesure** (limites 12, 13, 14).
+1. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
+   sécurité non mesuré coercé en 0, un provider écrit en dur, une télémétrie qui
+   ne distingue pas la provenance.
+2. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
+   distantes sur un double-clic.
+3. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
+   `/agents`, `/runs` ont été vérifiées aux deux points de rupture.
 5. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
    preuves visuelles.
 6. **Brancher la qualification aval** : transmettre un driver pour que shadow et
