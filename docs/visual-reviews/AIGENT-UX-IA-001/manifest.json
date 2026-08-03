@@ -1,0 +1,53 @@
+{
+  "mission": "AIGENT-UX-IA-001",
+  "issue": 93,
+  "baseUrl": "http://127.0.0.1:3987",
+  "baseCommit": "9da3823ca8af76fdb2604ff0afe15b39f2a86c1c",
+  "builtOn": {
+    "mission": "AIGENT-DS-SURFACES-001",
+    "mergeSha": "9da3823ca8af76fdb2604ff0afe15b39f2a86c1c"
+  },
+  "navigation": {
+    "before": 11,
+    "after": 6,
+    "entries": [
+      "/",
+      "/agents",
+      "/projects",
+      "/runs",
+      "/support",
+      "/settings"
+    ],
+    "movedToContext": {
+      "runtime": "onglet fiche Agent",
+      "qualification": "onglet fiche Agent",
+      "learning": "onglet fiche Agent",
+      "delivery": "onglet fiche Agent + fiche Projet",
+      "builder": "onglet fiche Projet",
+      "actions": "/support (route conservée)"
+    }
+  },
+  "overview": {
+    "kpiCount": 7,
+    "kpiAdded": "learning (readyForManualTest)",
+    "projectCards": 5,
+    "graphSvgHeightPx": 160,
+    "graphStrokeWidth": 1.5,
+    "iframes": 0,
+    "internalScrollers": 0
+  },
+  "contrast": {
+    "elementsChecked": 114,
+    "failures": 0,
+    "standard": "WCAG AA"
+  },
+  "viewports": [
+    "1440x900",
+    "1280x800",
+    "375x812"
+  ],
+  "consoleErrors": 0,
+  "regressionsFoundAndFixed": [
+    "3x 404 sur logoUrl/imageUrl — public/projects/ n'existe pas ; monogramme rendu à la place"
+  ]
+}

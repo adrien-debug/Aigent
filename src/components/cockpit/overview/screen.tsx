@@ -100,20 +100,25 @@ export default function CockpitOverview({
               Opérations &amp; catalogue
             </h2>
 
-            {hasRuns && runs ? (
-              <div className="grid min-w-0 grid-cols-1 items-start gap-8 xl:grid-cols-2 xl:gap-10">
-                <FluxBlock runs={runs} />
-                <div className="grid min-w-0 items-start gap-8">
-                  <EventsBlock overview={overview} />
-                  <ProjectsBlock overview={overview} />
-                </div>
-              </div>
-            ) : (
-              <div className="grid min-w-0 grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-10">
-                <EventsBlock overview={overview} />
-                <ProjectsBlock overview={overview} />
-              </div>
-            )}
+            {/*
+              LES PROJETS PASSENT DEVANT (AIGENT-UX-IA-001).
+
+              Ils étaient en second rang, sous le pli : l'issue en fait des
+              cartes premium, or une carte qu'on ne voit pas ne vaut pas mieux
+              qu'une ligne de liste. Ils prennent la pleine largeur et ouvrent la
+              zone ; le flux d'exécution et les signaux — deux lectures
+              secondaires, denses et courtes — se partagent la rangée dessous.
+
+              `items-start` et aucune hauteur forcée : chaque bloc descend à la
+              hauteur de ce qu'il porte, ce qui est ce qui évite le scroller
+              interne plutôt que de le masquer.
+            */}
+            <ProjectsBlock overview={overview} />
+
+            <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-10">
+              {hasRuns && runs ? <FluxBlock runs={runs} /> : null}
+              <EventsBlock overview={overview} />
+            </div>
           </div>
         </section>
 

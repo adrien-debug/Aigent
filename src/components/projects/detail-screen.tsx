@@ -19,6 +19,8 @@ import type { ReactNode } from 'react'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { PageBody, PageHeader } from '@/components/app-shell'
+import ContextTabs from '@/components/context-tabs'
+import { projectTabs } from '@/components/object-tabs'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
@@ -312,12 +314,15 @@ export interface IntelligenceView {
 }
 
 export default function ProjectDetailScreen({
+  projectId,
   name,
   graph,
   repo,
   intel,
   delivery,
 }: Readonly<{
+  /** Identifiant du projet — porte les `href` de la sous-navigation. */
+  projectId: string
   name: string
   /** `null` = la lecture du graphe a échoué. Jamais « projet sans équipe ». */
   graph: ProjectTeamGraph | null
@@ -374,6 +379,16 @@ export default function ProjectDetailScreen({
       />
 
       <PageBody className="gap-3">
+        {/* Sous-navigation du projet (AIGENT-UX-IA-001) : Runs, Livraisons,
+            Builder et Support redeviennent des facettes de CE projet plutôt que
+            des entrées globales. Chaque onglet mène à une route qui existe
+            déjà — rien n'est réimplémenté ici. */}
+        <ContextTabs
+          tabs={projectTabs(projectId)}
+          current="overview"
+          label="Sections de la fiche Projet"
+          className="mb-1"
+        />
         {graph === null ? (
           <Unavailable
             reason="unread"

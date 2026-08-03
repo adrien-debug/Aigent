@@ -7,6 +7,8 @@
  */
 import type { ComponentProps, ReactNode } from 'react'
 import { PageBody, PageHeader } from '@/components/app-shell'
+import ContextTabs from '@/components/context-tabs'
+import { agentTabs } from '@/components/object-tabs'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -203,21 +205,14 @@ function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
       description={
         agent?.description ?? copilot.description ?? 'Aucune description disponible pour cet agent.'
       }
-      actions={
-        <>
-          <Button outline href={`/qualification/${copilot.id}`}>
-            Qualification
-          </Button>
-          {/* `aig-btn-accent` et non `color="dark/zinc"` : sur le graphite, un
-              bouton noir se fondait dans la page et passait pour secondaire ;
-              sur le canvas clair il devient l'objet le plus lourd de l'écran et
-              entre en concurrence avec l'accent, qui est censé être le seul
-              signal d'action. L'Aperçu porte déjà cette classe sur son CTA. */}
-          <Button className="aig-btn-accent" href={`/delivery/${copilot.id}`}>
-            Livraison
-          </Button>
-        </>
-      }
+      /*
+        LES DEUX BOUTONS ONT ÉTÉ RETIRÉS, PAS PERDUS (AIGENT-UX-IA-001).
+        « Qualification » et « Livraison » sont désormais des ONGLETS de la
+        fiche, un rang plus bas. Les garder en CTA aurait posé deux chemins vers
+        la même route à 40 px d'écart — le genre de doublon qui fait douter
+        qu'ils mènent au même endroit. L'en-tête reste sans action propre : cette
+        fiche se LIT, elle ne déclenche rien par elle-même.
+      */
       meta={
         <>
           {/* Avatar posé au palier `raised` : le peint-pour-fond-blanc
@@ -239,7 +234,7 @@ function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
             <Badge color="red">hors catalogue</Badge>
           )}
           <LifecycleStatusBadge status={copilot.status} />
-          <Text className="aig-text-faint text-xs">
+          <Text className="aig-text-muted text-xs">
             {project ? project.name : 'banc de validation'}
           </Text>
           {agent ? <ProviderBadge provider={agent.provider} /> : null}
@@ -961,6 +956,16 @@ export default function AgentDetailScreen({
           étroite (voir `PageBody` dans `app-shell.tsx`). */}
       <OverviewHeader detail={detail} />
       <PageBody className="gap-10">
+        {/* La sous-navigation de l'objet — Runtime, Qualification, Learning et
+            Livraisons ont quitté le menu global pour devenir des facettes de
+            CET agent (AIGENT-UX-IA-001). Elle est en tête du corps, pas dans
+            l'en-tête sticky : une barre d'onglets qui suit le défilement vole
+            de la hauteur à la donnée sur un écran déjà dense. */}
+        <ContextTabs
+          tabs={agentTabs(detail.copilot.id)}
+          current="overview"
+          label="Sections de la fiche Agent"
+        />
         <OverviewSection detail={detail} />
         <ActivitySection detail={detail} />
         <QualificationSection

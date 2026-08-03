@@ -72,6 +72,14 @@ docs/visual-reviews/*
 # les exemples Tailwind Plus vendorés, qui n'ont rien à faire dans l'historique.
 !docs/visual-reviews/AIGENT-DS-SURFACES-001/
 
+# EXCEPTION CIBLÉE — AIGENT-UX-IA-001 (#93).
+#
+# Même raison : l'issue exige les preuves de navigation et d'Aperçu avec la PR.
+# Une refonte d'architecture d'information ne se relit pas sur un diff — il faut
+# voir le rail à six entrées et la sous-navigation des fiches. Exception limitée
+# à ce dossier, pas à `docs/visual-reviews/` entier.
+!docs/visual-reviews/AIGENT-UX-IA-001/
+
 # Target-repo sandbox evaluation reports (local, disposable, never committed)
 .aigent/
 
