@@ -57,18 +57,38 @@ function areaPath(values: number[], width: number, height: number): string {
 export function RunsActivityCanvas({
   runs,
   nowMs,
+  windowRunCount,
 }: Readonly<{
   runs: AgentRun[]
   nowMs: number
+  /**
+   * Nombre de runs dans la FENÊTRE, avant filtre. Quand il est renseigné et
+   * non nul alors que `runs` est vide, le vide décrit le FILTRE et non la
+   * fenêtre — et le dire correctement n'est pas un détail de formulation.
+   *
+   * Défaut mesuré : ce canvas recevait les runs filtrés et annonçait « Fenêtre
+   * lue, aucune activité » alors que la fenêtre en contenait 5. Le bloc central
+   * de l'écran affirmait donc une flotte au repos, trois lignes au-dessus d'un
+   * message correct disant l'inverse. Un opérateur lit le bloc central d'abord.
+   */
+  windowRunCount?: number
 }>) {
   if (runs.length === 0) {
+    const filteredOut = typeof windowRunCount === 'number' && windowRunCount > 0
     return (
       <div className="flex h-full min-h-44 flex-col items-center justify-center gap-2">
         <div className="flex items-center gap-2">
-          <SourceGrade grade="SNAPSHOT" label="Fenêtre lue, aucune activité" />
+          <SourceGrade
+            grade="SNAPSHOT"
+            label={filteredOut ? 'Filtre sans résultat' : 'Fenêtre lue, aucune activité'}
+          />
           <Text className="text-xs">Fenêtre 24 h</Text>
         </div>
-        <Text className="text-sm">Aucun run observé sur la fenêtre lue.</Text>
+        <Text className="text-sm">
+          {filteredOut
+            ? `Aucun run ne correspond à ce filtre. La fenêtre 24 h en contient ${windowRunCount}.`
+            : 'Aucun run observé sur la fenêtre lue.'}
+        </Text>
       </div>
     )
   }

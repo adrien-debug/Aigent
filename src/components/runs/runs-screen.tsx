@@ -254,7 +254,7 @@ export default function RunsScreen({
               <div className="aig-hairline mb-3" />
 
               <div>
-                <RunsActivityCanvas runs={runs} nowMs={nowMs} />
+                <RunsActivityCanvas runs={runs} nowMs={nowMs} windowRunCount={windowRunCount} />
               </div>
 
               <div className="aig-hairline my-3" />

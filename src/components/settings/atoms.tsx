@@ -142,10 +142,17 @@ const ENV_PRESENCE_TITLE =
 export function EnvVarNames({ names }: Readonly<{ names: readonly string[] }>) {
   if (names.length === 0) return null
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+    // `min-w-0` + `break-all` : `flex-wrap` sait passer à la ligne ENTRE deux
+    // puces, jamais À L'INTÉRIEUR d'une. Un nom comme
+    // `GEMINI_API_KEY/GOOGLE_API_KEY` est un seul token insécable qui débordait
+    // le viewport à 390 px — et le débordement était CLIPPÉ, donc ni scrollable
+    // ni lisible : le nom apparaissait coupé (« GEMINI_API_KEY/GOOGLE_A »), ce
+    // qui rend la surface inutilisable là où elle est censée dire quoi
+    // renseigner.
+    <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
       <span className="aig-text-faint text-xs">Variables consultées&nbsp;:</span>
       {names.map((name) => (
-        <code key={name} className="aig-text-muted text-xs" title={ENV_PRESENCE_TITLE}>
+        <code key={name} className="aig-text-muted min-w-0 break-all text-xs" title={ENV_PRESENCE_TITLE}>
           {name}
         </code>
       ))}
