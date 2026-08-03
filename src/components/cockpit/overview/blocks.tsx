@@ -2,10 +2,9 @@ import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
 import { NotMeasured, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { SeverityChip } from '@/components/surface-primitives'
 import type { ActionItem, DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
@@ -15,42 +14,45 @@ import RunStream from './run-stream'
 import { OverviewSection } from './section'
 import { BarMeter } from './meters'
 
+/**
+ * L'APERÇU N'EST PAS LE CATALOGUE. Il montre une tête de liste et renvoie à la
+ * surface qui porte l'inventaire complet. Dix projets rendaient ici 620 px de
+ * liste — la zone basse était dominée par des projets vides pendant que les
+ * signaux, eux, tenaient en deux lignes. Le compte total reste affiché dans
+ * l'indice de section : rien n'est caché, tout est à un clic.
+ */
+const OVERVIEW_PROJECT_LIMIT = 5
+const OVERVIEW_EVENT_LIMIT = 5
+
+/** La valeur transite par un `style` inline dans `BarMeter`. */
+const ACCENT = 'var(--aig-accent)'
+
 export function hasWindowActivity(buckets: HourlyBucket[] | null): boolean {
   return buckets !== null && buckets.some((bucket) => bucket.total > 0)
 }
 
+/**
+ * Action de section — un lien, pas un bouton. Une section ne porte qu'UNE
+ * action, et elle est secondaire par nature : la remplir d'un bouton la mettait
+ * au même rang visuel que le CTA de la page.
+ */
 function SectionAction({ href, children }: Readonly<{ href: string; children: ReactNode }>) {
   return (
-    <Button plain href={href} className="aig-link-accent whitespace-nowrap">
+    <Link
+      href={href}
+      className="aig-link-accent whitespace-nowrap text-2xs uppercase tracking-[0.1em] no-underline"
+    >
       {children}
-    </Button>
+    </Link>
   )
 }
 
-function EmptyOverviewLine({
-  detail,
-  href,
-  action,
-}: Readonly<{ detail: string; href?: string; action?: string }>) {
+function EmptyOverviewLine({ detail }: Readonly<{ detail: string }>) {
   return (
-    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 py-1">
       <NotMeasured label="—" why={detail} />
-      <span className="text-zinc-400 min-w-0 text-xs">{detail}</span>
-      {href && action ? (
-        <Link href={href} className="aig-link-accent shrink-0 whitespace-nowrap no-underline">
-          {action} →
-        </Link>
-      ) : null}
+      <span className="aig-text-muted min-w-0 text-xs">{detail}</span>
     </div>
-  )
-}
-
-function EmptyInlineMeta({ detail }: Readonly<{ detail: string }>) {
-  return (
-    <span className="flex min-w-0 items-baseline gap-1.5">
-      <NotMeasured label="—" why={detail} />
-      <span className="text-zinc-400 min-w-0 truncate text-xs">{detail}</span>
-    </span>
   )
 }
 
@@ -68,55 +70,54 @@ export function FluxAbsentLine() {
   return <GhostActivityGraph />
 }
 
+/**
+ * Ligne de projet. Un projet vide ne répète PAS « aucun agent dans ce
+ * projet » : la phrase revenait à l'identique ligne après ligne et devenait le
+ * texte le plus présent de la page. L'absence se dit une fois, dans la colonne
+ * de droite, avec le libellé d'absence du produit.
+ */
 function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
   const empty = project.copilotCount === 0
 
   return (
-    <li className="mb-2 last:mb-0">
+    <li>
       <Link
         href={`/projects/${project.id}`}
-        className={clsx(
-          'flex min-h-12 items-center gap-3 px-3 rounded-lg border border-transparent transition-all duration-300 no-underline hover:border-white/10 hover:bg-white/[0.02] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:bg-white/[0.02] focus-visible:outline-hidden',
-          empty ? 'py-2' : 'py-2.5',
-        )}
+        className="overview-row -mx-2 flex min-w-0 items-center gap-3 px-2 py-2.5 no-underline"
       >
-        <div className="relative shrink-0">
-          <Avatar
-            square
-            initials={initialsOf(project.name)}
-            className={clsx('size-8', empty && 'opacity-60')}
-          />
-          <div className="absolute inset-0 rounded-lg shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)] pointer-events-none" />
-        </div>
+        <Avatar
+          square
+          initials={initialsOf(project.name)}
+          className={clsx('size-7 shrink-0', empty && 'opacity-50')}
+        />
+
         <div className="min-w-0 flex-1">
           <span
             className={clsx(
               'block truncate text-sm',
-              empty ? 'text-zinc-400 font-normal' : 'text-white font-medium',
+              empty ? 'aig-text-muted' : 'aig-text font-medium',
             )}
           >
             {project.name}
           </span>
-          {empty ? (
-            <EmptyInlineMeta detail="Aucun agent dans ce projet." />
-          ) : (
-            <span className="text-zinc-400 block truncate text-xs uppercase tracking-wider">
-              {project.repoFullName ?? 'aucun dépôt lié'}
-            </span>
-          )}
+          <span className="aig-text-muted block truncate text-2xs uppercase tracking-[0.08em]">
+            {project.repoFullName ?? 'aucun dépôt lié'}
+          </span>
         </div>
-        <div className="shrink-0 flex flex-col items-end justify-center gap-1.5 w-20">
+
+        <div className="w-16 shrink-0 text-right">
           {empty ? (
-            <NotMeasured label="—" why="Aucun agent actif dans ce projet." />
+            <NotMeasured label="—" why="Aucun agent dans ce projet." />
           ) : (
             <>
-              <div className="text-white text-xs font-medium tabular-nums tracking-wider">
-                {project.activeCount} <span className="text-zinc-400 font-normal">/ {project.copilotCount}</span>
+              <div className="aig-text text-2xs font-medium tabular-nums">
+                {project.activeCount}
+                <span className="aig-text-muted"> / {project.copilotCount}</span>
               </div>
-              <BarMeter 
-                ratio={project.activeCount / project.copilotCount} 
-                color="#CD7F32" 
-                className="w-full h-1" 
+              <BarMeter
+                ratio={project.activeCount / project.copilotCount}
+                color={ACCENT}
+                className="mt-1.5"
               />
             </>
           )}
@@ -126,28 +127,27 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
   )
 }
 
-function ProjectList({ projects }: Readonly<{ projects: readonly ProjectOverviewItem[] }>) {
-  return (
-    <ul className="min-w-0">
-      {sortOverviewProjects(projects).map((project) => (
-        <ProjectRow key={project.id} project={project} />
-      ))}
-    </ul>
-  )
-}
-
 function EventRow({ item }: Readonly<{ item: ActionItem }>) {
   const chip = actionItemChip(item)
 
   return (
-    <li className="mb-2 last:mb-0 flex min-h-12 items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-all duration-300 hover:border-white/10 hover:bg-white/[0.02] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <Badge color="zinc" className="shrink-0 uppercase tracking-widest text-[0.65rem]">
+    <li className="overview-row -mx-2 flex min-w-0 items-center gap-3 px-2 py-2.5">
+      {/*
+        `SeverityChip` et non `Badge` : le ton de sévérité est calculé par
+        `actionItemChip` puis était JETÉ au profit d'un badge gris uniforme —
+        « PR ouverte » et « Mission bloquée » se rendaient à l'identique. Le
+        badge Catalyst appartient au chrome ; la sévérité produit parle
+        `--aig-severity-*`.
+      */}
+      <SeverityChip tone={chip.tone} className="shrink-0 text-3xs uppercase tracking-[0.1em]">
         {chip.label}
-      </Badge>
+      </SeverityChip>
+
       <div className="min-w-0 flex-1">
-        <p className="text-white truncate text-sm font-medium">{item.title}</p>
-        <p className="text-zinc-400 truncate text-xs uppercase tracking-wider">{item.meta}</p>
+        <p className="aig-text truncate text-sm font-medium">{item.title}</p>
+        <p className="aig-text-muted truncate text-2xs uppercase tracking-[0.08em]">{item.meta}</p>
       </div>
+
       <SectionAction href={item.href}>{item.buttonLabel} →</SectionAction>
     </li>
   )
@@ -157,21 +157,33 @@ export function ProjectsBlock({
   overview,
   className,
 }: Readonly<{ overview: DashboardOverview; className?: string }>) {
+  // Triés peuplés d'abord (`sortOverviewProjects`), donc la tête de liste porte
+  // les projets qui ont réellement des agents.
+  const shown = sortOverviewProjects(overview.projects).slice(0, OVERVIEW_PROJECT_LIMIT)
+  const hidden = overview.projects.length - shown.length
+
   return (
     <OverviewSection
       className={className}
       title="Projets"
       hint={`${overview.projects.length} au catalogue`}
-      actions={<SectionAction href="/projects">Catalogue →</SectionAction>}
+      actions={<SectionAction href="/projects">Tous les projets →</SectionAction>}
     >
       {overview.projects.length === 0 ? (
-        <div className="aig-empty-well">
-          <EmptyOverviewLine detail="Aucun projet dans le catalogue." />
-        </div>
+        <EmptyOverviewLine detail="Aucun projet dans le catalogue." />
       ) : (
-        <div className="overview-scroll-list scroll-thin min-h-0 flex-1 -mx-3">
-          <ProjectList projects={overview.projects} />
-        </div>
+        <>
+          <ul className="min-w-0">
+            {shown.map((project) => (
+              <ProjectRow key={project.id} project={project} />
+            ))}
+          </ul>
+          {hidden > 0 ? (
+            <p className="aig-text-muted mt-2 text-2xs uppercase tracking-[0.08em]">
+              {`+ ${hidden} autre(s) sur /projects`}
+            </p>
+          ) : null}
+        </>
       )}
     </OverviewSection>
   )
@@ -181,6 +193,13 @@ export function EventsBlock({
   overview,
   className,
 }: Readonly<{ overview: DashboardOverview; className?: string }>) {
+  // PAS de « + N autre(s) » ici, contrairement aux projets : `actionItems` est
+  // DÉJÀ tronqué à 6 en amont (`buildActionItems` → `.slice(0, limit ?? 6)`) et
+  // `/` ne passe aucune limite. Un reste calculé sur ce tableau vaudrait au plus
+  // 1 alors que la file réelle peut en porter trente — un chiffre qui
+  // sous-déclare est pire que pas de chiffre. La file complète est à un clic.
+  const shown = overview.actionItems.slice(0, OVERVIEW_EVENT_LIMIT)
+
   return (
     <OverviewSection
       className={className}
@@ -189,17 +208,13 @@ export function EventsBlock({
       actions={<SectionAction href="/actions">File complète →</SectionAction>}
     >
       {overview.actionItems.length === 0 ? (
-        <div className="aig-empty-well">
-          <EmptyOverviewLine detail="Aucun signal bloquant sur la fenêtre actuelle — lecture réussie." />
-        </div>
+        <EmptyOverviewLine detail="Aucun signal bloquant sur la fenêtre actuelle — lecture réussie." />
       ) : (
-        <div className="min-h-0 flex-1 -mx-3">
-          <ul className="min-w-0">
-            {overview.actionItems.slice(0, 6).map((item) => (
-              <EventRow key={item.id} item={item} />
-            ))}
-          </ul>
-        </div>
+        <ul className="min-w-0">
+          {shown.map((item) => (
+            <EventRow key={item.id} item={item} />
+          ))}
+        </ul>
       )}
     </OverviewSection>
   )
@@ -207,9 +222,8 @@ export function EventsBlock({
 
 export function FluxBlock({
   runs,
-  nowMs,
   className,
-}: Readonly<{ runs: NamedRun[]; nowMs: number; className?: string }>) {
+}: Readonly<{ runs: NamedRun[]; className?: string }>) {
   return (
     <OverviewSection
       className={className}
@@ -217,9 +231,7 @@ export function FluxBlock({
       hint={`${runs.length} sur la fenêtre`}
       actions={<SectionAction href="/runs">Tous les runs →</SectionAction>}
     >
-      <div className="aig-inset flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-        <RunStream runs={runs} nowMs={nowMs} />
-      </div>
+      <RunStream runs={runs} />
     </OverviewSection>
   )
 }

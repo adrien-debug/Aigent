@@ -1,24 +1,29 @@
 import type { StatusSlice } from '@/lib/cockpit/overview-series'
 import { RUN_STATUS_COLOR, RUN_STATUS_LABEL } from '@/lib/cockpit/status'
 
+/**
+ * Légende des statuts de la fenêtre — texte + pastille, sans boîte.
+ *
+ * Les jetons encadrés (fond, liseré, halo) qui vivaient ici posaient cinq
+ * cartouches sur la même ligne que le titre de zone : cinq objets pour cinq
+ * comptes à zéro. La pastille suffit à porter la teinte, et le libellé
+ * l'accompagne TOUJOURS — la couleur seule ne code pas un statut
+ * (`src/lib/cockpit/status.ts`).
+ */
 export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       {slices.map((slice) => (
-        <div
-          key={slice.status}
-          className="inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium bg-white/5 text-zinc-400 border border-white/5"
-        >
+        <div key={slice.status} className="inline-flex items-center gap-x-1.5">
           <span
             aria-hidden
             className="size-1.5 shrink-0 rounded-full"
-            style={{ 
-              background: RUN_STATUS_COLOR[slice.status],
-              boxShadow: `0 0 6px ${RUN_STATUS_COLOR[slice.status]}80`
-            }}
+            style={{ background: RUN_STATUS_COLOR[slice.status] }}
           />
-          <span className="uppercase tracking-wider">{RUN_STATUS_LABEL[slice.status]}</span>
-          <span className="text-white ml-0.5 tabular-nums">{slice.count}</span>
+          <span className="aig-text-muted text-2xs uppercase tracking-[0.1em]">
+            {RUN_STATUS_LABEL[slice.status]}
+          </span>
+          <span className="aig-text-muted text-2xs tabular-nums">{slice.count}</span>
         </div>
       ))}
     </div>

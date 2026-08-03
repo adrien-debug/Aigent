@@ -58,6 +58,27 @@ function isReferenced(componentFile, corpus) {
     `'/${base}.ts'`,
   ]
 
+  /*
+   * UN BARREL S'IMPORTE PAR SON RÉPERTOIRE, JAMAIS PAR SON NOM.
+   *
+   * Même famille de défaillance que ci-dessus, et même conséquence : la gate
+   * pousse à supprimer du code vivant. `overview/index.ts` était déclaré mort
+   * alors que `src/app/page.tsx` l'importe — via `@/components/cockpit/overview`,
+   * c'est-à-dire le RÉPERTOIRE, que Node et TypeScript résolvent vers son
+   * `index`. Aucune aiguille ne portait cette forme : `importPath` valait
+   * `@/components/cockpit/overview/index` et les basenames cherchaient
+   * `/index.ts`, deux chaînes qu'un importeur de barrel n'écrit jamais.
+   *
+   * On ajoute donc la forme réellement écrite. Le bornage par quote fermant est
+   * indispensable ici : sans lui, `@/components/cockpit/overview` matcherait
+   * aussi `@/components/cockpit/overview-legacy`, et un barrel mort passerait
+   * pour vivant — l'erreur symétrique.
+   */
+  if (base === 'index') {
+    const dirImportPath = '@/' + path.dirname(noExt).replace(/^src\//, '')
+    needles.push(`${dirImportPath}'`, `${dirImportPath}"`)
+  }
+
   for (const { rel: fileRel, content } of corpus) {
     if (fileRel === rel) continue
     for (const needle of needles) {
@@ -73,6 +94,14 @@ function isReferenced(componentFile, corpus) {
     // Bornage par le quote fermant : sans lui, `./run-list` matcherait aussi
     // `./run-list-extra`, et un composant mort passerait pour vivant.
     if (content.includes(`${relImport}'`) || content.includes(`${relImport}"`)) return true
+
+    // Même barrel, écrit relativement (`./overview`) plutôt qu'en alias.
+    if (base === 'index') {
+      let relDir = path.relative(fromDir, path.dirname(noExt)).replaceAll('\\', '/')
+      if (relDir === '') continue // le fichier voisin du barrel : './' seul n'est pas un import
+      if (!relDir.startsWith('.')) relDir = `./${relDir}`
+      if (content.includes(`${relDir}'`) || content.includes(`${relDir}"`)) return true
+    }
   }
   return false
 }

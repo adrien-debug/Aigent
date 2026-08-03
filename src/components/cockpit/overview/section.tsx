@@ -1,8 +1,19 @@
 import type { ReactNode } from 'react'
+import clsx from 'clsx'
 
 /**
- * Section plate de l'Aperçu — titre + contenu, sans hairline intermédiaire.
- * La séparation vient de l'espacement entre sections, pas d'une boîte de plus.
+ * Section plate de l'Aperçu — un filet, un titre, du contenu. Pas de panneau.
+ *
+ * EN-TÊTE SUR UNE SEULE LIGNE, délibérément. Le titre et son indice vivaient
+ * empilés : deux sections voisines dont l'une portait un indice plus long
+ * n'avaient alors plus la même hauteur d'en-tête, et le contenu des deux
+ * colonnes démarrait sur deux lignes différentes. Titre + indice + action sur
+ * une ligne unique rendent cette hauteur INDÉPENDANTE du texte, donc les
+ * colonnes partagent le même axe supérieur par construction et non par
+ * `min-height` accordée à la main.
+ *
+ * Le filet inférieur est le seul trait de la section : c'est lui qui donne
+ * l'axe commun, à la place du cadre.
  */
 export function OverviewSection({
   title,
@@ -18,15 +29,17 @@ export function OverviewSection({
   className?: string
 }>) {
   return (
-    <section className={`flex min-h-0 flex-col aig-surface-elevated rounded-xl p-5 ${className ?? ''}`}>
-      <div className="mb-4 flex min-w-0 items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <h3 className="text-white truncate text-sm font-semibold tracking-[-0.01em]">{title}</h3>
-          {hint ? <p className="text-white/40 mt-1 truncate text-xs uppercase tracking-wider">{hint}</p> : null}
+    <section className={clsx('flex min-w-0 flex-col', className)}>
+      <div className="aig-line-soft flex min-w-0 items-baseline justify-between gap-x-4 border-b pb-2.5">
+        <div className="flex min-w-0 items-baseline gap-x-2.5">
+          <h3 className="aig-text truncate text-sm font-semibold tracking-[-0.01em]">{title}</h3>
+          {hint ? (
+            <p className="aig-text-muted shrink-0 text-2xs uppercase tracking-[0.1em]">{hint}</p>
+          ) : null}
         </div>
-        {actions ? <div className="shrink-0 pt-0.5">{actions}</div> : null}
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <div className="mt-3 flex min-w-0 flex-col">{children}</div>
     </section>
   )
 }
