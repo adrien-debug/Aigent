@@ -51,8 +51,8 @@
   /* États : ALIAS des sévérités du produit, pas une palette propre. Ces deux
      valeurs étaient écrites en dur — un vert et un rouge d'état qui redisaient
      `--aig-severity-good|bad` avec des valeurs à eux. */
-  --viz-severity-good: var(--aig-severity-good, #0da87f);
-  --viz-severity-bad: var(--aig-severity-bad, #e8455f);
+  --viz-severity-good: var(--aig-severity-good, oklch(0.6 0.1 52));
+  --viz-severity-bad: var(--aig-severity-bad, oklch(0.33 0.17 52));
 }
 
 /**

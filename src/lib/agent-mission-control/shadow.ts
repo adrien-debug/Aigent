@@ -20,7 +20,6 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { pgrest } from './postgrest'
 import { getTool } from './registry/tools'
 import type { IsoTimestamp } from './types'
 
@@ -162,27 +161,4 @@ export async function runShadowExperiment(args: {
     startedAt,
     endsAt: now().toISOString(),
   }
-}
-
-/** Persist a completed shadow experiment. Returns the row id. Fail-soft-agnostic. */
-export async function persistShadowExperiment(rec: ShadowExperimentRecord): Promise<string> {
-  await pgrest('POST', 'shadow_experiments', {
-    id: rec.id,
-    copilot_id: rec.copilotId,
-    name: `shadow ${rec.candidateVersionId}`,
-    production_version_id: rec.productionVersionId,
-    candidate_version_id: rec.candidateVersionId,
-    started_at: rec.startedAt,
-    ends_at: rec.endsAt,
-    status: rec.status,
-    sampled_run_count: rec.sampledRunCount,
-    agreement_rate: 0,
-    agreement_threshold: 0.95,
-    unsafe_proposal_count: 0,
-    would_mutate_count: rec.wouldMutateCount,
-    candidate_verdict: rec.verdict,
-    // Store the per-run tool attempts as the mismatch/evidence payload.
-    mismatches: rec.results.map((r) => ({ input: r.input, ok: r.ok, wouldMutate: r.wouldMutateCount, error: r.error })),
-  })
-  return rec.id
 }

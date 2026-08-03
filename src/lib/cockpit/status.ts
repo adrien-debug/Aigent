@@ -18,31 +18,40 @@
  * (`--aig-severity-*`) pour les encadrés d'alerte, qui sont du CSS pur. CE
  * FICHIER reste l'autorité : toute modification part d'ici.
  *
- * ACCESSIBILITÉ — ce qui est vrai, et ce qui ne l'est pas. Ces teintes tiennent
- * la bande de clarté OKLCH 0.48–0.67 et un chroma ≥ 0.1, et les paires
- * ADJACENTES dans l'ordre d'empilement se séparent nettement. Mais une
- * promesse de ΔE ≥ 20 « sur la pire paire, y compris en protan/deutan » a
- * figuré ici et elle était FAUSSE : en deutéranopie, `running` et `blocked` se
- * séparent d'un ΔE de l'ordre de 0,3 — indistinguables. Le garde-fou réel
- * n'est donc pas la couleur : c'est que chaque statut voyage TOUJOURS avec son
- * libellé écrit. Ne jamais coder un statut par la seule teinte.
+ * UNE SEULE TEINTE, DÉGRADÉE EN CLARTÉ. Le produit avait cinq teintes
+ * distinctes (vert/bleu/ambre/violet/rouge) ; décision explicite d'Adrien
+ * (2026-08-03) : un seul accent — celui de la marque, `--aig-accent`, teinte
+ * OKLCH 52° — décliné en gravité croissante par assombrissement, jamais par
+ * changement de teinte. C'est cohérent avec la note d'accessibilité
+ * ci-dessous, qui était déjà vraie avant ce changement : la couleur seule n'a
+ * jamais été le garde-fou, le libellé écrit l'est.
+ *
+ * ACCESSIBILITÉ — ce qui est vrai, et ce qui ne l'est pas. Une teinte unique
+ * élimine par construction toute confusion inter-teinte (protan/deutan) —
+ * l'ancienne promesse « ΔE ≥ 20 même en daltonisme » était fausse et n'a plus
+ * lieu d'être : il n'y a plus qu'une teinte à confondre avec elle-même. La
+ * distinction entre statuts adjacents reste portée par la clarté (l'écart est
+ * calibré pour rester perceptible) et, TOUJOURS, par le libellé écrit. Ne
+ * jamais coder un statut par la seule couleur.
  */
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 
 /**
- * Les cinq teintes de sévérité du produit, et RIEN d'autre — la seule palette
- * de statut de tout le cockpit. `RUN_STATUS_COLOR` et le `SEVERITY` consommé
- * par `cockpit/primitives.tsx` (jauges, rails de liste) en dérivent tous les
- * deux : avant cette réconciliation, les deux fichiers redéclaraient chacun
- * une palette proche mais pas identique (`#3d82ee` vs `#3b82f6` pour
- * « en cours »), une dérive qu'une deuxième source rend inévitable à terme.
+ * Les cinq paliers de gravité du produit, et RIEN d'autre — la seule palette
+ * de statut de tout le cockpit. Une seule teinte (52°, celle de
+ * `--aig-accent`), déclinée du plus clair (`good`) au plus sombre (`bad`).
+ * `RUN_STATUS_COLOR` et le `SEVERITY` consommé par `cockpit/primitives.tsx`
+ * (jauges, rails de liste) en dérivent tous les deux : avant cette
+ * réconciliation, les deux fichiers redéclaraient chacun une palette proche
+ * mais pas identique (`#3d82ee` vs `#3b82f6` pour « en cours »), une dérive
+ * qu'une deuxième source rend inévitable à terme.
  */
 export const SEVERITY = {
-  good: '#0da87f',
-  running: '#3d82ee',
-  warn: '#be850f',
-  blocked: '#8e63ee',
-  bad: '#e8455f',
+  good: '#af6e45',
+  running: '#aa5613',
+  warn: '#983900',
+  blocked: '#841d00',
+  bad: '#700000',
   muted: 'rgb(161 161 170 / 0.35)',
 } as const
 

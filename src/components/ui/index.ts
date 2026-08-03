@@ -3,10 +3,10 @@
  * Les écrans continuent d'importer les fichiers individuels ; ce barrel
  * sert à vérifier que l'inventaire des exports reste complet.
  */
-export { Avatar, AvatarButton } from './avatar'
-export { Badge, BadgeButton } from './badge'
+export { Avatar } from './avatar'
+export { Badge } from './badge'
 export { Button, TouchTarget } from './button'
-export { Checkbox, CheckboxField, CheckboxGroup } from './checkbox'
+export { Checkbox, CheckboxField } from './checkbox'
 export {
   Dialog,
   DialogActions,
@@ -15,23 +15,19 @@ export {
   DialogTitle,
 } from './dialog'
 export { Divider } from './divider'
-export { DescriptionList, DescriptionTerm, DescriptionDetails } from './description-list'
-export { Description, ErrorMessage, Field, Fieldset, Label, Legend } from './fieldset'
+export { Description, ErrorMessage, Field, Label } from './fieldset'
 export { Heading, Subheading } from './heading'
 export { Input } from './input'
 export { Link } from './link'
-export { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from './navbar'
 export {
   Sidebar,
   SidebarBody,
-  SidebarDivider,
   SidebarFooter,
   SidebarHeader,
   SidebarHeading,
   SidebarItem,
   SidebarLabel,
   SidebarSection,
-  SidebarSpacer,
 } from './sidebar'
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table'
 export { Code, Strong, Text, TextLink } from './text'

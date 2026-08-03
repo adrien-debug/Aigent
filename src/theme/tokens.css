@@ -95,30 +95,31 @@
   --aig-scrim: color-mix(in oklab, oklch(0.255 0.006 264) 45%, transparent);
 
   /*
-   * Sévérité — DEUX REGISTRES, une seule identité.
+   * Sévérité — UNE SEULE TEINTE (l'accent, 52°), dégradée en clarté.
    *
-   * `--aig-severity-*` reste le miroir exact de `SEVERITY` (`status.ts`, qui
-   * demeure l'autorité) : ces teintes servent aux PASTILLES, RAILS et TRACÉS,
-   * c'est-à-dire à des aplats et des traits, où elles se lisent parfaitement.
+   * Décision explicite d'Adrien (2026-08-03) : plus de vert/bleu/ambre/violet/
+   * rouge par statut. `--aig-severity-*` reste le miroir exact de `SEVERITY`
+   * (`status.ts`, qui demeure l'autorité) : ces teintes servent aux PASTILLES,
+   * RAILS et TRACÉS, c'est-à-dire à des aplats et des traits, où elles se
+   * lisent parfaitement. La gravité croît par assombrissement, jamais par
+   * changement de teinte — même identité de marque du meilleur au pire état.
    *
-   * Elles ne conviennent PAS au TEXTE sur fond clair : calibrées pour émettre
-   * sur graphite, elles y tombent entre 2.79:1 et 4.44:1 (mesuré sur `/agents`
-   * et `/runtime`). `--aig-severity-*-ink` est leur version encre, assombrie
-   * jusqu'à passer 4.5:1 sur nos surfaces claires, à teinte constante — même
-   * couleur perçue, lisibilité en plus. Ne jamais utiliser `-ink` pour un aplat,
-   * ni la teinte nue pour du texte.
+   * Elles ne conviennent PAS au TEXTE sur fond clair : `--aig-severity-*-ink`
+   * est leur version encre, assombrie jusqu'à passer 4.5:1 sur nos surfaces
+   * claires, à teinte constante. Ne jamais utiliser `-ink` pour un aplat, ni la
+   * teinte nue pour du texte.
    */
-  --aig-severity-good: #0da87f;
-  --aig-severity-running: #3d82ee;
-  --aig-severity-warn: #be850f;
-  --aig-severity-blocked: #8e63ee;
-  --aig-severity-bad: #e8455f;
+  --aig-severity-good: oklch(0.6 0.1 52);
+  --aig-severity-running: oklch(0.545 0.132 52);
+  --aig-severity-warn: oklch(0.47 0.15 52);
+  --aig-severity-blocked: oklch(0.4 0.16 52);
+  --aig-severity-bad: oklch(0.33 0.17 52);
 
-  --aig-severity-good-ink: oklch(0.46 0.1 168);
-  --aig-severity-running-ink: oklch(0.46 0.16 258);
-  --aig-severity-warn-ink: oklch(0.46 0.11 78);
-  --aig-severity-blocked-ink: oklch(0.46 0.19 292);
-  --aig-severity-bad-ink: oklch(0.47 0.18 20);
+  --aig-severity-good-ink: oklch(0.46 0.1 52);
+  --aig-severity-running-ink: oklch(0.42 0.13 52);
+  --aig-severity-warn-ink: oklch(0.38 0.15 52);
+  --aig-severity-blocked-ink: oklch(0.33 0.16 52);
+  --aig-severity-bad-ink: oklch(0.27 0.17 52);
 
   /*
    * Élévations claires — la profondeur vient du LISERÉ, pas de l'ombre. Sur

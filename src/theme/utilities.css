@@ -150,11 +150,15 @@
 }
 
 @utility aig-stage {
-  background: var(--aig-base);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--aig-accent) 4%, var(--aig-base)),
+    var(--aig-base)
+  );
   color: var(--aig-text);
   border: 1px solid var(--aig-line-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--aig-elevation-raised);
+  box-shadow: var(--aig-elevation-raised), 0 8px 20px -12px color-mix(in oklab, var(--aig-accent) 25%, transparent);
 }
 
 /*

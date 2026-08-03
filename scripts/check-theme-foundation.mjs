@@ -66,11 +66,19 @@ const CANONICAL_LITERALS = [
   '--aig-text-display: oklch(0.97 0.004 250)',
   '--aig-accent: oklch(0.72 0.11 52)',
   '--aig-accent-quiet: oklch(0.45 0.06 52)',
-  '--aig-severity-good: #0da87f',
-  '--aig-severity-running: #3d82ee',
-  '--aig-severity-warn: #be850f',
-  '--aig-severity-blocked: #8e63ee',
-  '--aig-severity-bad: #e8455f',
+  /*
+   * Mission 2026-08-03 (décision explicite d'Adrien) : cinq teintes distinctes
+   * (vert/bleu/ambre/violet/rouge) remplacées par une seule teinte — celle de
+   * l'accent, 52° — déclinée en gravité par assombrissement. Même principe que
+   * `--aig-subtle` ci-dessus : les deux écritures sont admises le temps que
+   * toute révision en cours d'écriture rattrape la nouvelle valeur ; ce qui
+   * reste interdit, c'est que le rang de sévérité disparaisse.
+   */
+  ['--aig-severity-good: #0da87f', '--aig-severity-good: oklch(0.6 0.1 52)'],
+  ['--aig-severity-running: #3d82ee', '--aig-severity-running: oklch(0.545 0.132 52)'],
+  ['--aig-severity-warn: #be850f', '--aig-severity-warn: oklch(0.47 0.15 52)'],
+  ['--aig-severity-blocked: #8e63ee', '--aig-severity-blocked: oklch(0.4 0.16 52)'],
+  ['--aig-severity-bad: #e8455f', '--aig-severity-bad: oklch(0.33 0.17 52)'],
 ]
 
 for (const entry of CANONICAL_LITERALS) {

@@ -48,7 +48,7 @@ import { join } from 'node:path'
 const KIT_DIR = 'src/components/ui'
 
 /** Fichiers Aigent dans le dossier ui — hors périmètre Catalyst. */
-const KIT_META = new Set(['README.md', 'index.ts', 'ui-kit-catalog.tsx'])
+const KIT_META = new Set(['README.md', 'index.ts'])
 
 /**
  * Les primitives attendues et, pour chacune, les exports que le produit
@@ -56,20 +56,18 @@ const KIT_META = new Set(['README.md', 'index.ts', 'ui-kit-catalog.tsx'])
  */
 const REQUIRED = {
   'avatar.tsx': ['Avatar'],
-  'badge.tsx': ['Badge', 'BadgeButton'],
+  'badge.tsx': ['Badge'],
   'button.tsx': ['Button', 'TouchTarget'],
-  'checkbox.tsx': ['Checkbox', 'CheckboxField', 'CheckboxGroup'],
-  'description-list.tsx': ['DescriptionDetails', 'DescriptionList', 'DescriptionTerm'],
+  'checkbox.tsx': ['Checkbox', 'CheckboxField'],
   'dialog.tsx': ['Dialog', 'DialogActions', 'DialogBody', 'DialogDescription', 'DialogTitle'],
   'divider.tsx': ['Divider'],
-  'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Fieldset', 'Label', 'Legend'],
+  'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Label'],
   'heading.tsx': ['Heading', 'Subheading'],
   // Consommée depuis AIGENT-DS-SURFACES-001 : le démonstrateur `/lab/surfaces`
   // rend un champ réel pour contrôler son état au repos et désactivé sur fond
   // clair. La gate a signalé l'écart d'elle-même — c'est exactement son rôle.
   'input.tsx': ['Input'],
   'link.tsx': ['Link'],
-  'navbar.tsx': ['Navbar'],
   'sidebar.tsx': [
     'Sidebar',
     'SidebarBody',
@@ -286,7 +284,7 @@ for (const { file, pattern, label } of A11Y) {
 // légitimement le sien en `sm:focus-within:after:ring-2`.
 const FOCUS_RING =
   /(?:data-focus:|focus-visible:|focus-within:|focus:)(?:[a-z-]+:)*(?:outline-(?!none\b|hidden\b)|ring-(?!0\b))/
-for (const file of ['button.tsx', 'checkbox.tsx', 'textarea.tsx', 'badge.tsx']) {
+for (const file of ['button.tsx', 'checkbox.tsx', 'textarea.tsx']) {
   const src = markup[file]
   if (!src) continue
   if (!FOCUS_RING.test(src)) {

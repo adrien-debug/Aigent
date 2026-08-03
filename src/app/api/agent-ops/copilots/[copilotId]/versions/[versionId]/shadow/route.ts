@@ -40,11 +40,9 @@ import {
  * race at the DATABASE; the loser's insert hits 23505 (PgrestError 409 here)
  * and gets a structured 409, never a second in-flight shadow.
  *
- * NOTE on persistence: this route does NOT call shadow.ts's
- * `persistShadowExperiment` (which POSTs a brand-new row) — it PATCHes the
- * row it already reserved above (the queued placeholder), because the insert
- * IS the concurrency guard. Reusing persistShadowExperiment here would insert
- * a second row and defeat the reservation.
+ * NOTE on persistence: this route PATCHes the row it already reserved above
+ * (the queued placeholder), because the insert IS the concurrency guard.
+ * Inserting a second row here would defeat the reservation.
  */
 export async function POST(
   request: Request,
