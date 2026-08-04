@@ -49,7 +49,7 @@ raison et c'est le document qu'on corrige — jamais l'inverse.
 
 - Ne **pas** réintroduire : `middleware.ts`, `src/app/admin`, `src/app/(site)`,
   `src/theme.css`, l'ancienne doctrine « free design » ou « DS Guardian ».
-- Ne **pas** binder ni sonder les ports **3000 / 3001 / 3210** — le dev est sur **3987**.
+- Ne **jamais** binder ni sonder les ports **3000 / 3001 / 3210** (bannis) — le dev est sur **3987**.
 - Ne **pas** fabriquer de données : une valeur non mesurée reste `null` /
   « Non mesuré », **jamais `0`**.
 - Ne **pas** modifier la gouvernance (`CLAUDE.md`, `AGENTS.md`, `PRODUCT_DOCTRINE.md`,

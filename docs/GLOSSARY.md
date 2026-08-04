@@ -122,8 +122,7 @@
 
 - **GPU1** — hôte local exposant le périmètre Postgres `aigent` derrière
   PostgREST (voir `docs/BACKEND-GPU1.md`).
-- **Port 3987** — port de dev d'Aigent. Les ports **3000 / 3001 / 3210** sont
-  bannis (jamais binder ni sonder ; gate `check:dev-port`).
+- **Port 3987** — port de dev d'Aigent. Les ports **3000 / 3001 / 3210** sont **interdits** : ne **jamais** les binder ni les sonder (gate `check:dev-port`).
 - **Learning Runtime** — contrat client vers un moteur H-Supervised
   (`learning-runtime.ts`) ; états `live | partial | unavailable | not_configured`.
   Aucun moteur ne répond aujourd'hui → `not_configured`.
