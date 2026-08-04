@@ -130,8 +130,9 @@ State the restriction, not the headline:
 
 - **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
-- **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons, Recharts
-  (graphes), `clsx`. Kit `src/components/ui/` : 14 primitives maison, issues d'un
+- **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons, `@xyflow/react`
+  (graphe runtime), `motion` (animations ; graphes cockpit en SVG maison), `clsx`.
+  Kit `src/components/ui/` : 14 primitives maison, issues d'un
   fork Catalyst mais **plus réalignées sur l'amont** — c'est du code du repo,
   linté et typé comme le reste.
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
@@ -166,19 +167,21 @@ After a clone, arm the secret hook once: `npm run hooks:install` (see `CLAUDE.md
 ## Checks
 
 ```bash
-npm run check      # gate statique complète — 15 étapes, ~13 s
+npm run check      # gate statique complète — 19 étapes
 npm run verify     # check + knip + tests unitaires + build
 npm run typecheck
 npm run lint
-npm run test       # vitest tests/unit — 168 fichiers, 2105 tests (~3 s)
+npm run test       # vitest tests/unit — compte à jour dans docs/CURRENT_FUNCTIONAL_CHECKLIST.md
 npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
 `npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
-`check:no-legacy-front` · `check:no-legacy-design-governance` · `check:production-visual-authority` · `check:ui-kit-integrity` · `check:agent-truth` ·
-`check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
-`check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
-`check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge
+`check:no-legacy-front` · `check:no-legacy-design-governance` ·
+`check:production-visual-authority` · `check:theme-foundation` ·
+`check:ui-kit-integrity` · `check:agent-truth` · `check:lifecycle-truth` ·
+`check:registry-parity` · `check:registry-integrity` · `check:dev-port` ·
+`check:render-truth` · `check:rsc-boundary` · `check:schema-rebuildable` ·
+`check:secrets` · `audit:dead` · `check:governance`. Le premier rouge
 arrête tout. **`package.json` fait foi** — pas cette liste.
 
 Ce que la gate **ne** voit pas, et qu'il faut vérifier autrement : le rendu à
@@ -254,6 +257,11 @@ from this repository alone.
 - **`docs/CURRENT_FUNCTIONAL_CHECKLIST.md`** — **l'état réel**, cumulatif et
   prouvé : fonctionnel, testé, mergé, déployé, non fonctionnel, limites,
   prochaines étapes. À reprendre à chaque mission, jamais à recréer ailleurs.
+- **`docs/REPOSITORY_MAP.md`** — carte du dépôt : arborescence, frontières, zones
+  (active / expérimentale / vendorée / archive), « où modifier quoi », inventaire
+  documentaire et **dérives doc↔code connues** (le code fait foi).
+- **`docs/GLOSSARY.md`** — vocabulaire du projet (copilot, manifeste, promotion,
+  shadow/replay, runtime gouverné, installation consommateur…).
 - **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
 - **`docs/agent-authoring.md`** — authoring flow and execution paths.
 - **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.

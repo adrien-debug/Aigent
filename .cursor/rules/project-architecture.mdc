@@ -1,0 +1,80 @@
+---
+description: Aigent — ce qu'est le projet, ses frontières, et les docs à lire avant toute modification
+alwaysApply: true
+---
+
+# Aigent — règle d'architecture (Cursor)
+
+Aigent est le **plan de contrôle** où des agents LLM sont créés, qualifiés,
+exécutés, livrés et observés — **et le runtime gouverné canonique** qui les
+exécute. Ce n'est pas un produit end-user : les produits *consommateurs*
+appellent le runtime d'Aigent et lui renvoient leur télémétrie.
+
+## À lire AVANT toute modification significative
+
+La gouvernance de ce dépôt est **100 % locale** — aucune doctrine externe, aucune
+synchronisation. Les règles vivent dans quatre fichiers + les gates de
+`package.json`. Lire, dans l'ordre :
+
+1. `CLAUDE.md` — méthode d'exécution (une mission / une branche / une PR ; quand demander).
+2. `AGENTS.md` — invariants techniques (port, runtime, frontières de confiance, vérité des données).
+3. `docs/architecture.md` — carte des couches et frontières.
+4. `docs/REPOSITORY_MAP.md` — arborescence, zones, « où modifier quoi », dérives doc↔code.
+5. `docs/CURRENT_FUNCTIONAL_CHECKLIST.md` — l'état réel, daté, prouvé (jamais recréé ailleurs).
+6. Le cas échéant : `PRODUCT_DOCTRINE.md`, `DESIGN_DOCTRINE.md`, `docs/GLOSSARY.md`.
+
+**Le code fait foi.** Quand un document et le code se contredisent, le code a
+raison et c'est le document qu'on corrige — jamais l'inverse.
+
+## Frontières à respecter
+
+- **Stack** : Next.js 16 (App Router — ruptures d'API vs versions antérieures ;
+  lire `node_modules/next/dist/docs/` avant de toucher au code framework),
+  React 19, TypeScript strict, Tailwind v4 (un seul plugin PostCSS, **pas** de
+  `tailwind.config.js`), Zod 4, LangGraph, PostgREST.
+- **Garde d'identité** : `src/proxy.ts` (convention Next `proxy` — **il n'y a pas
+  de `middleware.ts`**). Elle intercepte toutes les surfaces sauf une allowlist
+  courte ; les surfaces runtime portent leur **propre jeton**.
+- **`src/lib/**` est `server-only`.** Postgres n'est atteint que via PostgREST
+  (clé service-role, côté serveur). Aucun chemin mock : sans backend/credentials,
+  les chemins échouent (`503` / `ProviderUnavailableError`).
+- **Design System obligatoire en production** (`DESIGN_DOCTRINE.md`) : jetons
+  `--aig-*` = autorité sémantique ; réutiliser `src/components/ui/` (14
+  primitives) puis Catalyst avant de créer. `/lab` est une zone d'exploration
+  isolée.
+- **LangGraph est le seul runtime produit exécutable.** Toute nouvelle table
+  active RLS + grante `service_role` ; une colonne de mesure est **nullable**.
+
+## Interdits
+
+- Ne **pas** réintroduire : `middleware.ts`, `src/app/admin`, `src/app/(site)`,
+  `src/theme.css`, l'ancienne doctrine « free design » ou « DS Guardian ».
+- Ne **jamais** binder ni sonder les ports **3000 / 3001 / 3210** (bannis) — le dev est sur **3987**.
+- Ne **pas** fabriquer de données : une valeur non mesurée reste `null` /
+  « Non mesuré », **jamais `0`**.
+- Ne **pas** modifier la gouvernance (`CLAUDE.md`, `AGENTS.md`, `PRODUCT_DOCTRINE.md`,
+  `DESIGN_DOCTRINE.md`, `.claude/`) hors d'une mission de gouvernance dédiée.
+- Ne **pas** créer un second système quand une implémentation canonique existe
+  (registre d'outils, navigation, kit UI).
+
+## Vérifier
+
+```bash
+npm run typecheck          # tsc --noEmit
+npm run check              # gate statique complète (19 étapes)
+npm run verify             # check + knip + tests unitaires + build
+```
+
+Une gate verte prouve **uniquement** ce qu'elle mesure — **aucune gate ne mesure
+le rendu**. Si une surface de production bouge, ouvrir l'écran et regarder
+(preuve visuelle obligatoire, `DESIGN_DOCTRINE.md` §8).
+
+## Dérives doc↔code connues (le code fait foi)
+
+- `src/proxy.ts` garde désormais **toutes** les surfaces (pages incluses → 302
+  `/sign-in`), pas seulement `/api/agent-ops/**` ; `AGENTS.md` / `docs/architecture.md`
+  décrivent encore l'ancien matcher.
+- Il y a **quatre** frontières de confiance (la 4ᵉ = `/api/runtime-telemetry/consumer`,
+  jeton par installation) ; `docs/architecture.md` en liste encore trois.
+
+Voir `docs/REPOSITORY_MAP.md` § « Dérives doc↔code » pour la liste complète.

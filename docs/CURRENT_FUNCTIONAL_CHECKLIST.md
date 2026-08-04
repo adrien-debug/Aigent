@@ -166,7 +166,17 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**Vide après le merge de la PR #107.**
+**PR #109 — stabilisation documentaire** (`560607ae`, branche
+`mission/doc-cartography`) : création de `docs/REPOSITORY_MAP.md`,
+`docs/GLOSSARY.md`, `.cursor/rules/project-architecture.mdc`,
+`docs/decisions/README.md` ; corrections vérifiées de `README.md`
+(Recharts→`@xyflow/react`+`motion`, liste des gates 15→19, compte de tests renvoyé
+ici). **Documentaire uniquement — aucun delta fonctionnel, aucun comportement
+produit modifié.** Signale, sans les corriger, des dérives doc↔code de
+**gouvernance** — portée réelle de `src/proxy.ts` (garde toutes les surfaces, pas
+seulement `/api/agent-ops/**`) et **quatre** frontières de confiance là où
+`docs/architecture.md` en liste trois — à réconcilier en mission de gouvernance
+dédiée (`REPOSITORY_MAP.md` §12).
 
 ## Déployé
 
