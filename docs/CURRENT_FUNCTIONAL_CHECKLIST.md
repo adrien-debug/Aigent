@@ -13,16 +13,53 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `b4675d35bb1c11cfdb2688305528ba9f332d9c3d`
-(PR #99 mergée, CI post-merge `success` — run `30857825482`)
-Dernière mise à jour : 2026-08-04 · mission `mission/settings-mobile-overflow`
-(branche **non mergée**)
+**État de référence** — `main` = `d2e2775816b69fd5cc1ed6628a5212cc7d40f347`
+(PR #100 mergée)
+Dernière mise à jour : 2026-08-04 · mission `AIGENT-CHECKLIST-REFRESH-001`
+
+**Une PR est ouverte et non mergée** : #101 (`fa95f05f`, **draft**) — correctif
+d'environnement de développement uniquement, aucun changement produit. Détail en
+section *En review*.
+
+Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
+2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
+antérieurs du même fichier : c'est un rafraîchissement, pas une première mesure.
 
 ---
 
 ## Fonctionnel
 
 Capacités dont l'exécution réelle a été constatée.
+
+### Chiffres relus en base le 2026-08-04
+
+Comptages obtenus en lecture seule via PostgREST. Une case vide se lit
+« mesuré, et vide » — les tables à zéro sont en section *Non fonctionnel*.
+
+| Mesure | Valeur constatée |
+|---|---|
+| Copilots | **14**, tous en runtime `langgraph` |
+| Répartition de cycle de vie | 8 `draft` · 3 `active` · 1 `degraded` · 1 `paused` · 1 `archived` |
+| Runs d'agent | **30** — 27 `completed`, 3 `failed` |
+| Modèle **prouvé** | **26** runs en `openai` / `gpt-5.4` avec `modelUnverified: false` |
+| Modèle **non prouvé** | **4** runs en `modelUnverified: true` — déclarés tels quels, pas recopiés |
+| Coût mesuré | **29 runs sur 30** · total **$0,367793** |
+| Étapes de run · appels d'outils | **121** · **42** |
+| Provenance des runs | 18 `authoring` · 11 `dev-seed` · **1 `production`** |
+| Release gate | **6** lignes — 2 `ready`, 4 `blocked` (2 PASS, 3 FAIL, 1 INSUFFICIENT_EVIDENCE) |
+| Tests persistés | 6 suites · 6 runs · 23 résultats |
+| Benchmarks persistés | 5 suites · 5 runs · 5 résultats |
+| Projets · relations projet-agent | 10 · 2 |
+| Installations consommateur | **3** |
+| Événements de télémétrie | **48** — 33 `completed`, 9 `failed`, 6 `started` |
+| Outils · définitions d'outils | 56 · 22 |
+| Conversations du project builder | 25 |
+
+Lecture honnête de ces chiffres : **1 seul run sur 30 porte la provenance
+`production`**, et aucun déploiement n'existe (section *Déployé*). Le volume
+constaté est un volume de laboratoire, pas un trafic de production.
+
+### Capacités
 
 | Capacité | Preuve |
 |---|---|
@@ -62,8 +99,10 @@ Capacités dont l'exécution réelle a été constatée.
 | `npm run check` | **exit 0** — 19 gates |
 | Validation navigateur (Chromium) | **19 captures** + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` — `/sign-in`, `/`, `/agents`, `/runs` aux **deux** points de rupture ; les 8 pages restantes en 1440×900 |
 | Garde de régression `aria-current` | `tests/unit/sidebar-aria-current.test.ts` — 3 cas, **sondé rouge** quand l'attribut disparaît |
-| `check:secrets` (gitleaks) | propre sur l'historique complet |
+| `check:secrets` (gitleaks) | propre — **1 209 commits scannés**, aucune fuite |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
+| `npm run health` — pile complète | **NEXT · LANGGRAPH · POSTGREST · STACK tous HEALTHY** (2026-08-04) |
+| Environnement de dev local | **CPU 0 %** au repos et RSS stable ~809–815 MiB après le correctif de la PR #101 — **non mergé**, donc vrai seulement sur cette branche |
 
 **Non couvert par les tests** — à lire comme un manque, pas comme un détail :
 
@@ -81,16 +120,49 @@ Capacités dont l'exécution réelle a été constatée.
 | PR #92 — Aperçu en composition plate | `9ef6b3c8` | mergée |
 | PR #95 — preuve de rendu + gate `theme-foundation` (issue #94) | `9da3823c` | mergée |
 | PR #96 — six entrées de navigation, Aperçu recomposé (issue #93) | `ff7e6e17` | mergée |
-| Purge de code mort audité + accent unique en gravité | `6b0225cf` | mergé — **tête de `main`** |
+| Purge de code mort audité + accent unique en gravité | `6b0225cf` | mergé |
+| PR #97 — AIGENT-GOVERNANCE-RESET-001, refonte de la doctrine | `5ffb22e1` | mergée |
+| PR #98 — AIGENT-HARDENING-PRODUCTION-001, auth des pages | `885aef92` | mergée |
+| PR #99 — AIGENT-RUNTIME-PRODUCTIZATION-001, isolation tenant | `b4675d35` | mergée |
+| PR #100 — SETTINGS-MOBILE-OVERFLOW, débordement horizontal | `d2e27758` | mergée — **tête de `main`** |
 
-**Écarts de suivi constatés le 2026-08-03**, à corriger côté GitHub :
+États relus via `gh pr view` le 2026-08-04 : #97, #98, #99 et #100 sont
+`MERGED`, #101 est `OPEN` et `draft`. La tête de `main` est `d2e27758` et non
+`6b0225cf` — ce fichier a déjà cité deux fois une tête de `main` périmée.
 
-- **L'issue #93 est encore OUVERTE** alors que sa PR #96 est mergée.
-- L'issue #94 est fermée (livrée par #95). #93 et #94 sont des **issues**, pas
-  des PR — la confusion des deux numérotations a déjà produit un rapport d'état
-  inexact.
-- `ff7e6e17` a été cité comme tête de `main` ; `main` a avancé depuis vers
-  `6b0225cf`.
+**Écarts de suivi du 2026-08-03 — tous refermés, relus le 2026-08-04 :**
+
+- ~~L'issue #93 est encore OUVERTE~~ → **#93 est `CLOSED`** (`gh issue view`),
+  comme #94. Plus aucun écart de suivi sur ces deux issues. #93 et #94 sont des
+  **issues**, pas des PR — la confusion des deux numérotations a déjà produit un
+  rapport d'état inexact, la distinction reste utile.
+- ~~`main` a avancé vers `6b0225cf`~~ → `main` a avancé **depuis** `6b0225cf`
+  jusqu'à **`d2e27758`** (PR #97 → #100). Toute citation de `6b0225cf`,
+  `ff7e6e17` ou `b4675d35` comme tête de `main` est périmée.
+
+## En review
+
+Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
+acquis : rien de cette section n'est vrai sur `main`.
+
+| PR | Branche / SHA | Portée | État |
+|---|---|---|---|
+| **#101** — cache disque Turbopack | `mission/next-dev-high-cpu` · `fa95f05f` | **environnement de développement uniquement** | **draft, non mergée** |
+
+Contenu de #101 — une seule clé dans `next.config.ts`
+(`experimental.turbopackFileSystemCacheForDev: false`) :
+
+- le serveur de dev brûlait **1000 à 1620 % de CPU en continu**, au repos, sans
+  requête ni recompilation, RSS montant de 2,4 à 6,4 GiB jusqu'à la mort du
+  process ;
+- cause établie **par isolation dans les deux sens** : cache retiré → **0 %** ;
+  cache réintroduit → **1583 %** ;
+- après correctif : **CPU 0 % de T+15 s à T+300 s**, RSS **809–815 MiB stable**,
+  **0 fichier `.sst` ouvert** (contre 41), hot reload vérifié à **234 ms** ;
+- `npm run check` **exit 0** et `npm run build` **exit 0**.
+
+**Aucun impact produit** : ni la config de build, ni la config de production ne
+changent. Tant que #101 n'est pas mergée, `main` conserve le défaut.
 
 ## Déployé
 
@@ -109,6 +181,24 @@ peut être remplie sans un ordre de déploiement explicite et sa preuve.
 
 Ce qui est **codé mais pas fonctionnel** — la distinction est le cœur de ce
 fichier.
+
+### Tables à zéro, relues en base le 2026-08-04
+
+Ces zéros sont **mesurés**, pas supposés : la requête a abouti et la table est
+vide. C'est le tronçon aval du produit — écrit intégralement, inerte
+intégralement.
+
+| Table | Lignes | Ce que l'absence signifie |
+|---|---|---|
+| `qualification_runs` | **0** | aucune qualification n'a jamais tourné |
+| `shadow_experiments` | **0** | aucun shadow persisté |
+| `replay_comparisons` | **0** | aucun replay persisté |
+| `improvement_proposals` | **0** | aucune V2 proposée — l'écran V1/V2 reste non observable |
+| `agent_drafts` | **0** | aucun brouillon d'agent |
+| `sandbox_reports` | **0** | aucun rapport de bac à sable |
+| `tool_build_missions` | **0** | aucune mission de construction d'outil |
+
+### Éléments
 
 | Élément | Pourquoi ce n'est pas fonctionnel |
 |---|---|
@@ -182,7 +272,10 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 16. **Divergence de validation d'identifiant** entre deux routes voisines : un
     agent créable et exécutable peut être non benchmarkable.
 17. **Environ la moitié des routes n'a aucun appelant** — héritage de surfaces
-    supprimées.
+    supprimées. Surface totale recomptée le 2026-08-04 : **76 routes**
+    (66 `agent-ops` · 7 `runtime/v1` · 2 télémétrie · 1 auth) pour **17 pages
+    produit**. Le compte de 76 mesure la surface, **pas** l'usage : la
+    proportion sans appelant reste une estimation non rechiffrée.
 
 **Cohérence visuelle**
 
@@ -224,37 +317,71 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
     sémantiques et une palette de composant. La gate en place ne voit pas la
     seconde. `DESIGN_DOCTRINE.md` tranche désormais ; l'application reste à faire.
 
+**Relevées le 2026-08-04**
+
+19. **Des événements shadow existent sans expérience correspondante.** La
+    télémétrie porte **4 `shadow_started` et 4 `shadow_completed`**, alors que
+    `shadow_experiments` est à **0**. Des shadows ont donc été *annoncés* sans
+    que rien ne soit persisté. Constaté, **non instruit** : la cause n'est pas
+    établie, et il ne faut pas la deviner. Tant qu'elle ne l'est pas, la
+    télémétrie shadow ne prouve aucune exécution de shadow.
+
+20. **Le cache disque de Turbopack occupe 1,3 GiB** sous
+    `.next/dev/cache/turbopack`, dont **243 MiB d'orphelin `v16.2.10`** (version
+    de Next désinstallée). Rendu **inerte** par la PR #101 — mais #101 n'est pas
+    mergée, donc sur `main` le cache est toujours actif **et** toujours
+    pathologique. Répertoire ignoré par git ; le supprimer récupère l'espace,
+    ce n'est pas fait.
+
+21. **La télémétrie ne prouve sa version que sur 4 événements sur 48.**
+    `version_verified` est à `false` sur **44** des 48 événements. Ce n'est pas
+    un défaut de mesure : c'est la mesure qui dit qu'elle n'a pas pu prouver.
+    À lire avec la limite 14 — l'agrégation ne distingue toujours pas la
+    provenance.
+
 ## Prochaines étapes
 
-Ordonnées par rapport valeur / risque. Les trois premières de la version
-précédente sont faites.
+Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
 
-1. **Observer réellement les trois états V1/V2** — il faut une proposition
-   d'amélioration en base. Tant qu'il n'y en a pas, l'écran reste NON PROUVÉ.
-2. **Régénérer les preuves visuelles des autres surfaces au HEAD final** — les captures existantes
-   datent d'un HEAD antérieur aux deux correctifs de ce commit, et trois
-   contrôles V1/V2 restent non observables tant qu'aucune proposition
-   d'amélioration n'existe en base.
-3. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
+Les deux premières débloquent le tronçon aval entier — sept tables à zéro et un
+écran non observable tiennent à ces deux gestes.
+
+1. **Brancher le driver de qualification** — transmettre un driver pour que
+   shadow et replay cessent de retomber en « non disponible ». Débloque d'un
+   coup `qualification_runs`, `shadow_experiments` et `replay_comparisons`.
+2. **Poser un déclencheur pour la boucle d'amélioration** — une route ou un cron.
+   Crée la première `improvement_proposal`, et **rend du même geste l'écran
+   V1/V2 observable** : deux blocages levés d'un coup.
+3. **Exposer les métadonnées de coût en lecture** (limite 17b) —
+   `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
+   Un consommateur ne peut pas relire ce qu'il a payé.
+4. **Décider du déploiement** — tout existe côté `deploy/` en `docker-compose`
+   lancés à la main. C'est une décision, pas un chantier ; exige un ordre
+   explicite (`CLAUDE.md` §6).
+5. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
    sécurité non mesuré coercé en 0, un provider écrit en dur, une télémétrie qui
    ne distingue pas la provenance.
-4. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
+6. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
    distantes sur un double-clic.
-5. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
+7. **Instruire l'écart shadow** (limite 19) — 8 événements shadow pour 0 ligne
+   persistée.
+8. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
    `/agents`, `/runs` ont été vérifiées aux deux points de rupture.
-5. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
+9. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
    preuves visuelles.
-6. **Brancher la qualification aval** : transmettre un driver pour que shadow et
-   replay cessent de retomber en « non disponible ».
-7. **Rendre l'écran de comparaison V1/V2** — la donnée est déjà calculée.
+10. **Régénérer les preuves visuelles au HEAD courant** — les captures existantes
+    datent d'un HEAD antérieur.
 
 ## Preuves
 
 | Type | Référence |
 |---|---|
-| `main` | `6b0225cfc7ef6d2b943cb22dff9f3f6318a8e2e6` |
-| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` |
-| Issues | #93 **ouverte** (livrée par #96) · #94 fermée (livrée par #95) |
+| `main` | `d2e2775816b69fd5cc1ed6628a5212cc7d40f347` (2026-08-04) |
+| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` |
+| PR ouverte, **non mergée** | **#101** `fa95f05f` — draft, correctif de dev uniquement |
+| Relecture des chiffres en base | 2026-08-04 — PostgREST `HEALTHY`, lecture seule, 29 tables comptées, arbre inchangé |
+| Pile locale | `npm run health` — NEXT · LANGGRAPH · POSTGREST · STACK **HEALTHY** (2026-08-04) |
+| Issues | #93 **fermée** (livrée par #96) · #94 fermée (livrée par #95) — relu le 2026-08-04 |
 | Audit de référence | 2026-08-03, 10 périmètres, lecture seule, arbre inchangé |
 | Run runtime réel | 2026-08-03 — `openai` / `gpt-5.4`, coût mesuré, provider recoupé en base |
 | Déploiement | **aucun** — absence de mécanisme vérifiée le 2026-08-03 |
