@@ -340,3 +340,80 @@ describe('readiness never lies (#13)', () => {
     expect(r.nextAction).not.toMatch(/\bREADY\b/)
   })
 })
+
+/**
+ * AIGENT-DOWNSTREAM-WIRING-001 — an unmeasured safety counter is never a zero.
+ *
+ * `0 unsafe actions` is the strongest claim this system makes. Before this
+ * guard, `stepBenchmark` read `(r?.unsafe_action_count as number) ?? 0`, so BOTH
+ * absences — no `benchmark_results` row at all, and a row whose counter is null
+ * (possible since migration 0047) — produced `PASS` with the literal reason
+ * "0 unsafe actions". An absence of measurement was rendered as a proof of
+ * innocence. `AGENTS.md` calls this the most severe defect of its family.
+ *
+ * Probed in BOTH directions: the measured zero must still PASS, or this guard
+ * would merely be blocking everything.
+ *
+ * SCOPE — what these cases do NOT assert, on purpose: the run-level status.
+ * It is derived solely from the gate step (`nextStatus = promotable ? …`), and
+ * the gate is MOCKED in this file, so asserting `run.status` here would test the
+ * mock, not the orchestrator. The real authority, `release-gate.ts`, already
+ * resists the same false zero via its `measured()` helper (`Number.isFinite`
+ * → value, else null) — this fix aligns the STEP's reported status with an
+ * authority that was already honest.
+ */
+describe('an unmeasured safety counter is not a zero (limite 12)', () => {
+  it('no benchmark_results row at all → INSUFFICIENT_EVIDENCE, never PASS', async () => {
+    db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
+    db.test_results.push({ run_id: 'tr-1', status: 'pass' })
+    db.benchmark_runs.push({ id: 'br-1', version_id: VERSION, status: 'completed', started_at: '2026-07-25T00:00:00Z' })
+    // deliberately NO benchmark_results row
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const bench = run.steps.find((s) => s.step === 'benchmark')!
+    expect(bench.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(bench.status).not.toBe('PASS')
+    expect(bench.reason).not.toMatch(/0 unsafe actions/)
+    expect(bench.reason).toMatch(/never measured/)
+  })
+
+  it('unsafe_action_count null → INSUFFICIENT_EVIDENCE, and the score is not faked as 0/100', async () => {
+    db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
+    db.test_results.push({ run_id: 'tr-1', status: 'pass' })
+    db.benchmark_runs.push({ id: 'br-1', version_id: VERSION, status: 'completed', started_at: '2026-07-25T00:00:00Z' })
+    db.benchmark_results.push({ run_id: 'br-1', score: null, unsafe_action_count: null })
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const bench = run.steps.find((s) => s.step === 'benchmark')!
+    expect(bench.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(bench.reason).not.toMatch(/0 unsafe actions/)
+    expect(bench.reason).not.toMatch(/0\/100/)
+    expect(bench.reason).toMatch(/never measured/)
+  })
+
+  it('a MEASURED zero still passes — the guard blocks absence, not cleanliness', async () => {
+    db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
+    db.test_results.push({ run_id: 'tr-1', status: 'pass' })
+    db.benchmark_runs.push({ id: 'br-1', version_id: VERSION, status: 'completed', started_at: '2026-07-25T00:00:00Z' })
+    db.benchmark_results.push({ run_id: 'br-1', score: 90, unsafe_action_count: 0 })
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const bench = run.steps.find((s) => s.step === 'benchmark')!
+    expect(bench.status).toBe('PASS')
+    expect(bench.reason).toMatch(/0 unsafe actions/)
+    expect(bench.reason).toMatch(/90\/100/)
+  })
+
+  it('an unmeasured SCORE alone does not block — only the safety counter does', async () => {
+    db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
+    db.test_results.push({ run_id: 'tr-1', status: 'pass' })
+    db.benchmark_runs.push({ id: 'br-1', version_id: VERSION, status: 'completed', started_at: '2026-07-25T00:00:00Z' })
+    db.benchmark_results.push({ run_id: 'br-1', score: null, unsafe_action_count: 0 })
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const bench = run.steps.find((s) => s.step === 'benchmark')!
+    expect(bench.status).toBe('PASS')
+    expect(bench.reason).toMatch(/not measured/)
+    expect(bench.reason).not.toMatch(/0\/100/)
+  })
+})
