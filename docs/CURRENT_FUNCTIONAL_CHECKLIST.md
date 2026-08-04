@@ -13,13 +13,12 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `d2e2775816b69fd5cc1ed6628a5212cc7d40f347`
-(PR #100 mergée)
-Dernière mise à jour : 2026-08-04 · mission `AIGENT-CHECKLIST-REFRESH-001`
+**État de référence** — `main` = `26dffb01`
+(PR #101, #102, #104 et #105 mergées le 2026-08-04)
+Dernière mise à jour : 2026-08-04 · mission `AIGENT-CHECKLIST-POST-MERGE-TRUTH-001`
 
-**Une PR est ouverte et non mergée** : #101 (`fa95f05f`, **draft**) — correctif
-d'environnement de développement uniquement, aucun changement produit. Détail en
-section *En review*.
+**Aucune PR n'est en attente de merge.** La section *En review* est vide, et
+c'est un état normal, pas un trou.
 
 Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
 2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
@@ -93,16 +92,17 @@ constaté est un volume de laboratoire, pas un trafic de production.
 
 | Suite | État |
 |---|---|
-| `npm run test` (unitaire, hors ligne) | **2 516 tests passés + 1 échec attendu**, 197 fichiers |
+| `npm run test` (unitaire, hors ligne) | **2 520 tests passés + 1 échec attendu**, 197 fichiers (2026-08-04) |
 | `npm run typecheck` | **0 erreur** |
 | `npm run build` | **OK** |
 | `npm run check` | **exit 0** — 19 gates |
 | Validation navigateur (Chromium) | **19 captures** + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` — `/sign-in`, `/`, `/agents`, `/runs` aux **deux** points de rupture ; les 8 pages restantes en 1440×900 |
 | Garde de régression `aria-current` | `tests/unit/sidebar-aria-current.test.ts` — 3 cas, **sondé rouge** quand l'attribut disparaît |
+| Garde « une mesure de sécurité absente n'est pas 0 » | `tests/unit/qualification-orchestrator.test.ts` — 4 cas, **sondés rouges** en restaurant le `?? 0` ; le zéro **mesuré** passe toujours |
 | `check:secrets` (gitleaks) | propre — **1 209 commits scannés**, aucune fuite |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
 | `npm run health` — pile complète | **NEXT · LANGGRAPH · POSTGREST · STACK tous HEALTHY** (2026-08-04) |
-| Environnement de dev local | **CPU 0 %** au repos et RSS stable ~809–815 MiB après le correctif de la PR #101 — **non mergé**, donc vrai seulement sur cette branche |
+| Environnement de dev local | **CPU 0 %** au repos, RSS stable ~809–815 MiB, **0 fichier `.sst` ouvert** — PR #101 **mergée** (`e3e84839`), donc vrai sur `main` |
 
 **Non couvert par les tests** — à lire comme un manque, pas comme un détail :
 
@@ -124,7 +124,17 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | PR #97 — AIGENT-GOVERNANCE-RESET-001, refonte de la doctrine | `5ffb22e1` | mergée |
 | PR #98 — AIGENT-HARDENING-PRODUCTION-001, auth des pages | `885aef92` | mergée |
 | PR #99 — AIGENT-RUNTIME-PRODUCTIZATION-001, isolation tenant | `b4675d35` | mergée |
-| PR #100 — SETTINGS-MOBILE-OVERFLOW, débordement horizontal | `d2e27758` | mergée — **tête de `main`** |
+| PR #100 — SETTINGS-MOBILE-OVERFLOW, débordement horizontal | `d2e27758` | mergée |
+| PR #101 — cache disque Turbopack (environnement de dev **uniquement**) | `e3e84839` | mergée |
+| PR #104 — compteur de sécurité absent ≠ « 0 unsafe actions » + migration 0047 | `f4569ed8` | mergée |
+| PR #102 — rafraîchissement de cette checklist | `374c78b2` | mergée |
+| PR #105 — section « Composants externes qualifiés » | `26dffb01` | mergée — **tête de `main`** |
+
+**#103 est CLOSED, pas abandonnée.** Elle portait le même contenu que #105 mais
+visait `chore/aigent-checklist-refresh-001` ; GitHub l'a fermée
+automatiquement quand cette branche de base a été supprimée au merge de #102.
+#105 la recrée à l'identique depuis la même branche de travail, vers `main`.
+Erreur de séquencement, pas de perte de contenu.
 
 États relus via `gh pr view` le 2026-08-04 : #97, #98, #99 et #100 sont
 `MERGED`, #101 est `OPEN` et `draft`. La tête de `main` est `d2e27758` et non
@@ -145,24 +155,9 @@ constaté est un volume de laboratoire, pas un trafic de production.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-| PR | Branche / SHA | Portée | État |
-|---|---|---|---|
-| **#101** — cache disque Turbopack | `mission/next-dev-high-cpu` · `fa95f05f` | **environnement de développement uniquement** | **draft, non mergée** |
-
-Contenu de #101 — une seule clé dans `next.config.ts`
-(`experimental.turbopackFileSystemCacheForDev: false`) :
-
-- le serveur de dev brûlait **1000 à 1620 % de CPU en continu**, au repos, sans
-  requête ni recompilation, RSS montant de 2,4 à 6,4 GiB jusqu'à la mort du
-  process ;
-- cause établie **par isolation dans les deux sens** : cache retiré → **0 %** ;
-  cache réintroduit → **1583 %** ;
-- après correctif : **CPU 0 % de T+15 s à T+300 s**, RSS **809–815 MiB stable**,
-  **0 fichier `.sst` ouvert** (contre 41), hot reload vérifié à **234 ms** ;
-- `npm run check` **exit 0** et `npm run build` **exit 0**.
-
-**Aucun impact produit** : ni la config de build, ni la config de production ne
-changent. Tant que #101 n'est pas mergée, `main` conserve le défaut.
+**Vide au 2026-08-04.** Les quatre PR qui figuraient ici sont mergées — voir
+*Mergé*. Une section vide ici est un état sain : elle dit qu'aucun travail
+n'attend une décision.
 
 ## Déployé
 
@@ -271,6 +266,19 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
     compris un composant externe — verra ses absences de mesure converties en
     zéros, donc en preuves positives.** C'est un prérequis à tout branchement
     aval, pas un nettoyage cosmétique.
+    **PARTIELLEMENT FERMÉE le 2026-08-04** — PR #104 mergée (`f4569ed8`) :
+    (a) migration 0047, les 23 colonnes de mesure perdent `NOT NULL DEFAULT 0`
+    (`benchmark_suites.task_count` exclu, définitionnel) ; (b) `stepBenchmark`
+    ne rend plus `PASS « 0 unsafe actions »` sur une absence — ni ligne
+    `benchmark_results` manquante, ni compteur nul — mais `INSUFFICIENT_EVIDENCE`,
+    avec garde de régression **sondée dans les deux sens**.
+    **CE QUI RESTE OUVERT, et ce n'est pas petit** : ~18 lectures en
+    `(x as number) ?? 0` subsistent (`improvement-loop.ts`, `agent-health.ts`,
+    `test-runner.ts`). Elles ne mentent pas aujourd'hui — aucun writer n'émet
+    encore `null` — mais elles convertiront une absence en zéro dès qu'un writer
+    le fera. La migration est **habilitante**, pas corrective. Et elle ne peut
+    pas séparer rétroactivement un 0 mesuré d'un 0 par défaut : les lignes
+    antérieures restent ambiguës.
 13. **Un provider est écrit en dur** sur le chemin d'exécution produit, ce qui
     fausse le coût pour les autres providers.
 14. **La télémétrie ne distingue pas la provenance** à l'agrégation : les runs
@@ -343,10 +351,11 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 20. **Le cache disque de Turbopack occupe 1,3 GiB** sous
     `.next/dev/cache/turbopack`, dont **243 MiB d'orphelin `v16.2.10`** (version
-    de Next désinstallée). Rendu **inerte** par la PR #101 — mais #101 n'est pas
-    mergée, donc sur `main` le cache est toujours actif **et** toujours
-    pathologique. Répertoire ignoré par git ; le supprimer récupère l'espace,
-    ce n'est pas fait.
+    de Next désinstallée). **FERMÉE le 2026-08-04** — PR #101 mergée
+    (`e3e84839`) : sur `main` le cache n'est plus lu (0 fichier `.sst` ouvert,
+    CPU au repos 0 %, RSS stable). Le répertoire reste sur disque (ignoré par
+    git) ; le supprimer récupérerait 1,3 GiB — non fait, et sans urgence
+    puisqu'il est inerte.
 
 21. **La télémétrie ne prouve sa version que sur 4 événements sur 48.**
     `version_verified` est à `false` sur **44** des 48 événements. Ce n'est pas
@@ -444,9 +453,9 @@ l'usage exact d'Aigent relève d'un avis juridique, pas de cette étude.
 
 | Type | Référence |
 |---|---|
-| `main` | `d2e2775816b69fd5cc1ed6628a5212cc7d40f347` (2026-08-04) |
-| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` |
-| PR ouverte, **non mergée** | **#101** `fa95f05f` — draft, correctif de dev uniquement |
+| `main` | `26dffb01` (2026-08-04, après #101 · #102 · #104 · #105) |
+| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` · #101 `e3e84839` · #104 `f4569ed8` · #102 `374c78b2` · #105 `26dffb01` |
+| PR ouverte, **non mergée** | **aucune** au 2026-08-04 |
 | Relecture des chiffres en base | 2026-08-04 — PostgREST `HEALTHY`, lecture seule, 29 tables comptées, arbre inchangé |
 | Pile locale | `npm run health` — NEXT · LANGGRAPH · POSTGREST · STACK **HEALTHY** (2026-08-04) |
 | Issues | #93 **fermée** (livrée par #96) · #94 fermée (livrée par #95) — relu le 2026-08-04 |
