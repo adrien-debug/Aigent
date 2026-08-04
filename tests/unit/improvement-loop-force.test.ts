@@ -26,6 +26,15 @@ const COPILOT_ID = 'copilot-under-test'
 const BASE_VERSION = 'ver-base-good'
 const BASE_MANIFEST = 'man-base'
 const SUITE_ID = 'suite-1'
+const CONTENT_HASH = 'a'.repeat(64)
+const EVIDENCE = {
+  contentHash: CONTENT_HASH,
+  candidateVersionId: BASE_VERSION,
+  sourceRunId: 'run-source',
+  qualificationRunId: 'qual-source',
+  shadowExperimentId: 'shadow-source',
+  replayComparisonId: 'replay-source',
+}
 
 /** V2 pass rate per iteration, set by each test. Base is pinned at 0.9. */
 let v2PassRates: number[] = []
@@ -129,6 +138,7 @@ function rowsFor(url: string): unknown[] {
           status: 'completed',
           pass_rate: passRate,
           finished_at: '2026-07-20T00:00:00.000Z',
+          content_hash: CONTENT_HASH,
         },
       ]
     }
@@ -227,7 +237,7 @@ vi.mock('@/lib/agent-mission-control/model-router', () => ({
 vi.mock('@/lib/agent-mission-control/test-runner', () => ({
   runTestSuite: vi.fn(async () => {
     const idx = Math.min(createdVersionIds.length, v2PassRates.length) - 1
-    return { passRate: v2PassRates[Math.max(0, idx)] }
+    return { id: `test-rerun-${idx}`, passRate: v2PassRates[Math.max(0, idx)], totalCostUsd: 0 }
   }),
 }))
 
@@ -264,7 +274,7 @@ describe('runAutoImprovementCycle — force must not adopt regressions', () => {
   it('restores the head to the base version when a forced V2 does not improve', async () => {
     v2PassRates = [0.5]
 
-    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 1, force: true })
+    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 1, force: true, evidence: EVIDENCE })
 
     // create-v2 moved the head onto the degraded V2 — the fix must move it back.
     expect(createdVersionIds).toHaveLength(1)
@@ -277,7 +287,7 @@ describe('runAutoImprovementCycle — force must not adopt regressions', () => {
     // Three consecutive regressions — the decay scenario the user reported.
     v2PassRates = [0.5, 0.4, 0.3]
 
-    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 3, force: true })
+    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 3, force: true, evidence: EVIDENCE })
 
     expect(createdVersionIds.length).toBeGreaterThan(1)
     // Every degraded V2 got rolled back; the good base survives the whole run.
@@ -290,7 +300,7 @@ describe('runAutoImprovementCycle — force must not adopt regressions', () => {
   it('keeps a forced V2 that genuinely improves', async () => {
     v2PassRates = [0.95]
 
-    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 1, force: true })
+    await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 1, force: true, evidence: EVIDENCE })
 
     // An improving V2 is the new base: no rollback, head stays on the V2.
     expect(createdVersionIds).toHaveLength(1)
@@ -301,7 +311,11 @@ describe('runAutoImprovementCycle — force must not adopt regressions', () => {
   it('without force, a non-improving V2 stops the loop and stays as head', async () => {
     v2PassRates = [0.5, 0.4]
 
-    const result = await runAutoImprovementCycle(COPILOT_ID, { maxIterations: 2, force: false })
+    const result = await runAutoImprovementCycle(COPILOT_ID, {
+      maxIterations: 2,
+      force: false,
+      evidence: EVIDENCE,
+    })
 
     expect(result.stoppedBy).toBe('plateau')
     expect(result.iterations).toBe(1)

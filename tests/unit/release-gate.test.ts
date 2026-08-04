@@ -39,7 +39,7 @@ interface GateMockConfig {
   copilotRow?: Record<string, unknown> | 'missing'
   versionRow?: Record<string, unknown> | 'missing'
   proposalRows?: Record<string, unknown>[]
-  testRun?: { id: string; pass_rate: number } | null
+  testRun?: { id: string; pass_rate: number | null } | null
   testResults?: Record<string, unknown>[]
   candidateBenchmarkRun?: { id: string } | null
   candidateBenchmarkResult?: Record<string, unknown> | null
@@ -147,6 +147,20 @@ describe('evaluateReleaseGate', () => {
     expect(gate!.promotable).toBe(false)
     expect(check(gate!, 'tests-pass').status).toBe('fail')
     expect(blockingLabels(gate!)).toContain('Tests pass rate')
+  })
+
+  it('A2 — completed test run with pass_rate null is missing evidence, never a 0% failure', async () => {
+    installGateMocks({
+      testRun: { id: TEST_RUN_ID, pass_rate: null },
+      testResults: [{ status: 'fail', failure_reason: null }],
+    })
+
+    const gate = await evaluateReleaseGate(COPILOT_ID, VERSION_ID)
+    const tests = check(gate!, 'tests-pass')
+    expect(tests.status).toBe('missing')
+    expect(tests.observed).toMatch(/not measured/)
+    expect(tests.observed).not.toMatch(/0%/)
+    expect(gate!.promotable).toBe(false)
   })
 
   it('B — missing benchmark evidence blocks promotion', async () => {

@@ -25,7 +25,6 @@ export {
   SurfaceMetaRow,
   SurfaceSection,
   SurfaceStat,
-  type SeverityTone,
 }
 
 const WIRING_TONE: Record<ProviderWiring, SeverityTone> = {

@@ -335,7 +335,12 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
 
   const improveComparison =
     improveProposal?.v2VersionId != null
-      ? await compareImprovementVersions(copilotId, improveProposal.baseVersionId, improveProposal.v2VersionId).catch(
+      ? await compareImprovementVersions(
+          copilotId,
+          improveProposal.baseVersionId,
+          improveProposal.v2VersionId,
+          improveProposal.contentHash,
+        ).catch(
           (err: unknown) => {
             console.error('[agent-detail] failed to compare improvement versions', err)
             return null

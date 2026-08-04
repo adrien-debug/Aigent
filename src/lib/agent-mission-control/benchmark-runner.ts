@@ -67,6 +67,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { loadVersionedCorpus } from './corpus-identity'
 import { liveEvidenceAdapter } from './evidence/live-adapter'
 import type { EvidenceExecutionAdapter } from './evidence/execution-adapter'
 import { forbiddenEntryTargetsTool, normalizeToolName } from './forbidden-actions'
@@ -745,7 +746,15 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
   if ((suiteRows[0].copilot_id as string) !== copilotId) {
     throw new NotFoundError(`benchmark suite ${suiteId} does not belong to copilot ${copilotId}`)
   }
-  const taskCount = (suiteRows[0].task_count as number) ?? 0
+  const taskCount =
+    typeof suiteRows[0].task_count === 'number' &&
+    Number.isInteger(suiteRows[0].task_count) &&
+    suiteRows[0].task_count >= 0
+      ? suiteRows[0].task_count
+      : null
+  if (taskCount === null) {
+    throw new Error(`benchmark suite ${suiteId} has no valid task_count`)
+  }
 
   const model = args.model ?? ((copilotRow.model as string | null) ?? '')
   const modelProvider: ModelProvider =
@@ -785,6 +794,7 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
 
   const runId = randomUUID()
   const startedAt: IsoTimestamp = new Date().toISOString()
+  const corpus = await loadVersionedCorpus(copilotId)
 
   // 1) Create the run as `running`.
   await pgrest('POST', 'benchmark_runs', {
@@ -803,6 +813,7 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
     // 'deterministic-fixture' when the injected fixture produced this evidence.
     // The release gate refuses fixture rows for a production promotion.
     execution_mode: adapter.label,
+    content_hash: corpus.contentHash,
   })
 
   const forbidden = manifest.forbiddenActions ?? []

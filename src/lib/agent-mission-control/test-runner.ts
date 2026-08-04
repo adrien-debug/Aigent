@@ -38,6 +38,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { loadVersionedCorpus } from './corpus-identity'
 import { liveEvidenceAdapter } from './evidence/live-adapter'
 import type { EvidenceExecutionAdapter } from './evidence/execution-adapter'
 import { summarize } from './format'
@@ -289,7 +290,8 @@ interface CaseOutcome {
   actualToolCalls: string[]
   failureReason: string | null
   latencyMs: number
-  costUsd: UsdAmount
+  /** null when either paid leg did not expose readable usage. */
+  costUsd: UsdAmount | null
   /** LangSmith deep-link, or null when LangSmith isn't configured (honest). */
   traceUrl: string | null
 }
@@ -326,7 +328,7 @@ async function runCase(
   onThread?: (threadId: string) => void
 ): Promise<CaseOutcome> {
   const startedMs = Date.now()
-  let costUsd = 0
+  let costUsd: number | null = null
   // Per-case trace id → deep-link only if LangSmith is configured (else null).
   const traceUrl = getTraceUrl(newTraceId())
 
@@ -353,8 +355,11 @@ async function runCase(
       onNode,
       onThread,
     })
-    // null = unmeasured cost (no readable usage): excluded from the sum, never a fake 0.
-    costUsd += gr.costUsd ?? 0
+    // A successful leg with no readable usage is still unmeasured, never free.
+    costUsd =
+      typeof gr.costUsd === 'number' && Number.isFinite(gr.costUsd)
+        ? gr.costUsd
+        : null
 
     const actualToolCalls = gr.toolCalls.map((t) => t.toolName)
     const reply = gr.reply
@@ -380,7 +385,10 @@ async function runCase(
       model: judgeModel,
       modelProvider: judgeProvider,
     })
-    costUsd += judgeRes.costUsd
+    costUsd =
+      costUsd !== null && typeof judgeRes.costUsd === 'number' && Number.isFinite(judgeRes.costUsd)
+        ? costUsd + judgeRes.costUsd
+        : null
 
     const grade = safeParseGrade(judgeRes.text)
     const latencyMs = Date.now() - startedMs
@@ -565,6 +573,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
 
   const runId = randomUUID()
   const startedAt: IsoTimestamp = new Date().toISOString()
+  const corpus = await loadVersionedCorpus(copilotId)
 
   // 1) Create the run as `running` (empty pass rate) — visible while it works.
   await pgrest('POST', 'test_runs', {
@@ -582,6 +591,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     // 'deterministic-fixture' when the injected fixture produced this evidence.
     // The release gate refuses fixture rows for a production promotion.
     execution_mode: adapter.label,
+    content_hash: corpus.contentHash,
   })
 
   // The run row now exists — tell a streaming caller it started and how many
@@ -593,7 +603,8 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   //    it stuck on `running`.
   let passCount = 0
   let evaluated = 0
-  let totalCostUsd = 0
+  let measuredCostUsd = 0
+  let allCostsMeasured = true
   let aborted = false
   let abortReason = ''
 
@@ -635,7 +646,8 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
         onNode,
         onThread
       )
-      totalCostUsd += outcome.costUsd
+      if (outcome.costUsd === null) allCostsMeasured = false
+      else measuredCostUsd += outcome.costUsd
       if (outcome.status === 'pass') passCount += 1
       if (outcome.status === 'pass' || outcome.status === 'fail' || outcome.status === 'error') evaluated += 1
 
@@ -668,6 +680,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   }
 
   const passRate = evaluated > 0 ? passCount / evaluated : 0
+  const totalCostUsd = allCostsMeasured ? Math.round(measuredCostUsd * 1e6) / 1e6 : null
   const finishedAt: IsoTimestamp = new Date().toISOString()
   const finalStatus: TestRun['status'] = aborted ? 'aborted' : 'completed'
 
@@ -676,7 +689,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     finished_at: finishedAt,
     status: finalStatus,
     pass_rate: Math.round(passRate * 1e4) / 1e4,
-    total_cost_usd: Math.round(totalCostUsd * 1e6) / 1e6,
+    total_cost_usd: totalCostUsd,
   })
   await pgrest('PATCH', `test_suites?id=eq.${encodeURIComponent(suiteId)}`, { last_run_id: runId })
 
@@ -705,6 +718,9 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     status: finalStatus,
     resultIds: [],
     passRate: (row.pass_rate as number) ?? passRate,
-    totalCostUsd: (row.total_cost_usd as number) ?? totalCostUsd,
+    totalCostUsd:
+      typeof row.total_cost_usd === 'number' && Number.isFinite(row.total_cost_usd)
+        ? row.total_cost_usd
+        : totalCostUsd,
   }
 }

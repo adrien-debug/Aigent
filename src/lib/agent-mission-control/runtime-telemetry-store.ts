@@ -740,6 +740,10 @@ export async function emitShadowTelemetry(args: {
   experimentId: string
   verdict?: string
   wouldMutateCount?: number
+  provider?: string | null
+  model?: string | null
+  contentHash?: string
+  qualificationRunId?: string
 }): Promise<void> {
   await insertRuntimeTelemetryEvent({
     id: `${args.eventType}-${randomUUID()}`,
@@ -748,15 +752,20 @@ export async function emitShadowTelemetry(args: {
     agentVersion: args.candidateVersionId,
     targetRepo: null,
     runId: args.experimentId,
-    provider: null,
-    model: null,
+    provider: args.provider ?? null,
+    model: args.model ?? null,
     status: shadowTelemetryStatus(args.eventType),
     latencyMs: null,
     inputShape: {},
     outputShape: { verdict: args.verdict ?? null, wouldMutateCount: args.wouldMutateCount ?? null },
     error: {},
     usage: {},
-    environment: { source: 'aigent-shadow', experimentId: args.experimentId },
+    environment: {
+      source: 'aigent-shadow',
+      experimentId: args.experimentId,
+      contentHash: args.contentHash ?? null,
+      qualificationRunId: args.qualificationRunId ?? null,
+    },
     receivedAt: new Date().toISOString(),
     eventType: args.eventType,
   })
@@ -769,6 +778,10 @@ export async function emitReplayTelemetry(args: {
   candidateVersionId: string
   comparisonId: string
   verdict?: string
+  provider?: string | null
+  model?: string | null
+  contentHash?: string
+  qualificationRunId?: string
 }): Promise<void> {
   await insertRuntimeTelemetryEvent({
     id: `${args.eventType}-${randomUUID()}`,
@@ -777,15 +790,20 @@ export async function emitReplayTelemetry(args: {
     agentVersion: args.candidateVersionId,
     targetRepo: null,
     runId: args.comparisonId,
-    provider: null,
-    model: null,
+    provider: args.provider ?? null,
+    model: args.model ?? null,
     status: args.eventType === 'replay_completed' ? 'completed' : 'started',
     latencyMs: null,
     inputShape: {},
     outputShape: { verdict: args.verdict ?? null },
     error: {},
     usage: {},
-    environment: { source: 'aigent-replay', comparisonId: args.comparisonId },
+    environment: {
+      source: 'aigent-replay',
+      comparisonId: args.comparisonId,
+      contentHash: args.contentHash ?? null,
+      qualificationRunId: args.qualificationRunId ?? null,
+    },
     receivedAt: new Date().toISOString(),
     eventType: args.eventType,
   })

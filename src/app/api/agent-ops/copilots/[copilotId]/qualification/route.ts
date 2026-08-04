@@ -11,6 +11,7 @@ import {
   type OrchestratorOptions,
 } from '@/lib/agent-mission-control/qualification-orchestrator'
 import type { PromotionPolicy } from '@/lib/agent-mission-control/promotion-gate'
+import { createShadowReplayDriver } from '@/lib/agent-mission-control/shadow-replay-driver'
 
 /**
  * POST/GET /api/agent-ops/copilots/:copilotId/qualification — the single product
@@ -96,6 +97,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ copi
  *   versionId: string,               // the candidate version to qualify
  *   action?: 'sweep' | 'start' | 'advance',  // default 'sweep'
  *   clientRunId?: string,            // idempotency key (double-submit safe)
+ *   sourceRunId?: string,            // measured run that triggered qualification
  *   policy?: { requireShadow?: boolean, requireReplay?: boolean }
  * }
  * Returns { run, readiness }. Never promotes.
@@ -123,9 +125,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: "action must be 'sweep', 'start' or 'advance'" }, { status: 400 })
   }
   const clientRunId = typeof body.clientRunId === 'string' && isValidId(body.clientRunId) ? body.clientRunId : undefined
+  if (body.sourceRunId !== undefined && !isValidId(body.sourceRunId)) {
+    return NextResponse.json({ error: 'invalid sourceRunId' }, { status: 400 })
+  }
+  const sourceRunId = typeof body.sourceRunId === 'string' && isValidId(body.sourceRunId) ? body.sourceRunId : undefined
   const options: OrchestratorOptions & { clientRunId?: string } = {
     policy: parsePolicy(body.policy),
     clientRunId,
+    sourceRunId,
+    driver: createShadowReplayDriver(),
   }
 
   if (liveBackendMissing()) return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })

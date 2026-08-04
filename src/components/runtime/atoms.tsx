@@ -18,14 +18,11 @@ import { Text } from '@/components/ui/text'
 import { Fact, FactValue, NotMeasured, Unavailable } from '@/components/cockpit/primitives'
 import {
   MUTATION_MEANING,
-  PROVIDER_WIRING_LABEL,
-  PROVIDER_WIRING_MEANING,
   PROVISIONING_LABEL,
   PROVISIONING_MEANING,
   mutationLabel,
   provisioningState,
   type Loaded,
-  type ProviderWiring,
 } from './model'
 
 export { Fact, FactValue, NotMeasured }
@@ -69,29 +66,6 @@ export function LoadedBlock<T>({
 /** La lecture a réussi et n'a rien rendu — un vide PROUVÉ, pas une panne. */
 export function ProvenEmpty({ detail }: Readonly<{ detail: string }>) {
   return <Unavailable reason="no-data" detail={detail} />
-}
-
-/* ──────────────────────────── Câblage provider ───────────────────────── */
-
-const WIRING_COLOR: Record<ProviderWiring, BadgeColor> = {
-  wired: 'emerald',
-  'wired-unconfigured': 'amber',
-  'opt-in': 'sky',
-  'not-wired': 'zinc',
-}
-
-/**
- * L'état de câblage d'un provider.
- *
- * `not-wired` est délibérément `zinc` et non `red` : Mistral n'est pas EN PANNE,
- * il n'est pas implémenté. Le rouge dirait « quelque chose est cassé, répare-le ».
- */
-export function ProviderWiringBadge({ wiring }: Readonly<{ wiring: ProviderWiring }>) {
-  return (
-    <Badge color={WIRING_COLOR[wiring]} title={PROVIDER_WIRING_MEANING[wiring]}>
-      {PROVIDER_WIRING_LABEL[wiring]}
-    </Badge>
-  )
 }
 
 /* ──────────────────────── Provisioning d'un agent ────────────────────── */

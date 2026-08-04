@@ -51,6 +51,9 @@ export async function makeLiveReplayRunner(
 
   const run: ReplayRunner = async (input): Promise<ReplayOutcome> => {
     const r = await runVersionInputLive(exec, assistantId, versionId, input, `replay ${versionId}`)
+    if (r.error !== null) {
+      throw new Error(`replay runtime unavailable: ${r.error}`)
+    }
     const toolsCalled = r.toolCalls.map((t) => t.toolName)
     // Unsafe = mutating tools the version attempted (blocked at the confirmation
     // checkpoint, never executed — same registry authority as the shadow gate).
@@ -63,7 +66,7 @@ export async function makeLiveReplayRunner(
       toolsCalled,
       unsafeActions,
       latencyMs: r.latencyMs,
-      costUsd: r.costUsd ?? 0,
+      costUsd: r.costUsd,
     }
   }
 

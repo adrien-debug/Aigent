@@ -160,6 +160,22 @@ describe('resolveCopilotHealth', () => {
     expect(health.avgLatencyMs).toBeNull()
   })
 
+  it('3c — completed test run with pass_rate null stays unmeasured, never 0%', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('test_runs?'))
+        return [{ id: 'run-unmeasured', copilot_id: COPILOT, pass_rate: null, started_at: '2026-07-15T10:00:00Z' }]
+      if (path.startsWith('test_results?')) return []
+      if (path.startsWith('benchmark_runs?')) return []
+      if (path.startsWith('benchmark_results?')) return []
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const health = await resolveCopilotHealth(COPILOT)
+    expect(health.testPassRate).toBeNull()
+    expect(health.testPassRate).not.toBe(0)
+    expect(health.latestTestRunId).toBeNull()
+    expect(health.evidenceSource).toBe('none')
+  })
+
   it('4 — latest benchmark → benchmarkScore from its result', async () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?')) return []
@@ -186,6 +202,22 @@ describe('resolveCopilotHealth', () => {
     }
     const health = await resolveCopilotHealth(COPILOT)
     expect(health.benchmarkScore).toBeNull()
+    expect(health.evidenceSource).toBe('none')
+  })
+
+  it('4c — benchmark result with score null stays unmeasured, never score 0', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('test_runs?')) return []
+      if (path.startsWith('test_results?')) return []
+      if (path.startsWith('benchmark_runs?'))
+        return [{ id: 'bench-unmeasured', copilot_id: COPILOT, started_at: '2026-07-15T11:00:00Z' }]
+      if (path.startsWith('benchmark_results?')) return [{ run_id: 'bench-unmeasured', score: null }]
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const health = await resolveCopilotHealth(COPILOT)
+    expect(health.benchmarkScore).toBeNull()
+    expect(health.benchmarkScore).not.toBe(0)
+    expect(health.latestBenchmarkRunId).toBeNull()
     expect(health.evidenceSource).toBe('none')
   })
 
@@ -238,6 +270,20 @@ describe('resolveVersionScoresBatch', () => {
     expect(map.get(VERSION)!.testPassRate).toBeNull()
     expect(map.get(VERSION)!.benchmarkScore).toBeNull()
     expect(map.get(VERSION)!.evidenceSource).toBe('none')
+  })
+
+  it('completed version test with pass_rate null stays unmeasured', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('test_runs?'))
+        return [{ id: 'tr-null', version_id: VERSION, pass_rate: null, started_at: '2026-07-15T10:00:00Z' }]
+      if (path.startsWith('benchmark_runs?')) return []
+      if (path.startsWith('benchmark_results?')) return []
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const scores = (await resolveVersionScoresBatch([VERSION])).get(VERSION)!
+    expect(scores.testPassRate).toBeNull()
+    expect(scores.testPassRate).not.toBe(0)
+    expect(scores.evidenceSource).toBe('none')
   })
 })
 

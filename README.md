@@ -22,6 +22,13 @@ credentials for the provider a given run selects, data and execution paths
 return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
 
+Le tronçon aval versionne désormais son corpus par un SHA-256 canonique et exige
+la même empreinte sur qualification, shadow, replay, proposition et comparaison
+V1/V2. Un hash absent ou différent produit `INSUFFICIENT_EVIDENCE`, jamais un
+delta flatteur. Ce câblage requiert les migrations additives `0047` et `0048` ;
+tant qu’elles ne sont pas appliquées au backend, le parcours réel reste
+indisponible et n’est pas déclaré fonctionnel.
+
 ## Frontend
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à

@@ -39,7 +39,8 @@ export interface ShadowRunResult {
   output: unknown
   error: string | null
   latencyMs: number
-  costUsd: number
+  /** null when runtime usage could not be measured; never coerced to free. */
+  costUsd: number | null
   toolAttempts: ShadowToolAttempt[]
   /** Count of mutating tools that WOULD have fired but were blocked. */
   wouldMutateCount: number

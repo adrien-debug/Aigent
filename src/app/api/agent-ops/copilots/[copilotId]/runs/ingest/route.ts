@@ -175,9 +175,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       // matching the runner's own rows.
       input_summary: parsed.inputSummary ?? '',
       output_summary: parsed.outputSummary ?? '',
-      tool_call_count: parsed.toolCallCount ?? 0,
-      unsafe_attempt_count: parsed.unsafeAttemptCount ?? 0,
-      latency_ms: parsed.latencyMs ?? 0,
+      tool_call_count: parsed.toolCallCount ?? null,
+      unsafe_attempt_count: parsed.unsafeAttemptCount ?? null,
+      latency_ms: parsed.latencyMs ?? null,
       // cost_usd is NULLABLE since migration 0025 (coût inconnu ≠ zéro): a run
       // whose cost the caller never measured persists NULL (unavailable), NOT a
       // fabricated 0. `?? 0` here would re-manufacture the exact false zero that

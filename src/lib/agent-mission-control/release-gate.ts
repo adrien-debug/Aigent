@@ -103,7 +103,7 @@ export interface ReleaseEvidence {
   candidateStage: string
   /** The Improve cycle that produced this candidate, if any. */
   proposalId: string | null
-  testRun: { id: string; passRate: number; total: number; passed: number; hasRecursionError: boolean } | null
+  testRun: { id: string; passRate: number | null; total: number; passed: number; hasRecursionError: boolean } | null
   /**
    * Every measurement is nullable ON PURPOSE. A benchmark ROW can exist while a
    * given COLUMN is NULL — i.e. that dimension was never measured. Coercing such
@@ -152,7 +152,7 @@ async function latestCompletedTestRun(candidateVersionId: string): Promise<Relea
   // A run that crashed with GraphRecursionError is a hard block even if the
   // pass rate looks acceptable — it means the runtime didn't terminate cleanly.
   const hasRecursionError = results.some((r) => /GraphRecursionError|recursion limit/i.test((r.failure_reason as string) ?? ''))
-  return { id: run.id as string, passRate: (run.pass_rate as number) ?? 0, total, passed, hasRecursionError }
+  return { id: run.id as string, passRate: measured(run.pass_rate), total, passed, hasRecursionError }
 }
 
 async function latestCompletedBenchmark(candidateVersionId: string): Promise<ReleaseEvidence['benchmark']> {
@@ -221,7 +221,7 @@ function buildApprovedCycleCheck(proposal: RawRow | null): ReleaseCheck {
 }
 
 function testPassRateStatus(testRun: ReleaseEvidence['testRun']): ReleaseCheck['status'] {
-  if (!testRun) return 'missing'
+  if (!testRun || testRun.passRate === null) return 'missing'
   return testRun.passRate >= 1 ? 'pass' : 'fail'
 }
 
@@ -236,11 +236,17 @@ function recursionCrashObserved(testRun: ReleaseEvidence['testRun']): string {
 }
 
 function buildTestsPassCheck(testRun: ReleaseEvidence['testRun']): ReleaseCheck {
+  const observed =
+    !testRun
+      ? 'no test run'
+      : testRun.passRate === null
+        ? `${testRun.passed}/${testRun.total} cases recorded; pass rate not measured`
+        : `${testRun.passed}/${testRun.total} (${Math.round(testRun.passRate * 100)}%)`
   return {
     id: 'tests-pass',
     label: 'Tests pass rate',
     status: testPassRateStatus(testRun),
-    observed: testRun ? `${testRun.passed}/${testRun.total} (${Math.round(testRun.passRate * 100)}%)` : 'no test run',
+    observed,
     required: '100%',
   }
 }

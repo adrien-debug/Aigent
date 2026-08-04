@@ -122,7 +122,7 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
   }
 
   // L'UNIQUE lecture de l'URL en état de filtre. `copilot=` est absorbé ici,
-  // dans le parseur, pas réconcilié dans la page (voir `AGENT_PARAM_ALIASES`).
+  // dans le parseur, pas réconcilié dans la page (`parseRunsFilters`).
   const filters = parseRunsFilters(params)
 
   // Narrowing en mémoire de la fenêtre déjà lue. `applyRunsFilters` est la même

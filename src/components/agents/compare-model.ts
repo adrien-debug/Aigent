@@ -208,12 +208,12 @@ export function aggregatePassRate(
   comparison: VersionComparison | null,
   side: 'v1' | 'v2',
 ): Measured<number> {
-  if (comparison === null) return NOT_MEASURED
+  if (comparison === null || comparison.corpus.status !== 'MATCHED') return NOT_MEASURED
   const rates = comparison.tests
     .map((suite) => suite[side])
     .filter((run): run is NonNullable<typeof run> => run != null)
     .map((run) => run.passRate)
-    .filter((rate) => Number.isFinite(rate))
+    .filter((rate): rate is number => typeof rate === 'number' && Number.isFinite(rate))
   if (rates.length === 0) return NOT_MEASURED
   return measured(rates.reduce((sum, r) => sum + r, 0) / rates.length)
 }
@@ -223,14 +223,28 @@ export function aggregateBenchmarkScore(
   comparison: VersionComparison | null,
   side: 'v1' | 'v2',
 ): Measured<number> {
-  if (comparison === null) return NOT_MEASURED
+  if (comparison === null || comparison.corpus.status !== 'MATCHED') return NOT_MEASURED
   const scores = comparison.benchmarks
     .map((suite) => suite[side])
     .filter((run): run is NonNullable<typeof run> => run != null)
     .map((run) => run.score)
-    .filter((score) => Number.isFinite(score))
+    .filter((score): score is number => typeof score === 'number' && Number.isFinite(score))
   if (scores.length === 0) return NOT_MEASURED
   return measured(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+}
+
+function comparisonContentHash(
+  comparison: VersionComparison | null,
+  side: 'v1' | 'v2',
+): Measured<string> {
+  if (comparison === null) return NOT_MEASURED
+  const hashes = [
+    ...comparison.tests.map((item) => item[side]?.contentHash ?? null),
+    ...comparison.benchmarks.map((item) => item[side]?.contentHash ?? null),
+  ]
+  if (hashes.length === 0 || hashes.some((hash) => hash === null)) return NOT_MEASURED
+  const unique = [...new Set(hashes as string[])]
+  return measured(unique.length === 1 ? unique[0] : `MISMATCH: ${unique.join(', ')}`)
 }
 
 /**
@@ -334,6 +348,20 @@ export function buildCompareView({
   // Le plafond de coût est recopié tel quel par `createV2FromProposal` : la
   // boucle n'a pas le droit de le changer, donc les deux côtés sont égaux.
   const maxCost = numericMeasure(manifest?.maxCostPerRunUsd)
+  const provenance = measured(
+    Object.entries(proposal.sources)
+      .filter(([, available]) => available)
+      .map(([source]) => source)
+      .join(', ') || 'aucune source disponible',
+  )
+  const downstreamEvidence = [
+    proposal.sourceRunId && `run:${proposal.sourceRunId}`,
+    proposal.qualificationRunId && `qualification:${proposal.qualificationRunId}`,
+    proposal.shadowExperimentId && `shadow:${proposal.shadowExperimentId}`,
+    proposal.replayComparisonId && `replay:${proposal.replayComparisonId}`,
+  ].filter((value): value is string => value !== null)
+  const downstreamEvidenceText =
+    downstreamEvidence.length > 0 ? measured(downstreamEvidence.join(' · ')) : NOT_MEASURED
 
   const groups: CompareGroup[] = [
     {
@@ -448,7 +476,45 @@ export function buildCompareView({
       title: 'Scores et coûts observés',
       description:
         'Ce que des runs réels ont prouvé sur chaque version. Un score jamais mesuré n’est pas un score de 0.',
-      textRows: [],
+      textRows: [
+        textRow(
+          'comparison-read',
+          'Lecture des mesures comparées',
+          'Une lecture indisponible conserve les changements de manifeste visibles, mais interdit tout delta de score.',
+          measured(comparison ? 'lue' : 'indisponible'),
+          measured(comparison ? 'lue' : 'indisponible'),
+        ),
+        textRow(
+          'content-hash',
+          'Empreinte du corpus',
+          'SHA-256 canonique versionné. Une différence interdit toute conclusion V1/V2.',
+          comparisonContentHash(comparison, 'v1'),
+          comparisonContentHash(comparison, 'v2'),
+          comparison ? measured(comparison.corpus.reason) : undefined,
+        ),
+        textRow(
+          'corpus-verdict',
+          'Comparabilité du corpus',
+          'MATCHED seulement si tous les runs V1 et V2 portent exactement le hash de la proposition.',
+          comparison ? measured(comparison.corpus.status) : NOT_MEASURED,
+          comparison ? measured(comparison.corpus.status) : NOT_MEASURED,
+          comparison ? measured(comparison.corpus.reason) : undefined,
+        ),
+        textRow(
+          'provenance',
+          'Provenance des signaux',
+          'Sources réellement disponibles lors de l’analyse ayant produit la proposition.',
+          provenance,
+          provenance,
+        ),
+        textRow(
+          'evidence-links',
+          'Chaîne de preuves',
+          'Identifiants persistés reliant run, qualification, shadow et replay.',
+          downstreamEvidenceText,
+          downstreamEvidenceText,
+        ),
+      ],
       numberRows: [
         numberRow(
           'pass-rate',

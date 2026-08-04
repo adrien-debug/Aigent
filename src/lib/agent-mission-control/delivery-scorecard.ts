@@ -66,7 +66,7 @@ export interface DeliveryScorecardInput {
   /** Repo-fit result (Prompt 46), or null when the suite is manifest-only / no repo. */
   repoFit: RepoFitResult | null
   /** Latest completed test run pinned to the candidate version. */
-  testRun: { id: string; passRate: number; hasRecursionError: boolean } | null
+  testRun: { id: string; passRate: number | null; hasRecursionError: boolean } | null
   /**
    * Latest completed benchmark pinned to the candidate version. Each dimension
    * is nullable: a benchmark ROW can exist with a given COLUMN never measured.
@@ -167,7 +167,7 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
   }
 
   // 2. Test pass rate (20%).
-  if (input.testRun) {
+  if (input.testRun && input.testRun.passRate !== null) {
     const pct = Math.round(input.testRun.passRate * 100)
     score += Math.round(input.testRun.passRate * W_TESTS)
     dimensions.push({
@@ -178,8 +178,14 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
       evidence: `${pct}%`,
     })
   } else {
-    dimensions.push({ id: 'tests', label: 'Test pass rate', score: null, status: 'missing', evidence: 'no completed test run' })
-    warnings.push('no_test_run')
+    dimensions.push({
+      id: 'tests',
+      label: 'Test pass rate',
+      score: null,
+      status: 'missing',
+      evidence: input.testRun ? 'completed run; pass rate not measured' : 'no completed test run',
+    })
+    warnings.push(input.testRun ? 'test_pass_rate_unmeasured' : 'no_test_run')
   }
 
   // 3. Benchmark score (20%). No benchmark = warning (documented: not a hard
