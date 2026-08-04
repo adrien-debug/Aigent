@@ -140,6 +140,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | PR #105 — section « Composants externes qualifiés » | `26dffb01` | mergée |
 | PR #107 — tronçon aval + idempotence concurrente shadow/replay | `1ea80b91` | mergée — V2 créée, mesurée et laissée sans décision |
 | PR #108 — convergence post-merge : idempotence, sécurité, vérité des mesures | `b4eb8dd8` | mergée — corrections P0/P1 sans déploiement |
+| PR #109 — stabilisation documentaire (REPOSITORY_MAP, GLOSSARY, règle Cursor, decisions, corrections README) | `e6ff7abf` | mergée — documentaire, aucun delta fonctionnel |
 
 **#103 est CLOSED, pas abandonnée.** Elle portait le même contenu que #105 mais
 visait `chore/aigent-checklist-refresh-001` ; GitHub l'a fermée
@@ -166,17 +167,7 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**PR #109 — stabilisation documentaire** (`560607ae`, branche
-`mission/doc-cartography`) : création de `docs/REPOSITORY_MAP.md`,
-`docs/GLOSSARY.md`, `.cursor/rules/project-architecture.mdc`,
-`docs/decisions/README.md` ; corrections vérifiées de `README.md`
-(Recharts→`@xyflow/react`+`motion`, liste des gates 15→19, compte de tests renvoyé
-ici). **Documentaire uniquement — aucun delta fonctionnel, aucun comportement
-produit modifié.** Signale, sans les corriger, des dérives doc↔code de
-**gouvernance** — portée réelle de `src/proxy.ts` (garde toutes les surfaces, pas
-seulement `/api/agent-ops/**`) et **quatre** frontières de confiance là où
-`docs/architecture.md` en liste trois — à réconcilier en mission de gouvernance
-dédiée (`REPOSITORY_MAP.md` §12).
+**Vide après le merge de la PR #109.**
 
 ## Déployé
 
