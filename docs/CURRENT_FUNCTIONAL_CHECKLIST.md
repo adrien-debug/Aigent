@@ -13,13 +13,13 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence avant le commit documentaire** — `main` = `64067aa6` ;
-PR #107 = `f0b71687` après correction du défaut concurrent.
-Dernière mise à jour : 2026-08-04 · mission
+**État de référence avant le commit documentaire** — `main` =
+`1ea80b915565787d6ee1e9e27ae218c7329431a2`, merge commit de la PR #107.
+Dernière mise à jour : 2026-08-04 · merge de la mission
 `AIGENT-DOWNSTREAM-IDEMPOTENCE-CONCURRENCY-REWORK-001`
 
-**PR #107 est en review et non mergée.** Aucun état de cette PR n'est attribué à
-`main`.
+**PR #107 est mergée.** Le tronçon aval et son acquisition concurrente atomique
+sont présents sur `main`; aucun déploiement ni promotion n'en découle.
 
 Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
 2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
@@ -135,7 +135,8 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | PR #101 — cache disque Turbopack (environnement de dev **uniquement**) | `e3e84839` | mergée |
 | PR #104 — compteur de sécurité absent ≠ « 0 unsafe actions » + migration 0047 | `f4569ed8` | mergée |
 | PR #102 — rafraîchissement de cette checklist | `374c78b2` | mergée |
-| PR #105 — section « Composants externes qualifiés » | `26dffb01` | mergée — **tête de `main`** |
+| PR #105 — section « Composants externes qualifiés » | `26dffb01` | mergée |
+| PR #107 — tronçon aval + idempotence concurrente shadow/replay | `1ea80b91` | mergée — V2 créée, mesurée et laissée sans décision |
 
 **#103 est CLOSED, pas abandonnée.** Elle portait le même contenu que #105 mais
 visait `chore/aigent-checklist-refresh-001` ; GitHub l'a fermée
@@ -162,14 +163,12 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-| PR | HEAD de départ | État de référence avant ce commit documentaire | État |
-|---|---|---|---|
-| #107 — tronçon aval + rework d'idempotence concurrente | `841b7fda` | `f0b71687` | **EN REVIEW, NON MERGÉE** — CAS PostgREST `queued → running`; `npm run verify` vert ; CI `30876646769` : `check + build` success, SonarQube optionnel skipped |
+**Vide après le merge de la PR #107.**
 
 ## Déployé
 
-**Rien n'est déclaré déployé.** La mission de durcissement n'a rien déployé et
-n'a pas été mergée.
+**Rien n'est déclaré déployé.** Le merge de la PR #107 n'a déclenché aucun
+déploiement.
 
 Vérifié le 2026-08-03 : `.github/workflows/ci.yml` ne contient que deux jobs
 (`check + build`, `sonarqube`) et **aucune étape de déploiement**. Il n'existe ni
@@ -376,33 +375,28 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
 
-Les deux premières maintiennent le tronçon aval en arrêt humain tout en faisant
-reviewer la fermeture du défaut P1 concurrent.
-
-1. **Faire reviewer le rework concurrent de la PR #107 et garder la V2 en attente humaine** —
+1. **Garder la V2 en attente humaine** —
    proposition `improve-seed-agent-alpha-ef6cff02` en `v2-created`, sans
    `decided_at`; la comparaison ne montre aucune amélioration et ne justifie donc
    ni approbation ni promotion.
-2. **Surveiller la CI du rework de la PR #107** puis corriger uniquement ses
-   régressions éventuelles ; aucun merge ni déploiement sans ordre séparé.
-3. **Exposer les métadonnées de coût en lecture** (limite 17b) —
+2. **Exposer les métadonnées de coût en lecture** (limite 17b) —
    `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
    Un consommateur ne peut pas relire ce qu'il a payé.
-4. **Décider du déploiement** — tout existe côté `deploy/` en `docker-compose`
+3. **Décider du déploiement** — tout existe côté `deploy/` en `docker-compose`
    lancés à la main. C'est une décision, pas un chantier ; exige un ordre
    explicite (`CLAUDE.md` §6).
-5. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
+4. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
    sécurité non mesuré coercé en 0, un provider écrit en dur, une télémétrie qui
    ne distingue pas la provenance.
-6. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
+5. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
    distantes sur un double-clic.
-7. **Instruire l'écart shadow** (limite 19) — 8 événements shadow pour 0 ligne
+6. **Instruire l'écart shadow** (limite 19) — 8 événements shadow pour 0 ligne
    persistée.
-8. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
+7. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
    `/agents`, `/runs` ont été vérifiées aux deux points de rupture.
-9. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
+8. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
    preuves visuelles.
-10. **Régénérer les preuves visuelles au HEAD courant** — les captures existantes
+9. **Régénérer les preuves visuelles au HEAD courant** — les captures existantes
     datent d'un HEAD antérieur.
 
 ## Composants externes qualifiés
