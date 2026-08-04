@@ -14,12 +14,14 @@
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
 **État de référence avant le commit documentaire** — `main` =
-`1ea80b915565787d6ee1e9e27ae218c7329431a2`, merge commit de la PR #107.
+`b4eb8dd89f1afd284fe392ab4f1c6aa222303948`, merge commit de la PR #108.
 Dernière mise à jour : 2026-08-04 · merge de la mission
-`AIGENT-DOWNSTREAM-IDEMPOTENCE-CONCURRENCY-REWORK-001`
+`AIGENT-SUPERVISED-CONVERGENCE-001`
 
-**PR #107 est mergée.** Le tronçon aval et son acquisition concurrente atomique
-sont présents sur `main`; aucun déploiement ni promotion n'en découle.
+**PR #107 et #108 sont mergées.** Le tronçon aval et son acquisition concurrente
+atomique sont présents sur `main`; la PR #108 ferme les P0/P1 post-merge
+(idempotence `client_run_id`, proxy constant-time, corpus des gates, replay sans
+prod, migration 0049). Aucun déploiement ni promotion n'en découle.
 
 Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
 2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
@@ -137,6 +139,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | PR #102 — rafraîchissement de cette checklist | `374c78b2` | mergée |
 | PR #105 — section « Composants externes qualifiés » | `26dffb01` | mergée |
 | PR #107 — tronçon aval + idempotence concurrente shadow/replay | `1ea80b91` | mergée — V2 créée, mesurée et laissée sans décision |
+| PR #108 — convergence post-merge : idempotence, sécurité, vérité des mesures | `b4eb8dd8` | mergée — corrections P0/P1 sans déploiement |
 
 **#103 est CLOSED, pas abandonnée.** Elle portait le même contenu que #105 mais
 visait `chore/aigent-checklist-refresh-001` ; GitHub l'a fermée
@@ -454,10 +457,10 @@ l'usage exact d'Aigent relève d'un avis juridique, pas de cette étude.
 | Type | Référence |
 |---|---|
 | `main` | `26dffb01` (2026-08-04, après #101 · #102 · #104 · #105) |
-| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` · #101 `e3e84839` · #104 `f4569ed8` · #102 `374c78b2` · #105 `26dffb01` |
+| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` · #101 `e3e84839` · #104 `f4569ed8` · #102 `374c78b2` · #105 `26dffb01` · #107 `1ea80b91` · #108 `b4eb8dd8` |
 | PR ouverte, **non mergée** | **aucune** au 2026-08-04 |
 | Relecture des chiffres en base | 2026-08-04 — PostgREST `HEALTHY`, lecture seule, 29 tables comptées, arbre inchangé |
-| Pile locale | `npm run health` — NEXT · LANGGRAPH · POSTGREST · STACK **HEALTHY** (2026-08-04) |
+| Pile locale | `npm run health` — NEXT · LANGGRAPH · POSTGREST · STACK **HEALTHY** (2026-08-04) ; dev server pid 22899 sur `127.0.0.1:3987` |
 | Issues | #93 **fermée** (livrée par #96) · #94 fermée (livrée par #95) — relu le 2026-08-04 |
 | Audit de référence | 2026-08-03, 10 périmètres, lecture seule, arbre inchangé |
 | Run runtime réel | 2026-08-03 — `openai` / `gpt-5.4`, coût mesuré, provider recoupé en base |
@@ -466,6 +469,7 @@ l'usage exact d'Aigent relève d'un avis juridique, pas de cette étude.
 | Installation consommateur | `inst-development-dc635c1eb45f482fbfad`, projet `proj-tradeagent` |
 | Preuve consommateur | `docs/visual-reviews/AIGENT-RUNTIME-PRODUCTIZATION-001/CONSUMER-PILOT.md` |
 | PR #99 | mergée — `b4675d35` ; CI post-merge `success` (run `30857825482`) |
+| PR #108 | mergée — `b4eb8dd8` ; CI post-merge `success` (run `30924224962`) ; navigateur local `/`, `/agents`, `/agents/seed-agent-alpha`, `/runs`, `/settings` propres (0 erreur console, 0 erreur réseau) |
 | Preuve responsive `/settings` | `docs/visual-reviews/SETTINGS-MOBILE-OVERFLOW/` — 5 captures + REVIEW, 0 débordement aux 5 viewports |
 
 > Un runId de run interne d'Aigent sera consigné ici dès qu'une mission en
