@@ -109,11 +109,11 @@ export async function POST(
       started_at: startedAt,
       ends_at: null,
       status: 'queued',
-      sampled_run_count: 0,
-      agreement_rate: 0,
+      sampled_run_count: null,
+      agreement_rate: null,
       agreement_threshold: 0.95,
-      unsafe_proposal_count: 0,
-      would_mutate_count: 0,
+      unsafe_proposal_count: null,
+      would_mutate_count: null,
       mismatches: [],
       triggered_by: 'agent-ops-api',
       // The row records its TRUE provenance (never the DB default legacy_unknown):
@@ -220,7 +220,7 @@ export async function POST(
  *     id: string, status: 'queued'|'running'|'completed'|'stopped'|'failed',
  *     verdict: 'PASS'|'FAIL'|'INSUFFICIENT_EVIDENCE'|null,
  *     executionMode: 'live_langgraph'|'deterministic_fixture'|'legacy_unknown',
- *     sampledRunCount: number, wouldMutateCount: number,
+ *     sampledRunCount: number | null, wouldMutateCount: number | null,
  *     startedAt: string, endsAt: string | null,
  *   }}
  *   `executionMode` (migration 0034/0037) reflects the LAST run's true source:
@@ -261,8 +261,8 @@ export async function GET(
             status: row.status,
             verdict: row.candidate_verdict ?? null,
             executionMode: row.execution_mode ?? 'legacy_unknown',
-            sampledRunCount: row.sampled_run_count ?? 0,
-            wouldMutateCount: row.would_mutate_count ?? 0,
+            sampledRunCount: (row.sampled_run_count as number | null | undefined) ?? null,
+            wouldMutateCount: (row.would_mutate_count as number | null | undefined) ?? null,
             startedAt: row.started_at,
             endsAt: row.ends_at ?? null,
           }

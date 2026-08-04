@@ -234,6 +234,19 @@ describe('real shadow/replay driver persistence', () => {
     expect(h.shadowFactory).toHaveBeenCalledOnce()
   })
 
+  it('reserves the shadow row with unmeasured counters as null, not zero', async () => {
+    const driver = createShadowReplayDriver()
+    await driver.runShadow({ ...common, productionVersionId: 'reference' })
+    const row = h.tables.shadow_experiments[0]
+
+    // The counters the run did not measure stayed NULL. Only the two dimensions
+    // actually produced by the run (sampled count + would-mutate count) were set.
+    expect(row.sampled_run_count).toBe(2)
+    expect(row.would_mutate_count).toBe(0)
+    expect(row.agreement_rate).toBeNull()
+    expect(row.unsafe_proposal_count).toBeNull()
+  })
+
   it('persists replay on the same corpus and reuses the reserved row', async () => {
     const driver = createShadowReplayDriver()
     const result = await driver.runReplay({ ...common, referenceVersionId: 'reference' })

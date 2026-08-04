@@ -24,6 +24,37 @@ import type { IsoTimestamp } from './types'
 type RawRow = Record<string, unknown>
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
+const isNull = (col: string) => `${col}=is.null`
+
+/**
+ * Build evidence-scope filters for content_hash and qualification_run_id.
+ * When the caller knows the current qualification run (orchestrator), we pin
+ * the read to evidence produced for that exact corpus and run. A shadow/replay
+ * proof from an earlier corpus or run must not satisfy the gate after the
+ * corpus changed. When contentHash is null, we explicitly look for rows with a
+ * null content_hash so unversioned evidence is still scoped and not mixed with
+ * versioned evidence from a different corpus.
+ *
+ * `includeRunId` is true for shadow/replay tables that carry
+ * qualification_run_id; false for test_runs/benchmark_runs which only carry
+ * content_hash.
+ */
+function evidenceFilter(
+  contentHash: string | null,
+  qualificationRunId: string | null,
+  includeRunId: boolean,
+): string {
+  const filters: string[] = []
+  if (contentHash !== null) {
+    filters.push(eq('content_hash', contentHash))
+  } else {
+    filters.push(isNull('content_hash'))
+  }
+  if (includeRunId && qualificationRunId !== null) {
+    filters.push(eq('qualification_run_id', qualificationRunId))
+  }
+  return filters.join('&')
+}
 
 /**
  * A raw PostgREST cell → a number ONLY when it is a real, finite measurement.
@@ -134,15 +165,20 @@ export interface ReleaseGate {
   evaluatedAt: IsoTimestamp
 }
 
-async function latestCompletedTestRun(candidateVersionId: string): Promise<ReleaseEvidence['testRun']> {
+async function latestCompletedTestRun(
+  candidateVersionId: string,
+  contentHash: string | null = null,
+  qualificationRunId: string | null = null,
+): Promise<ReleaseEvidence['testRun']> {
   // execution_mode=eq.live: a production promotion is satisfied ONLY by real,
   // billed evidence. A 'deterministic-fixture' run (the $0 offline proof path,
   // migration 0037) is deliberately invisible here, so a fixture proof can never
   // satisfy a production gate (AIGENT-DETERMINISTIC-EVIDENCE-001). Historical
   // rows default to 'live', so this filter changes nothing for existing evidence.
+  const corpusFilter = evidenceFilter(contentHash, qualificationRunId, false)
   const runs = await pgrest<RawRow[]>(
     'GET',
-    `test_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&select=id,pass_rate&order=started_at.desc&limit=1`
+    `test_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&${corpusFilter}&select=id,pass_rate&order=started_at.desc&limit=1`
   )
   const run = runs[0]
   if (!run) return null
@@ -155,12 +191,17 @@ async function latestCompletedTestRun(candidateVersionId: string): Promise<Relea
   return { id: run.id as string, passRate: measured(run.pass_rate), total, passed, hasRecursionError }
 }
 
-async function latestCompletedBenchmark(candidateVersionId: string): Promise<ReleaseEvidence['benchmark']> {
+async function latestCompletedBenchmark(
+  candidateVersionId: string,
+  contentHash: string | null = null,
+  qualificationRunId: string | null = null,
+): Promise<ReleaseEvidence['benchmark']> {
   // execution_mode=eq.live — see latestCompletedTestRun: fixture evidence never
   // satisfies a production promotion.
+  const corpusFilter = evidenceFilter(contentHash, qualificationRunId, false)
   const runs = await pgrest<RawRow[]>(
     'GET',
-    `benchmark_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&select=id&order=started_at.desc&limit=1`
+    `benchmark_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&${corpusFilter}&select=id&order=started_at.desc&limit=1`
   )
   if (!runs[0]) return null
   // One benchmark_results row per run (see benchmark-runner.ts) — limit=1 bounds
@@ -335,7 +376,12 @@ function buildReleaseChecks(ctx: ReleaseGateContext): ReleaseCheck[] {
  * improvement cycle just produced). Returns every check with its real observed
  * value; `promotable` is true only when they ALL pass.
  */
-export async function evaluateReleaseGate(copilotId: string, candidateVersionId?: string): Promise<ReleaseGate | null> {
+export async function evaluateReleaseGate(
+  copilotId: string,
+  candidateVersionId?: string,
+  contentHash: string | null = null,
+  qualificationRunId: string | null = null,
+): Promise<ReleaseGate | null> {
   const copilotRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=id,production_version_id,latest_version_id`)
   if (copilotRows.length === 0) return null
   const copilot = copilotRows[0]
@@ -356,8 +402,8 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
   const proposal = proposalRows[0] ?? null
 
   const [testRun, benchmark, toolRows, prodBench] = await Promise.all([
-    latestCompletedTestRun(candidateId),
-    latestCompletedBenchmark(candidateId),
+    latestCompletedTestRun(candidateId, contentHash, qualificationRunId),
+    latestCompletedBenchmark(candidateId, contentHash, qualificationRunId),
     pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name,risk_level`),
     productionBenchmarkScore(currentProductionVersionId),
   ])

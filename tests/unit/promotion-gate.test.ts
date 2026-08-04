@@ -214,6 +214,19 @@ describe('promotion gate — PROVENANCE (PR #22 rework): a fixture PASS must nev
     expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
   })
 
+  it('shadow PASS with unmeasured would_mutate_count (null) is INSUFFICIENT_EVIDENCE, never a proven zero', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: null, execution_mode: 'live_langgraph' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    const check = r?.checks.find((c) => c.id === 'shadow-proof')
+    expect(check?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(check?.reason).toMatch(/not measured/)
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.promotable).toBe(false)
+  })
+
   it('shadow PASS with execution_mode=live_langgraph, required=true → PASS — the ONLY provenance that clears a required check', async () => {
     wireDefaultRows({
       shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'live_langgraph' }],
@@ -495,6 +508,80 @@ describe('non-bypass — persisted evidence is re-read at decision time (9)', ()
     expect(hash1).not.toBe(hash2)
     // The second (changed-evidence) evaluation is FAIL, and persists as 'blocked'.
     expect((pgCalls.at(-1)!.body as Record<string, unknown>).overall_status).toBe('blocked')
+  })
+})
+
+describe('non-bypass — evidence is scoped to current corpus and qualification run (P1)', () => {
+  it('shadow/replay reads filter on contentHash and qualificationRunId when provided', async () => {
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: true }
+    const currentHash = 'corpus-v2'
+    const currentRun = 'run-2'
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-ok', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'live_langgraph' }],
+      replay: [{ id: 'replay-ok', verdict: 'BETTER', status: 'ready', execution_mode: 'live_langgraph' }],
+    })
+    await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW, currentHash, currentRun)
+    const shadowGet = pgCalls.find((c) => c.path.startsWith('shadow_experiments?'))
+    const replayGet = pgCalls.find((c) => c.path.startsWith('replay_comparisons?'))
+    expect(shadowGet).toBeDefined()
+    expect(replayGet).toBeDefined()
+    expect(shadowGet!.path).toContain(`content_hash=eq.${currentHash}`)
+    expect(shadowGet!.path).toContain(`qualification_run_id=eq.${currentRun}`)
+    expect(replayGet!.path).toContain(`content_hash=eq.${currentHash}`)
+    expect(replayGet!.path).toContain(`qualification_run_id=eq.${currentRun}`)
+  })
+
+  it('a shadow/replay proof from a different corpus/run does NOT satisfy the required gate', async () => {
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: true }
+    const currentHash = 'corpus-v2'
+    const currentRun = 'run-2'
+
+    pg = (_m, path) => {
+      if (path.startsWith('copilots?')) return [{ id: COPILOT, runtime: 'langgraph' }]
+      if (path.startsWith('copilot_versions?')) return [{ id: VERSION, stage: 'draft', manifest_id: 'manifest-1' }]
+      if (path.startsWith('manifests?')) return [{ tool_ids: ['tool-count_words'] }]
+      if (path.startsWith('tools?')) return [{ id: 'tool-count_words', name: 'count_words' }]
+      // Stale proof exists for a different corpus/run; only the current-scope
+      // filter returns nothing, so the gate cannot see the stale row.
+      if (path.startsWith('shadow_experiments?')) {
+        return path.includes(`content_hash=eq.${encodeURIComponent(currentHash)}`) &&
+          path.includes(`qualification_run_id=eq.${currentRun}`)
+          ? []
+          : [{ id: 'shadow-stale', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'live_langgraph' }]
+      }
+      if (path.startsWith('replay_comparisons?')) {
+        return path.includes(`content_hash=eq.${encodeURIComponent(currentHash)}`) &&
+          path.includes(`qualification_run_id=eq.${currentRun}`)
+          ? []
+          : [{ id: 'replay-stale', verdict: 'BETTER', status: 'ready', execution_mode: 'live_langgraph' }]
+      }
+      return []
+    }
+
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW, currentHash, currentRun)
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.checks.find((c) => c.id === 'shadow-proof')?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.checks.find((c) => c.id === 'replay-comparison')?.status).toBe('INSUFFICIENT_EVIDENCE')
+  })
+
+  it('uses content_hash=is.null when contentHash is null and a run is scoped', async () => {
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: true }
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-ok', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'live_langgraph' }],
+      replay: [{ id: 'replay-ok', verdict: 'BETTER', status: 'ready', execution_mode: 'live_langgraph' }],
+    })
+    await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW, null, 'run-1')
+    const shadowGet = pgCalls.find((c) => c.path.startsWith('shadow_experiments?'))
+    expect(shadowGet!.path).toContain('content_hash=is.null')
+    expect(shadowGet!.path).toContain('qualification_run_id=eq.run-1')
+  })
+
+  it('passes contentHash and qualificationRunId through to evaluateReleaseGate', async () => {
+    const { evaluateReleaseGate } = await import('@/lib/agent-mission-control/release-gate')
+    const currentHash = 'corpus-v2'
+    const currentRun = 'run-2'
+    await evaluatePromotionGate(COPILOT, VERSION, undefined, FIXED_NOW, currentHash, currentRun)
+    expect(evaluateReleaseGate).toHaveBeenCalledWith(COPILOT, VERSION, currentHash, currentRun)
   })
 })
 

@@ -119,7 +119,7 @@ async function runShadow(
       agreement_rate: null,
       agreement_threshold: 0.95,
       unsafe_proposal_count: null,
-      would_mutate_count: 0,
+      would_mutate_count: null,
       mismatches: [],
       triggered_by: 'qualification-orchestrator',
       execution_mode: 'live_langgraph',

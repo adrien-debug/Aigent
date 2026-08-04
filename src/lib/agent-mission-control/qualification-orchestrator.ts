@@ -606,6 +606,16 @@ async function stepReplay(
   if (driver) {
     const prodRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=production_version_id`)
     const referenceVersionId = (prodRows[0]?.production_version_id as string | null) ?? null
+    if (referenceVersionId === null) {
+      return {
+        step: 'replay',
+        status: 'INSUFFICIENT_EVIDENCE',
+        reason: 'no production version to compare against',
+        evidenceRef: null,
+        sourceOfTruth: src,
+        at,
+      }
+    }
     const out = await driver.runReplay({
       copilotId,
       candidateVersionId: versionId,
@@ -645,9 +655,11 @@ async function stepGate(
   versionId: string,
   policy: PromotionPolicy,
   now: () => Date,
+  contentHash: string | null,
+  qualificationRunId: string,
 ): Promise<{ result: QualificationStepResult; promotable: boolean }> {
   const at = now().toISOString() as IsoTimestamp
-  const evaluated = await evaluateAndPersistPromotionGate(copilotId, versionId, policy, now)
+  const evaluated = await evaluateAndPersistPromotionGate(copilotId, versionId, policy, now, contentHash, qualificationRunId)
   if (!evaluated) {
     return {
       result: {
@@ -832,7 +844,7 @@ export async function advanceQualification(
   else if (cursor === 'shadow') stepResult = await stepShadow(run, at, options.driver)
   else if (cursor === 'replay') stepResult = await stepReplay(run, at, options.driver)
   else {
-    const gate = await stepGate(run.copilotId, run.copilotVersionId, run.policy, now)
+    const gate = await stepGate(run.copilotId, run.copilotVersionId, run.policy, now, run.contentHash, run.id)
     stepResult = gate.result
     promotable = gate.promotable
   }

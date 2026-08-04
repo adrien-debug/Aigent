@@ -372,6 +372,18 @@ describe('runTestSuite — a pause is observed on the direct path, never assumed
 })
 
 describe('runTestSuite — an unmeasured cost is never a truthful zero', () => {
+  it('starts the run with pass_rate and total_cost_usd as null, not zero', async () => {
+    streamOnAgentServer.mockResolvedValue(graphReply())
+
+    await runTestSuite({ copilotId: COPILOT_ID, suiteId: SUITE_ID })
+
+    const call = pgrest.mock.calls.find((c) => c[0] === 'POST' && c[1] === 'test_runs')
+    expect(call).toBeDefined()
+    const body = call![2] as Record<string, unknown>
+    expect(body.pass_rate).toBeNull()
+    expect(body.total_cost_usd).toBeNull()
+  })
+
   it('a null execution cost makes the combined case cost unknown', async () => {
     copilotRow.runtime = 'openai-assistants'
     executeCopilotRun.mockResolvedValue(directReply({ costUsd: null }))
