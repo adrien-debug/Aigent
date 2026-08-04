@@ -202,8 +202,8 @@ intégralement.
 
 | Élément | Pourquoi ce n'est pas fonctionnel |
 |---|---|
-| **Qualification aval : shadow, replay, qualification runs** | code complet, **0 ligne en base**. La route de qualification ne transmet pas de driver → les étapes retombent systématiquement en « non disponible ». |
-| **Boucle d'amélioration autonome** | la fonction existe et est testée, mais **aucune route ni cron ne l'appelle**. Moteur sans surface. |
+| **Qualification aval : shadow, replay, qualification runs** | **Précisé le 2026-08-04 — le moteur existe, il n'est pas appelé.** `shadow-live.ts` (182 l.) et `replay-live.ts` (71 l.) sont des moteurs **réels** sur LangGraph (assistant éphémère, write-safe : un outil mutant tape l'`interrupt()` et n'exécute jamais), et les routes `POST/GET .../versions/[versionId]/shadow` et `.../replay` existent (275 et 269 lignes). Ce qui manque est étroit : **personne n'implémente `ShadowReplayDriver`** (2 méthodes optionnelles) et la route de qualification construit `options = { policy, clientRunId }` — **sans champ `driver`** → les étapes retombent en `NOT_AVAILABLE`. Ce vide est **délibéré** (une fixture ne doit jamais satisfaire un gate), pas un oubli. |
+| **Boucle d'amélioration — la partie AUTONOME seulement** | **Correction du 2026-08-04.** La version antérieure de cette ligne disait « aucune route ni cron ne l'appelle. Moteur sans surface » : **c'est faux**, et l'erreur a été propagée dans un rapport. **Trois routes existent et sont câblées** — `improve/analyze` (`analyzeAndPropose`), `improve/decision` (`decideProposal`), `improve/create-v2` (`createImprovementV2`) — et l'UI les lit. Sur les 7 exports de `improvement-loop.ts`, **6 ont des appelants en production**. Le seul sans appelant est **`runAutoImprovementCycle`**, et **aucun cron n'existe** (pas de `schedule:` en CI, aucun fichier de plateforme). Donc : le parcours **manuel** analyse → décision → V2 est branché ; seule l'**autonomie** manque. `improvement_proposals` est à 0 parce que **personne n'a jamais déclenché le parcours**, pas parce qu'il n'existe pas. |
 | **Écran de comparaison V1/V2 — RENDU, NON PROUVÉ** | le composant existe et est testé (16 cas, dont le garde contre les scores V2 à 0 % qui afficheraient une régression inventée). Mais `improvement_proposals` est **vide en base** : les trois états (V2 disponible / sans V2 / scores non mesurés) n'ont **jamais été observés rendus**. Reste NON PROUVÉ tant qu'aucune proposition réelle n'existe — une absence de donnée ne devient pas un PASS. |
 | **Export autonome d'agent** | capacité **future** (`PRODUCT_DOCTRINE.md` §3), pas l'autorité actuelle. L'artefact généré ne porte pas les outils ni les gardes de l'agent qualifié. |
 | **Canal de retour depuis un artefact autonome** | structurellement inerte : le champ qui déclenche la génération de l'émetteur n'est écrit par aucun chemin, et l'émetteur n'a aucun appelant. |
@@ -260,6 +260,17 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 12. **Un compteur de sécurité non mesuré est coercé en 0** dans l'orchestrateur
     de qualification, puis affiché comme preuve positive.
+    **Aggravé le 2026-08-04 — le défaut est STRUCTUREL, pas applicatif.** Il ne
+    vit pas seulement dans un orchestrateur : **18 colonnes de mesure sont
+    déclarées `NOT NULL DEFAULT 0`** dans les migrations, dont
+    `unsafe_attempt_count`, `unsafe_action_count`, `unauthorized_route_count`,
+    `confirmation_mistake_count`, `score`, `pass_rate`, plus des coûts et des
+    latences. `AGENTS.md` l'interdit explicitement (« une colonne de mesure est
+    nullable ») et qualifie ce cas de défaut le plus grave de sa famille.
+    Conséquence opérationnelle : **toute source qui écrira dans ces tables — y
+    compris un composant externe — verra ses absences de mesure converties en
+    zéros, donc en preuves positives.** C'est un prérequis à tout branchement
+    aval, pas un nettoyage cosmétique.
 13. **Un provider est écrit en dur** sur le chemin d'exécution produit, ce qui
     fausse le coût pour les autres providers.
 14. **La télémétrie ne distingue pas la provenance** à l'agrégation : les runs
@@ -321,10 +332,14 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 19. **Des événements shadow existent sans expérience correspondante.** La
     télémétrie porte **4 `shadow_started` et 4 `shadow_completed`**, alors que
-    `shadow_experiments` est à **0**. Des shadows ont donc été *annoncés* sans
-    que rien ne soit persisté. Constaté, **non instruit** : la cause n'est pas
-    établie, et il ne faut pas la deviner. Tant qu'elle ne l'est pas, la
-    télémétrie shadow ne prouve aucune exécution de shadow.
+    `shadow_experiments` est à **0**. Constaté, **non instruit**.
+    **Resserré le 2026-08-04, et l'écart est plus sérieux qu'écrit d'abord.**
+    Une première hypothèse — « les événements viennent du harnais trading
+    in-memory » — a été **testée et réfutée** : ils sont émis par la route shadow
+    elle-même, qui fait un `POST shadow_experiments` **avant** d'émettre
+    `shadow_started`. Les lignes ont donc bien été créées, puis ont disparu — ou
+    proviennent d'une autre base. L'absence d'insertion est écartée ; la cause
+    reste inconnue et ne doit pas être devinée.
 
 20. **Le cache disque de Turbopack occupe 1,3 GiB** sous
     `.next/dev/cache/turbopack`, dont **243 MiB d'orphelin `v16.2.10`** (version
@@ -346,12 +361,15 @@ Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
 Les deux premières débloquent le tronçon aval entier — sept tables à zéro et un
 écran non observable tiennent à ces deux gestes.
 
-1. **Brancher le driver de qualification** — transmettre un driver pour que
-   shadow et replay cessent de retomber en « non disponible ». Débloque d'un
-   coup `qualification_runs`, `shadow_experiments` et `replay_comparisons`.
-2. **Poser un déclencheur pour la boucle d'amélioration** — une route ou un cron.
-   Crée la première `improvement_proposal`, et **rend du même geste l'écran
-   V1/V2 observable** : deux blocages levés d'un coup.
+1. **Injecter un `ShadowReplayDriver` dans la route de qualification** —
+   l'adaptateur relie le seam existant aux moteurs `makeLiveShadowAgent` /
+   `makeLiveReplayRunner` **déjà écrits et déjà câblés à leurs propres routes**.
+   Débloque `qualification_runs`, `shadow_experiments` et `replay_comparisons`.
+2. **Déclencher le parcours d'amélioration existant** — les trois routes
+   (`analyze`, `decision`, `create-v2`) sont câblées ; il manque un appel réel
+   pour créer la première `improvement_proposal`, ce qui **rend du même geste
+   l'écran V1/V2 observable**. L'autonomie (`runAutoImprovementCycle` + cron)
+   est un second geste, distinct et facultatif.
 3. **Exposer les métadonnées de coût en lecture** (limite 17b) —
    `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
    Un consommateur ne peut pas relire ce qu'il a payé.
