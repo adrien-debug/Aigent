@@ -46,6 +46,58 @@ async function reserve(
   }
 }
 
+async function claimQueued(
+  table: string,
+  id: string,
+  patch: RawRow,
+): Promise<RawRow | null> {
+  const rows = await pgrest<RawRow[]>(
+    'PATCH',
+    `${table}?id=eq.${encodeURIComponent(id)}&status=eq.queued`,
+    patch,
+  )
+  return rows[0] ?? null
+}
+
+async function refreshReserved(table: string, copilotId: string, key: string): Promise<RawRow> {
+  const row = await existingByKey(table, copilotId, key)
+  if (!row) throw new Error(`${table} reservation disappeared after atomic claim`)
+  return row
+}
+
+function shadowTerminal(row: RawRow): { evidenceId: string; verdict: string } | null {
+  if (row.status === 'completed') {
+    return { evidenceId: row.id as string, verdict: row.candidate_verdict as string }
+  }
+  return null
+}
+
+function replayTerminal(row: RawRow): { evidenceId: string; verdict: string } | null {
+  if (['ready', 'matched', 'diverged'].includes(row.status as string)) {
+    return { evidenceId: row.id as string, verdict: row.verdict as string }
+  }
+  return null
+}
+
+function refuseNonQueued(kind: 'shadow experiment' | 'replay comparison', row: RawRow): never {
+  if (row.status === 'running') throw new Error(`${kind} ${row.id as string} is already running`)
+  throw new Error(
+    `${kind} ${row.id as string} is ${String(row.status)}; automatic retry is disabled`,
+  )
+}
+
+/**
+ * State policy shared by shadow and replay:
+ * - queued: exactly one caller claims it with one conditional PATCH;
+ * - running: concurrent/stale callers fail explicitly and never execute;
+ * - completed/matched/diverged/ready: return the persisted terminal result;
+ * - failed/stopped/draft: terminal for this idempotency key, with no implicit retry.
+ *
+ * The qualification id is the aggregate identity: its persisted row already
+ * binds the copilot (and therefore tenant), candidate version, source run and
+ * corpus hash. Adding those values again would not distinguish another valid
+ * execution, so the existing `<qualification>:<kind>` key remains canonical.
+ */
 async function runShadow(
   args: Parameters<ShadowReplayDriver['runShadow']>[0],
 ): ReturnType<ShadowReplayDriver['runShadow']> {
@@ -84,17 +136,20 @@ async function runShadow(
     idempotencyKey,
   )
   const id = reserved.id as string
-  if (reserved.status === 'completed') {
-    return { evidenceId: id, verdict: reserved.candidate_verdict as string }
-  }
-  if (reserved.status === 'running') {
-    throw new Error(`shadow experiment ${id} is already running`)
-  }
-  await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}`, {
+  const terminal = shadowTerminal(reserved)
+  if (terminal) return terminal
+  if (reserved.status !== 'queued') refuseNonQueued('shadow experiment', reserved)
+  const claimed = await claimQueued('shadow_experiments', id, {
     status: 'running',
     started_at: new Date().toISOString(),
     ends_at: null,
   })
+  if (!claimed) {
+    const winner = await refreshReserved('shadow_experiments', args.copilotId, idempotencyKey)
+    const winnerTerminal = shadowTerminal(winner)
+    if (winnerTerminal) return winnerTerminal
+    refuseNonQueued('shadow experiment', winner)
+  }
   try {
     await emitShadowTelemetry({
       eventType: 'shadow_started',
@@ -107,8 +162,8 @@ async function runShadow(
       qualificationRunId: args.qualificationRunId,
     })
   } catch (error) {
-    await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}`, {
-      status: 'stopped',
+    await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}&status=eq.running`, {
+      status: 'failed',
       ends_at: new Date().toISOString(),
     }).catch(() => {})
     throw error
@@ -129,22 +184,29 @@ async function runShadow(
       throw new Error('candidate was archived during shadow execution')
     }
     const costUsd = totalMeasuredCost(record.results.map((result) => result.costUsd))
-    await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}`, {
-      status: 'completed',
-      ends_at: record.endsAt,
-      sampled_run_count: record.sampledRunCount,
-      would_mutate_count: record.wouldMutateCount,
-      candidate_verdict: record.verdict,
-      cost_usd: costUsd,
-      mismatches: record.results.map((result) => ({
-        input: result.input,
-        ok: result.ok,
-        wouldMutate: result.wouldMutateCount,
-        error: result.error,
-        latencyMs: result.latencyMs,
-        costUsd: result.costUsd,
-      })),
-    })
+    const completed = await pgrest<RawRow[]>(
+      'PATCH',
+      `shadow_experiments?id=eq.${encodeURIComponent(id)}&status=eq.running`,
+      {
+        status: 'completed',
+        ends_at: record.endsAt,
+        sampled_run_count: record.sampledRunCount,
+        would_mutate_count: record.wouldMutateCount,
+        candidate_verdict: record.verdict,
+        cost_usd: costUsd,
+        mismatches: record.results.map((result) => ({
+          input: result.input,
+          ok: result.ok,
+          wouldMutate: result.wouldMutateCount,
+          error: result.error,
+          latencyMs: result.latencyMs,
+          costUsd: result.costUsd,
+        })),
+      },
+    )
+    if (completed.length !== 1) {
+      throw new Error(`shadow experiment ${id} lost ownership before completion`)
+    }
     await emitShadowTelemetry({
       eventType: 'shadow_completed',
       copilotId: args.copilotId,
@@ -164,8 +226,8 @@ async function runShadow(
       qualificationRunId: args.qualificationRunId,
       error: error instanceof Error ? error.message : 'unknown error',
     })
-    await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}`, {
-      status: 'stopped',
+    await pgrest('PATCH', `shadow_experiments?id=eq.${encodeURIComponent(id)}&status=eq.running`, {
+      status: 'failed',
       ends_at: new Date().toISOString(),
     }).catch(() => {})
     throw error
@@ -206,13 +268,16 @@ async function runReplay(
     idempotencyKey,
   )
   const id = reserved.id as string
-  if (['ready', 'matched', 'diverged'].includes(reserved.status as string)) {
-    return { evidenceId: id, verdict: reserved.verdict as string }
+  const terminal = replayTerminal(reserved)
+  if (terminal) return terminal
+  if (reserved.status !== 'queued') refuseNonQueued('replay comparison', reserved)
+  const claimed = await claimQueued('replay_comparisons', id, { status: 'running' })
+  if (!claimed) {
+    const winner = await refreshReserved('replay_comparisons', args.copilotId, idempotencyKey)
+    const winnerTerminal = replayTerminal(winner)
+    if (winnerTerminal) return winnerTerminal
+    refuseNonQueued('replay comparison', winner)
   }
-  if (reserved.status === 'running') {
-    throw new Error(`replay comparison ${id} is already running`)
-  }
-  await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}`, { status: 'running' })
   try {
     await emitReplayTelemetry({
       eventType: 'replay_started',
@@ -225,7 +290,7 @@ async function runReplay(
       qualificationRunId: args.qualificationRunId,
     })
   } catch (error) {
-    await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}`, {
+    await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}&status=eq.running`, {
       status: 'failed',
     }).catch(() => {})
     throw error
@@ -249,18 +314,25 @@ async function runReplay(
       throw new Error('candidate was archived during replay execution')
     }
     const costs = record.cases.flatMap((item) => [item.reference.costUsd, item.candidate.costUsd])
-    await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}`, {
-      status: verdictToStatus(record.verdict),
-      case_count: record.caseCount,
-      verdict: record.verdict,
-      cost_usd: totalMeasuredCost(costs),
-      candidates: record.cases.map((item) => ({
-        comparison: item.comparison,
-        note: item.note,
-        reference: item.reference,
-        candidate: item.candidate,
-      })),
-    })
+    const completed = await pgrest<RawRow[]>(
+      'PATCH',
+      `replay_comparisons?id=eq.${encodeURIComponent(id)}&status=eq.running`,
+      {
+        status: verdictToStatus(record.verdict),
+        case_count: record.caseCount,
+        verdict: record.verdict,
+        cost_usd: totalMeasuredCost(costs),
+        candidates: record.cases.map((item) => ({
+          comparison: item.comparison,
+          note: item.note,
+          reference: item.reference,
+          candidate: item.candidate,
+        })),
+      },
+    )
+    if (completed.length !== 1) {
+      throw new Error(`replay comparison ${id} lost ownership before completion`)
+    }
     await emitReplayTelemetry({
       eventType: 'replay_completed',
       copilotId: args.copilotId,
@@ -279,7 +351,7 @@ async function runReplay(
       qualificationRunId: args.qualificationRunId,
       error: error instanceof Error ? error.message : 'unknown error',
     })
-    await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}`, {
+    await pgrest('PATCH', `replay_comparisons?id=eq.${encodeURIComponent(id)}&status=eq.running`, {
       status: 'failed',
     }).catch(() => {})
     throw error
