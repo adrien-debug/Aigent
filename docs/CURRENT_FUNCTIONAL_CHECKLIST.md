@@ -164,7 +164,7 @@ acquis : rien de cette section n'est vrai sur `main`.
 
 | PR | HEAD de départ | État de référence avant ce commit documentaire | État |
 |---|---|---|---|
-| #107 — tronçon aval + rework d'idempotence concurrente | `841b7fda` | `f0b71687` | **EN REVIEW, NON MERGÉE** — CAS PostgREST `queued → running`; `npm run verify` vert ; CI du rework à confirmer après push |
+| #107 — tronçon aval + rework d'idempotence concurrente | `841b7fda` | `f0b71687` | **EN REVIEW, NON MERGÉE** — CAS PostgREST `queued → running`; `npm run verify` vert ; CI `30876646769` : `check + build` success, SonarQube optionnel skipped |
 
 ## Déployé
 
