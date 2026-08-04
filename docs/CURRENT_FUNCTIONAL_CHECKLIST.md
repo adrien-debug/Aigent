@@ -420,11 +420,11 @@ plupart des moteurs examinés ne savent pas exprimer.
 | **TensorZero** | **REJECT — projet mort** | `archived=true` (vérifié via l'API GitHub, dernier push 2026-06-11), organisation entière archivée. **CVE-2026-54457, CVSS 7,7** (lecture de fichiers de credentials + SSRF) corrigée dans la *dernière* release, archivage 8 jours plus tard. Retenu **INSPIRE_ONLY** sur deux formes seulement : `StoppingResult::NotStopped` (troisième état explicite) et `CheckStoppingError::MissingVariance` — **une variance manquante lève, elle ne vaut pas zéro**. |
 | **Binance `exchangeInfo`** | **ADAPT** | 8 endpoints Binance déjà appelés (3 spot, 5 futures). `exchangeInfo` absent, et **0 occurrence** de `tickSize`/`stepSize`/`minNotional`/`PRICE_FILTER`/`LOT_SIZE` dans tout `src/`. Mesuré : **17,4 Mo, 3670 symboles** (1371 TRADING), poids **20 à plat** — filtrer n'économise pas de quota, seulement du volume (~9400× avec `?symbols=[…]`) ; **ni ETag ni Last-Modified**. Aucun raccordement dans les deux dépôts TradeAgent. |
 
-**Le résultat principal de la mission n'est aucun de ces composants.** Il est
-interne : le tronçon aval n'est pas absent, il est **débranché d'un seul côté**
-(voir *Non fonctionnel*). Aucun composant externe ne ferme ce trou, parce que le
-trou n'est pas un manque de stockage ni d'orchestration — c'est un **appel
-manquant** vers du code déjà écrit.
+**Le résultat principal de cette qualification externe n'est aucun de ces
+composants.** Le trou interne alors observé — driver aval non injecté — a depuis
+été fermé et exercé en live par la mission
+`AIGENT-DOWNSTREAM-LAST-MILE-001` (voir *Fonctionnel* et *Testé*). Aucun
+composant externe n'a été ajouté pour le fermer.
 
 **Drapeaux de supply chain, à connaître avant tout usage** — Opik et DeepEval
 installent un `sys.excepthook` **global à l'import** et expédient du contenu
