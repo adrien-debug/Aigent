@@ -111,6 +111,7 @@ export interface ConsoleTarget {
   openProposalId: string | null
   proposalId: string | null
   proposalStatus: string | null
+  qualificationRunId: string | null
   /** La gate serveur dit-elle ce candidat promouvable ? Jamais recalculé ici. */
   promotable: boolean
   /**
@@ -758,11 +759,18 @@ export default function QualificationConsole({
               job={{
                 descriptor: ANALYZE,
                 path: `${base}/improve/analyze`,
-                body: { triggeredBy: 'operator' },
+                body: {
+                  triggeredBy: 'operator',
+                  qualificationRunId: target.qualificationRunId,
+                },
                 consequence: 'Analyse terminée : une proposition d’amélioration a été persistée.',
               }}
-              disabled={target.openProposalId !== null}
-              disabledReason="Une boucle est déjà ouverte pour ce copilot. Décidez-la avant d’en ouvrir une autre."
+              disabled={target.openProposalId !== null || target.qualificationRunId === null}
+              disabledReason={
+                target.openProposalId !== null
+                  ? 'Une boucle est déjà ouverte pour ce copilot. Décidez-la avant d’en ouvrir une autre.'
+                  : 'Une qualification persistée et liée à ses preuves est requise avant toute proposition.'
+              }
             />
             <ActionButton
               busy={busy}

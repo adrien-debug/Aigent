@@ -32,7 +32,8 @@ export interface ReplayOutcome {
   toolsCalled: string[]
   unsafeActions: number
   latencyMs: number
-  costUsd: number
+  /** null when runtime usage could not be measured; never coerced to free. */
+  costUsd: number | null
 }
 
 /** Runs one input on one version, side-effect free. Injected (fixture/local). */
@@ -134,7 +135,7 @@ export async function runReplayComparison(args: {
 }
 
 /** Map the functional verdict to the persisted table's `status` enum. */
-function verdictToStatus(v: ReplayVerdict): 'matched' | 'diverged' | 'ready' | 'draft' {
+export function verdictToStatus(v: ReplayVerdict): 'matched' | 'diverged' | 'ready' | 'draft' {
   if (v === 'EQUIVALENT') return 'matched'
   if (v === 'WORSE' || v === 'INCONCLUSIVE') return 'diverged'
   return 'ready' // BETTER

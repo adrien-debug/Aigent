@@ -46,6 +46,7 @@ import 'server-only'
 
 import { createHash, randomUUID } from 'node:crypto'
 
+import { loadVersionedCorpus } from './corpus-identity'
 import { pgrest, PgrestError } from './postgrest'
 import {
   DEFAULT_PROMOTION_POLICY,
@@ -101,6 +102,8 @@ export interface QualificationRun {
   copilotVersionId: string
   clientRunId: string | null
   candidateFingerprint: string
+  contentHash: string | null
+  sourceRunId: string | null
   status: QualificationRunStatus
   stepCursor: QualificationCursor
   steps: QualificationStepResult[]
@@ -117,25 +120,32 @@ export interface QualificationRun {
  * NOT_AVAILABLE. A fixture implementation is permitted ONLY in tests — never in a
  * production request — so no fixture-backed proof can reach a gate.
  */
+interface QualificationDriverContext {
+  copilotId: string
+  candidateVersionId: string
+  qualificationRunId: string
+  sourceRunId: string | null
+  contentHash: string
+  inputs: readonly unknown[]
+}
+
 export interface ShadowReplayDriver {
-  runShadow?(args: {
-    copilotId: string
-    candidateVersionId: string
-    productionVersionId: string | null
-  }): Promise<{ evidenceId: string; verdict: string } | null>
-  runReplay?(args: {
-    copilotId: string
-    candidateVersionId: string
-    referenceVersionId: string | null
-  }): Promise<{ evidenceId: string; verdict: string } | null>
+  runShadow(
+    args: QualificationDriverContext & { productionVersionId: string | null },
+  ): Promise<{ evidenceId: string; verdict: string }>
+  runReplay(
+    args: QualificationDriverContext & { referenceVersionId: string | null },
+  ): Promise<{ evidenceId: string; verdict: string }>
 }
 
 export interface OrchestratorOptions {
   policy?: PromotionPolicy
-  /** Test-only seam; never wired in production (see ShadowReplayDriver). */
+  /** Real production driver; tests may inject a deterministic implementation. */
   driver?: ShadowReplayDriver
   /** Injected clock — the persisted timestamps use the caller's real clock. */
   now?: () => Date
+  /** Agent run whose measured evidence triggered this downstream qualification. */
+  sourceRunId?: string
 }
 
 /** Typed failure so routes map cleanly (404 for not-found/IDOR, 409 for conflict). */
@@ -159,6 +169,8 @@ function mapRun(row: RawRow): QualificationRun {
     copilotVersionId: row.copilot_version_id as string,
     clientRunId: (row.client_run_id as string | null) ?? null,
     candidateFingerprint: row.candidate_fingerprint as string,
+    contentHash: (row.content_hash as string | null) ?? null,
+    sourceRunId: (row.source_run_id as string | null) ?? null,
     status: row.status as QualificationRunStatus,
     stepCursor: row.step_cursor as QualificationCursor,
     steps: Array.isArray(row.steps) ? (row.steps as QualificationStepResult[]) : [],
@@ -174,6 +186,7 @@ interface CandidateSnapshot {
   versionId: string
   copilotId: string
   runtime: string
+  projectId: string | null
   stage: string
   model: string | null
   modelProvider: string | null
@@ -199,7 +212,7 @@ async function loadCandidate(copilotId: string, versionId: string): Promise<Cand
     throw new QualificationError('idor', `version ${versionId} does not belong to copilot ${copilotId}`)
   }
 
-  const copilotRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=id,runtime`)
+  const copilotRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=id,runtime,project_id`)
   const copilot = copilotRows[0]
   if (!copilot) return null
   const runtime = (copilot.runtime as string) ?? 'unknown'
@@ -220,6 +233,7 @@ async function loadCandidate(copilotId: string, versionId: string): Promise<Cand
     versionId,
     copilotId,
     runtime,
+    projectId: (copilot.project_id as string | null) ?? null,
     stage: version.stage as string,
     model: (version.model as string | null) ?? null,
     modelProvider: (version.model_provider as string | null) ?? null,
@@ -381,7 +395,18 @@ async function stepTests(copilotId: string, versionId: string, at: IsoTimestamp)
   const results = await pgrest<RawRow[]>('GET', `test_results?${eq('run_id', run.id as string)}&select=status`)
   const total = results.length
   const passed = results.filter((r) => r.status === 'pass').length
-  const passRate = (run.pass_rate as number) ?? 0
+  const rawPassRate = run.pass_rate
+  if (typeof rawPassRate !== 'number' || !Number.isFinite(rawPassRate)) {
+    return {
+      step: 'tests',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'test run completed but pass_rate was never measured — no result percentage can be asserted',
+      evidenceRef: run.id as string,
+      sourceOfTruth: 'test_runs / test_results',
+      at,
+    }
+  }
+  const passRate = rawPassRate
   const green = total > 0 && passRate >= 1
   return {
     step: 'tests',
@@ -461,28 +486,61 @@ async function stepBenchmark(copilotId: string, versionId: string, at: IsoTimest
 /** Read the candidate's most recent shadow evidence, or drive it via the real
  *  engine driver when injected. No driver + no evidence → NOT_AVAILABLE. */
 async function stepShadow(
-  copilotId: string,
-  versionId: string,
+  run: QualificationRun,
   at: IsoTimestamp,
   driver: ShadowReplayDriver | undefined,
 ): Promise<QualificationStepResult> {
+  const copilotId = run.copilotId
+  const versionId = run.copilotVersionId
   const src = 'shadow_experiments'
+  const corpus = await loadVersionedCorpus(copilotId)
+  if (run.contentHash === null || corpus.contentHash !== run.contentHash) {
+    return {
+      step: 'shadow',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'qualification corpus hash is absent or changed — shadow comparison refused',
+      evidenceRef: null,
+      sourceOfTruth: src,
+      at,
+    }
+  }
+  if (corpus.inputs.length === 0) {
+    return {
+      step: 'shadow',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'versioned corpus contains no case — shadow cannot assert a result',
+      evidenceRef: null,
+      sourceOfTruth: src,
+      at,
+    }
+  }
   const existing = await pgrest<RawRow[]>(
     'GET',
-    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', versionId)}&select=id,status,candidate_verdict&order=started_at.desc&limit=1`,
+    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', versionId)}&select=id,status,candidate_verdict,content_hash,qualification_run_id&order=started_at.desc&limit=1`,
   )
   const row = existing[0]
-  if (row && (row.status as string) === 'completed') {
+  if (
+    row &&
+    (row.status as string) === 'completed' &&
+    row.content_hash === run.contentHash &&
+    row.qualification_run_id === run.id
+  ) {
     return { step: 'shadow', ...mapShadowVerdict(row.candidate_verdict as string | null), evidenceRef: row.id as string, sourceOfTruth: src, at }
   }
-  if (driver?.runShadow) {
+  if (driver) {
     // Read the production baseline to compare against; a first-time candidate has none.
     const prodRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=production_version_id`)
     const productionVersionId = (prodRows[0]?.production_version_id as string | null) ?? null
-    const out = await driver.runShadow({ copilotId, candidateVersionId: versionId, productionVersionId })
-    if (out) {
-      return { step: 'shadow', ...mapShadowVerdict(out.verdict), evidenceRef: out.evidenceId, sourceOfTruth: src, at }
-    }
+    const out = await driver.runShadow({
+      copilotId,
+      candidateVersionId: versionId,
+      productionVersionId,
+      qualificationRunId: run.id,
+      sourceRunId: run.sourceRunId,
+      contentHash: run.contentHash,
+      inputs: corpus.inputs,
+    })
+    return { step: 'shadow', ...mapShadowVerdict(out.verdict), evidenceRef: out.evidenceId, sourceOfTruth: src, at }
   }
   return {
     step: 'shadow',
@@ -504,27 +562,60 @@ function mapShadowVerdict(verdict: string | null): { status: QualificationStepSt
 }
 
 async function stepReplay(
-  copilotId: string,
-  versionId: string,
+  run: QualificationRun,
   at: IsoTimestamp,
   driver: ShadowReplayDriver | undefined,
 ): Promise<QualificationStepResult> {
+  const copilotId = run.copilotId
+  const versionId = run.copilotVersionId
   const src = 'replay_comparisons'
+  const corpus = await loadVersionedCorpus(copilotId)
+  if (run.contentHash === null || corpus.contentHash !== run.contentHash) {
+    return {
+      step: 'replay',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'qualification corpus hash is absent or changed — replay comparison refused',
+      evidenceRef: null,
+      sourceOfTruth: src,
+      at,
+    }
+  }
+  if (corpus.inputs.length === 0) {
+    return {
+      step: 'replay',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'versioned corpus contains no case — replay cannot assert a result',
+      evidenceRef: null,
+      sourceOfTruth: src,
+      at,
+    }
+  }
   const existing = await pgrest<RawRow[]>(
     'GET',
-    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', versionId)}&select=id,status,verdict&order=created_at.desc&limit=1`,
+    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', versionId)}&select=id,status,verdict,content_hash,qualification_run_id&order=created_at.desc&limit=1`,
   )
   const row = existing[0]
-  if (row && (row.status as string) === 'completed') {
+  if (
+    row &&
+    ['ready', 'matched', 'diverged'].includes(row.status as string) &&
+    row.content_hash === run.contentHash &&
+    row.qualification_run_id === run.id
+  ) {
     return { step: 'replay', ...mapReplayVerdict(row.verdict as string | null), evidenceRef: row.id as string, sourceOfTruth: src, at }
   }
-  if (driver?.runReplay) {
+  if (driver) {
     const prodRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=production_version_id`)
     const referenceVersionId = (prodRows[0]?.production_version_id as string | null) ?? null
-    const out = await driver.runReplay({ copilotId, candidateVersionId: versionId, referenceVersionId })
-    if (out) {
-      return { step: 'replay', ...mapReplayVerdict(out.verdict), evidenceRef: out.evidenceId, sourceOfTruth: src, at }
-    }
+    const out = await driver.runReplay({
+      copilotId,
+      candidateVersionId: versionId,
+      referenceVersionId,
+      qualificationRunId: run.id,
+      sourceRunId: run.sourceRunId,
+      contentHash: run.contentHash,
+      inputs: corpus.inputs,
+    })
+    return { step: 'replay', ...mapReplayVerdict(out.verdict), evidenceRef: out.evidenceId, sourceOfTruth: src, at }
   }
   return {
     step: 'replay',
@@ -644,6 +735,17 @@ export async function startQualification(
   if (snap.stage !== 'draft' && snap.stage !== 'beta') {
     throw new QualificationError('not_a_candidate', `version ${versionId} is ${snap.stage}, not a draft/beta candidate`)
   }
+  if (options.sourceRunId) {
+    const sourceRows = await pgrest<RawRow[]>(
+      'GET',
+      `agent_runs?${eq('id', options.sourceRunId)}&select=id,copilot_id,version_id`,
+    )
+    const source = sourceRows[0]
+    if (!source) throw new QualificationError('not_found', `source run ${options.sourceRunId} not found`)
+    if (source.copilot_id !== copilotId) {
+      throw new QualificationError('idor', 'source run does not belong to the qualified copilot')
+    }
+  }
 
   // Idempotency: an explicit key wins; otherwise any in-flight run for the version.
   if (options.clientRunId) {
@@ -653,6 +755,7 @@ export async function startQualification(
   const running = await findRunningRun(copilotId, versionId)
   if (running) return running
 
+  const corpus = await loadVersionedCorpus(copilotId)
   const nowIso = now().toISOString()
   const row: RawRow = {
     id: `qual-${randomUUID()}`,
@@ -660,6 +763,8 @@ export async function startQualification(
     copilot_version_id: versionId,
     client_run_id: options.clientRunId ?? null,
     candidate_fingerprint: fingerprintCandidate(snap),
+    content_hash: corpus.contentHash,
+    source_run_id: options.sourceRunId ?? null,
     status: 'running',
     step_cursor: 'tests',
     steps: [],
@@ -724,8 +829,8 @@ export async function advanceQualification(
   let promotable = false
   if (cursor === 'tests') stepResult = await stepTests(run.copilotId, run.copilotVersionId, at)
   else if (cursor === 'benchmark') stepResult = await stepBenchmark(run.copilotId, run.copilotVersionId, at)
-  else if (cursor === 'shadow') stepResult = await stepShadow(run.copilotId, run.copilotVersionId, at, options.driver)
-  else if (cursor === 'replay') stepResult = await stepReplay(run.copilotId, run.copilotVersionId, at, options.driver)
+  else if (cursor === 'shadow') stepResult = await stepShadow(run, at, options.driver)
+  else if (cursor === 'replay') stepResult = await stepReplay(run, at, options.driver)
   else {
     const gate = await stepGate(run.copilotId, run.copilotVersionId, run.policy, now)
     stepResult = gate.result

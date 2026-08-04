@@ -129,19 +129,21 @@ describe('direction d’un écart', () => {
 })
 
 describe('agrégation des suites', () => {
+  const contentHash = 'a'.repeat(64)
   const comparison: VersionComparison = {
     tests: [
       {
         suiteId: 's1',
         suiteName: 'A',
-        v1: { runId: 'r1', passRate: 0.8, finishedAt: null },
-        v2: { runId: 'r2', passRate: 1, finishedAt: null },
+        v1: { runId: 'r1', passRate: 0.8, finishedAt: null, contentHash },
+        v2: { runId: 'r2', passRate: 1, finishedAt: null, contentHash },
       },
-      { suiteId: 's2', suiteName: 'B', v1: null, v2: { runId: 'r3', passRate: 0.6, finishedAt: null } },
+      { suiteId: 's2', suiteName: 'B', v1: null, v2: { runId: 'r3', passRate: 0.6, finishedAt: null, contentHash } },
     ],
     benchmarks: [
-      { suiteId: 'b1', suiteName: 'Bench', v1: { runId: 'r4', score: 70 }, v2: null },
+      { suiteId: 'b1', suiteName: 'Bench', v1: { runId: 'r4', score: 70, contentHash }, v2: null },
     ],
+    corpus: { expectedContentHash: contentHash, status: 'MATCHED', reason: 'same corpus' },
   }
 
   it('ne moyenne que les suites réellement mesurées', () => {
@@ -154,8 +156,26 @@ describe('agrégation des suites', () => {
     expect(aggregateBenchmarkScore(comparison, 'v2')).toEqual(NOT_MEASURED)
     expect(aggregatePassRate(null, 'v1')).toEqual(NOT_MEASURED)
     expect(
-      aggregatePassRate({ tests: [{ suiteId: 's', suiteName: 'S', v1: null, v2: null }], benchmarks: [] }, 'v1'),
+      aggregatePassRate({
+        tests: [{ suiteId: 's', suiteName: 'S', v1: null, v2: null }],
+        benchmarks: [],
+        corpus: { expectedContentHash: null, status: 'INSUFFICIENT_EVIDENCE', reason: 'missing' },
+      }, 'v1'),
     ).toEqual(NOT_MEASURED)
+  })
+
+  it('un corpus différent masque les scores au lieu de fabriquer une régression', () => {
+    const mismatch: VersionComparison = {
+      ...comparison,
+      corpus: {
+        expectedContentHash: contentHash,
+        status: 'MISMATCH',
+        reason: 'different corpus',
+      },
+    }
+    expect(aggregatePassRate(mismatch, 'v1')).toEqual(NOT_MEASURED)
+    expect(aggregatePassRate(mismatch, 'v2')).toEqual(NOT_MEASURED)
+    expect(aggregateBenchmarkScore(mismatch, 'v1')).toEqual(NOT_MEASURED)
   })
 })
 

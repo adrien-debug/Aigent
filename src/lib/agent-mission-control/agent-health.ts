@@ -32,6 +32,11 @@ type RawRow = Record<string, unknown>
 
 const inList = (ids: string[]) => ids.map((id) => encodeURIComponent(id)).join(',')
 
+/** Keep measured zero, reject absence and non-finite pseudo-measurements. */
+function finiteMeasurement(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
 /** Derived, run-backed health for one copilot. `null` = no completed run yet. */
 export interface ResolvedAgentHealth {
   /** 0..1 from the latest COMPLETED test_run's pass_rate. `null` if never run. */
@@ -92,7 +97,9 @@ async function latestTestRunByCopilot(copilotIds: string[]): Promise<Map<string,
   for (const r of rows) {
     const cid = r.copilot_id as string
     if (out.has(cid)) continue // rows are newest-first → first seen wins
-    out.set(cid, { id: r.id as string, passRate: (r.pass_rate as number) ?? 0, at: r.started_at as string })
+    const passRate = finiteMeasurement(r.pass_rate)
+    if (passRate === null) continue
+    out.set(cid, { id: r.id as string, passRate, at: r.started_at as string })
   }
   return out
 }
@@ -145,7 +152,11 @@ async function latestBenchmarkByCopilot(copilotIds: string[]): Promise<Map<strin
   const runIds = [...newestByCopilot.values()].map((v) => v.id)
   if (runIds.length === 0) return out
   const results = await pgrest<RawRow[]>('GET', `benchmark_results?run_id=in.(${inList(runIds)})&select=run_id,score`)
-  const scoreByRunId = new Map(results.map((r) => [r.run_id as string, (r.score as number) ?? 0]))
+  const scoreByRunId = new Map<string, number>()
+  for (const r of results) {
+    const score = finiteMeasurement(r.score)
+    if (score !== null) scoreByRunId.set(r.run_id as string, score)
+  }
   for (const [cid, run] of newestByCopilot) {
     if (!scoreByRunId.has(run.id)) continue // run without a result row → no evidence
     out.set(cid, { id: run.id, score: scoreByRunId.get(run.id)!, at: run.at })
@@ -250,7 +261,8 @@ export async function resolveVersionScoresBatch(versionIds: string[]): Promise<M
   for (const r of testRuns) {
     const vid = r.version_id as string
     if (passRateByVersion.has(vid)) continue
-    passRateByVersion.set(vid, (r.pass_rate as number) ?? 0)
+    const passRate = finiteMeasurement(r.pass_rate)
+    if (passRate !== null) passRateByVersion.set(vid, passRate)
   }
 
   const benchRuns = await pgrest<RawRow[]>(

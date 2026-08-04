@@ -115,12 +115,22 @@ import {
   runQualificationSweep,
   startQualification,
 } from '@/lib/agent-mission-control/qualification-orchestrator'
+import { hashCanonicalCorpus } from '@/lib/agent-mission-control/corpus-identity'
 
 type Row = Record<string, unknown>
 const COPILOT = 'copilot-a'
 const VERSION = 'version-a'
 const MANIFEST = 'manifest-a'
 const CERTIFIED_TOOL_NAME = 'read_repo_file' // a real certified registry tool
+const CORPUS_ENTRY = {
+  suiteId: 'suite-a',
+  suiteKind: 'behavior',
+  caseId: 'case-a',
+  input: { prompt: 'hello' },
+  expectedBehavior: 'answer',
+  expectedToolCalls: [] as string[],
+}
+const CORPUS_HASH = hashCanonicalCorpus([CORPUS_ENTRY])
 const FakePgrestError = h.FakePgrestError
 const pgCalls = h.pgCalls
 
@@ -139,6 +149,14 @@ function seed(overrides: { runtime?: string; toolIds?: string[]; stage?: string;
     shadow_experiments: [],
     replay_comparisons: [],
     qualification_runs: [],
+    test_suites: [{ id: CORPUS_ENTRY.suiteId, copilot_id: COPILOT, kind: CORPUS_ENTRY.suiteKind }],
+    test_cases: [{
+      id: CORPUS_ENTRY.caseId,
+      suite_id: CORPUS_ENTRY.suiteId,
+      input: CORPUS_ENTRY.input,
+      expected_behavior: CORPUS_ENTRY.expectedBehavior,
+      expected_tool_calls: CORPUS_ENTRY.expectedToolCalls,
+    }],
   }
   h.state.db = db
 }
@@ -267,6 +285,27 @@ describe('cross-version evidence is scoped (#10)', () => {
     const shadow = run.steps.find((s) => s.step === 'shadow')
     expect(shadow?.status).toBe('NOT_AVAILABLE')
   })
+
+  it.each([
+    ['ready', 'BETTER'],
+    ['matched', 'EQUIVALENT'],
+  ])('recognizes terminal replay status %s as persisted evidence', async (status, verdict) => {
+    const started = await startQualification(COPILOT, VERSION, { now: makeNow() })
+    db.replay_comparisons.push({
+      id: `replay-${status}`,
+      copilot_id: COPILOT,
+      candidate_version_id: VERSION,
+      status,
+      verdict,
+      content_hash: CORPUS_HASH,
+      qualification_run_id: started.id,
+      created_at: '2026-07-25T00:00:00Z',
+    })
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const replay = run.steps.find((s) => s.step === 'replay')
+    expect(replay?.status).toBe('PASS')
+    expect(replay?.evidenceRef).toBe(`replay-${status}`)
+  })
 })
 
 // #9 — candidate mutation during the workflow
@@ -363,6 +402,23 @@ describe('readiness never lies (#13)', () => {
  * authority that was already honest.
  */
 describe('an unmeasured safety counter is not a zero (limite 12)', () => {
+  it('a completed test run with pass_rate null → INSUFFICIENT_EVIDENCE, never 0%', async () => {
+    db.test_runs.push({
+      id: 'tr-null',
+      version_id: VERSION,
+      status: 'completed',
+      pass_rate: null,
+      started_at: '2026-07-25T00:00:00Z',
+    })
+    db.test_results.push({ run_id: 'tr-null', status: 'fail' })
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow() })
+    const tests = run.steps.find((s) => s.step === 'tests')!
+    expect(tests.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(tests.reason).toMatch(/never measured/)
+    expect(tests.reason).not.toMatch(/0%/)
+  })
+
   it('no benchmark_results row at all → INSUFFICIENT_EVIDENCE, never PASS', async () => {
     db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
     db.test_results.push({ run_id: 'tr-1', status: 'pass' })

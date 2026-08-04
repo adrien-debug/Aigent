@@ -372,17 +372,17 @@ describe('runTestSuite — a pause is observed on the direct path, never assumed
 })
 
 describe('runTestSuite — an unmeasured cost is never a truthful zero', () => {
-  it('a null run cost is excluded from the total, not summed as 0', async () => {
+  it('a null execution cost makes the combined case cost unknown', async () => {
     copilotRow.runtime = 'openai-assistants'
     executeCopilotRun.mockResolvedValue(directReply({ costUsd: null }))
-    // The judge is the only measured cost in this run. `null + 0.25` must stay
-    // 0.25 — the guard is against a `Number(null)` style coercion turning an
-    // unmeasured run into a claimed 0, and against a NaN poisoning the sum.
+    // A partially known total is still unknown: reporting only the judge's
+    // $0.25 would understate the actual case cost.
     installPassingJudge(0.25)
 
     const run = await runTestSuite({ copilotId: COPILOT_ID, suiteId: SUITE_ID })
 
-    expect(persistedResult().cost_usd).toBe(0.25)
+    expect(persistedResult().cost_usd).toBeNull()
+    expect(run.totalCostUsd).toBeNull()
     expect(run.status).toBe('completed')
   })
 

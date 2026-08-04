@@ -11,10 +11,7 @@
  * déjà tout le contenu. On rattache, on ne réimplémente pas — c'est ce qui
  * permet de passer de onze entrées à six sans perdre une capacité.
  *
- * L'onglet COURANT est déduit du pathname par `agentTabId` / `projectTabId`, et
- * non passé à la main : un identifiant recopié dans chaque page dérive au
- * premier renommage, et une barre d'onglets qui n'allume rien est pire que pas
- * de barre du tout.
+ * Les liens restent une donnée pure partagée par les pages serveur.
  */
 
 export type ObjectTab = {
@@ -80,18 +77,6 @@ export function agentTabs(copilotId: string): readonly ObjectTab[] {
     },
   ] as const
 }
-
-/** L'onglet courant d'une fiche Agent, déduit du chemin. */
-export function agentTabId(pathname: string): string {
-  const segment = pathname.split('/')[1] ?? ''
-  if (segment === 'qualification') return 'qualification'
-  if (segment === 'delivery') return 'delivery'
-  if (segment === 'runtime') return 'runtime'
-  if (segment === 'learning') return 'learning'
-  if (segment === 'runs') return 'runs'
-  return 'overview'
-}
-
 /* ─────────────────────────────── Fiche Projet ────────────────────────────── */
 
 /**
@@ -138,14 +123,4 @@ export function projectTabs(projectId: string): readonly ObjectTab[] {
       purpose: 'Ce qui demande une intervention sur la flotte.',
     },
   ] as const
-}
-
-/** L'onglet courant d'une fiche Projet, déduit du chemin. */
-export function projectTabId(pathname: string): string {
-  const segment = pathname.split('/')[1] ?? ''
-  if (segment === 'builder') return 'builder'
-  if (segment === 'delivery') return 'delivery'
-  if (segment === 'support' || segment === 'actions') return 'support'
-  if (segment === 'runs') return 'runs'
-  return 'overview'
 }

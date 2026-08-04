@@ -10,8 +10,6 @@ import type { ReactNode } from 'react'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import SurfaceState from '@/components/surface-state'
 
-type SurfaceStateKind = 'loading' | 'unavailable' | 'not-configured' | 'empty'
-
 export function SurfaceLoading({
   title,
   description,
@@ -32,7 +30,6 @@ export function SurfaceLoading({
     </>
   )
 }
-
 export function SurfaceUnavailable({
   title,
   description,
@@ -53,7 +50,6 @@ export function SurfaceUnavailable({
     </>
   )
 }
-
 export function SurfaceNotFound({
   title,
   description,
@@ -71,32 +67,6 @@ export function SurfaceNotFound({
       <PageBody>
         <section className="aig-panel flex min-h-[50svh] flex-col items-center justify-center gap-4 p-6 text-center">
           <SurfaceState kind="empty" detail={detail} />
-          {children}
-        </section>
-      </PageBody>
-    </>
-  )
-}
-
-export function SurfaceMessage({
-  title,
-  description,
-  kind,
-  detail,
-  children,
-}: Readonly<{
-  title: string
-  description?: string
-  kind: SurfaceStateKind
-  detail: string
-  children?: ReactNode
-}>) {
-  return (
-    <>
-      <PageHeader title={title} description={description} />
-      <PageBody>
-        <section className="aig-panel flex min-h-[50svh] flex-col items-center justify-center gap-4 p-6">
-          <SurfaceState kind={kind} detail={detail} />
           {children}
         </section>
       </PageBody>

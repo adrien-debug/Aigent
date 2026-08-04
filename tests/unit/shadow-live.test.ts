@@ -74,13 +74,10 @@ describe('makeLiveShadowAgent (real LangGraph path)', () => {
     ])
   })
 
-  it('surfaces an execution error honestly (ok=false), never a fabricated pass', async () => {
+  it('surfaces infrastructure unavailability instead of grading it as candidate failure', async () => {
     const { runAgent } = await makeLiveShadowAgent('version-x')
     h.executeAgent.mockRejectedValueOnce(new Error('agent server down'))
-    const r = await runAgent('x', gate)
-    expect(r.ok).toBe(false)
-    expect(r.error).toMatch(/agent server down/)
-    expect(r.toolAttempts).toEqual([])
+    await expect(runAgent('x', gate)).rejects.toThrow(/shadow runtime unavailable.*agent server down/)
   })
 
   it('cleanup tears down the ephemeral assistant', async () => {

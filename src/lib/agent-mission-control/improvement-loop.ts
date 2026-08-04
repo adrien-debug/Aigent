@@ -66,6 +66,11 @@ const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 const inList = (ids: string[]) => ids.map((id) => encodeURIComponent(id)).join(',')
 const NOTHING_TO_IMPROVE_PREFIX = 'nothing to improve:'
 
+/** Preserve a measured zero; keep absent, NaN and infinite values unknown. */
+function finiteMeasurement(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
 function isNothingToImproveReason(message: string): boolean {
   return message.startsWith(NOTHING_TO_IMPROVE_PREFIX)
 }
@@ -92,7 +97,7 @@ export interface SuiteSignal {
   suiteName: string
   kind: string
   caseCount: number
-  lastRun: { id: string; passRate: number; versionId: string; finishedAt: string | null } | null
+  lastRun: { id: string; passRate: number | null; versionId: string; finishedAt: string | null } | null
   failures: FailingCaseSignal[]
 }
 
@@ -102,11 +107,11 @@ export interface BenchmarkSignal {
   lastRun: {
     id: string
     versionId: string
-    score: number
-    accuracy: number
-    taskSuccessRate: number
-    unsafeActionCount: number
-    confirmationMistakeCount: number
+    score: number | null
+    accuracy: number | null
+    taskSuccessRate: number | null
+    unsafeActionCount: number | null
+    confirmationMistakeCount: number | null
   } | null
 }
 
@@ -144,9 +149,9 @@ export interface ImprovementSignals {
     status: string
     inputSummary: string
     outputSummary: string
-    toolCallCount: number
-    unsafeAttemptCount: number
-    latencyMs: number
+    toolCallCount: number | null
+    unsafeAttemptCount: number | null
+    latencyMs: number | null
   }>
   /** Live LangGraph thread detail for the copilot's recent runs (sampled). */
   langgraphThreads: Array<{ threadId: string; status: string; currentNode: string | null; interruptCount: number }>
@@ -340,7 +345,7 @@ export async function collectImprovementSignals(
       lastRun: lastRunRow
         ? {
             id: lastRunRow.id as string,
-            passRate: (lastRunRow.pass_rate as number) ?? 0,
+            passRate: finiteMeasurement(lastRunRow.pass_rate),
             versionId: (lastRunRow.version_id as string) ?? '',
             finishedAt: (lastRunRow.finished_at as string | null) ?? null,
           }
@@ -386,11 +391,11 @@ export async function collectImprovementSignals(
         ? {
             id: runRow.id as string,
             versionId: (runRow.version_id as string) ?? '',
-            score: (res.score as number) ?? 0,
-            accuracy: (res.accuracy as number) ?? 0,
-            taskSuccessRate: (res.task_success_rate as number) ?? 0,
-            unsafeActionCount: (res.unsafe_action_count as number) ?? 0,
-            confirmationMistakeCount: (res.confirmation_mistake_count as number) ?? 0,
+            score: finiteMeasurement(res.score),
+            accuracy: finiteMeasurement(res.accuracy),
+            taskSuccessRate: finiteMeasurement(res.task_success_rate),
+            unsafeActionCount: finiteMeasurement(res.unsafe_action_count),
+            confirmationMistakeCount: finiteMeasurement(res.confirmation_mistake_count),
           }
         : null
     return { suiteId: b.id as string, suiteName: (b.name as string) ?? (b.id as string), lastRun }
@@ -406,9 +411,9 @@ export async function collectImprovementSignals(
     status: (r.status as string) ?? 'completed',
     inputSummary: (r.input_summary as string) ?? '',
     outputSummary: (r.output_summary as string) ?? '',
-    toolCallCount: (r.tool_call_count as number) ?? 0,
-    unsafeAttemptCount: (r.unsafe_attempt_count as number) ?? 0,
-    latencyMs: (r.latency_ms as number) ?? 0,
+    toolCallCount: finiteMeasurement(r.tool_call_count),
+    unsafeAttemptCount: finiteMeasurement(r.unsafe_attempt_count),
+    latencyMs: finiteMeasurement(r.latency_ms),
   }))
 
   const langgraphThreads: ImprovementSignals['langgraphThreads'] = []
@@ -564,11 +569,113 @@ export interface ImprovementProposal {
   failureAnalysis: FailureAnalysisEntry[]
   manifestChanges: ImprovementManifestChanges
   sources: ImprovementSources
-  costUsd: number
+  /** null when provider usage could not be measured; never coerced to free. */
+  costUsd: number | null
+  contentHash: string | null
+  sourceRunId: string | null
+  qualificationRunId: string | null
+  shadowExperimentId: string | null
+  replayComparisonId: string | null
   createdAt: IsoTimestamp
   createdBy: string
   decidedBy: string | null
   decidedAt: IsoTimestamp | null
+}
+
+export interface ImprovementEvidenceLinks {
+  contentHash: string
+  candidateVersionId: string
+  sourceRunId: string
+  qualificationRunId: string
+  shadowExperimentId: string
+  replayComparisonId: string
+}
+
+export async function resolveImprovementEvidence(
+  copilotId: string,
+  qualificationRunId: string,
+): Promise<ImprovementEvidenceLinks> {
+  const qualificationRows = await pgrest<RawRow[]>(
+    'GET',
+    `qualification_runs?${eq('id', qualificationRunId)}&${eq('copilot_id', copilotId)}&select=id,copilot_version_id,source_run_id,content_hash,status,steps&limit=1`,
+  )
+  const qualification = qualificationRows[0]
+  if (!qualification) throw new NotFoundError(`qualification run not found: ${qualificationRunId}`)
+  if (!['blocked', 'promotable'].includes(qualification.status as string)) {
+    throw new Error(`qualification run ${qualificationRunId} is not terminal`)
+  }
+  const contentHash = qualification.content_hash
+  if (typeof contentHash !== 'string' || !/^[0-9a-f]{64}$/.test(contentHash)) {
+    throw new Error(`qualification run ${qualificationRunId} has no canonical corpus hash`)
+  }
+  const sourceRunId = qualification.source_run_id
+  if (typeof sourceRunId !== 'string' || sourceRunId.length === 0) {
+    throw new Error(`qualification run ${qualificationRunId} is not linked to a source run`)
+  }
+  const steps = Array.isArray(qualification.steps)
+    ? (qualification.steps as Array<Record<string, unknown>>)
+    : []
+  const evidenceId = (step: 'shadow' | 'replay') => {
+    const value = steps.find((item) => item.step === step)?.evidenceRef
+    if (typeof value !== 'string' || value.length === 0) {
+      throw new Error(`qualification run ${qualificationRunId} has no ${step} evidence`)
+    }
+    return value
+  }
+  const shadowExperimentId = evidenceId('shadow')
+  const replayComparisonId = evidenceId('replay')
+  const [sourceRows, shadowRows, replayRows] = await Promise.all([
+    pgrest<RawRow[]>('GET', `agent_runs?${eq('id', sourceRunId)}&select=id,copilot_id,version_id&limit=1`),
+    pgrest<RawRow[]>(
+      'GET',
+      `shadow_experiments?${eq('id', shadowExperimentId)}&select=id,copilot_id,candidate_version_id,qualification_run_id,content_hash,status&limit=1`,
+    ),
+    pgrest<RawRow[]>(
+      'GET',
+      `replay_comparisons?${eq('id', replayComparisonId)}&select=id,copilot_id,candidate_version_id,qualification_run_id,content_hash,status&limit=1`,
+    ),
+  ])
+  const versionId = qualification.copilot_version_id
+  if (typeof versionId !== 'string' || versionId.length === 0) {
+    throw new Error(`qualification run ${qualificationRunId} has no candidate version`)
+  }
+  const source = sourceRows[0]
+  const shadow = shadowRows[0]
+  const replay = replayRows[0]
+  if (
+    !source ||
+    source.copilot_id !== copilotId
+  ) {
+    throw new Error('source run does not belong to the qualified copilot')
+  }
+  if (
+    !shadow ||
+    shadow.copilot_id !== copilotId ||
+    shadow.candidate_version_id !== versionId ||
+    shadow.qualification_run_id !== qualificationRunId ||
+    shadow.content_hash !== contentHash ||
+    shadow.status !== 'completed'
+  ) {
+    throw new Error('shadow evidence does not match the qualification corpus and candidate')
+  }
+  if (
+    !replay ||
+    replay.copilot_id !== copilotId ||
+    replay.candidate_version_id !== versionId ||
+    replay.qualification_run_id !== qualificationRunId ||
+    replay.content_hash !== contentHash ||
+    !['ready', 'matched', 'diverged'].includes(replay.status as string)
+  ) {
+    throw new Error('replay evidence does not match the qualification corpus and candidate')
+  }
+  return {
+    contentHash,
+    candidateVersionId: versionId,
+    sourceRunId,
+    qualificationRunId,
+    shadowExperimentId,
+    replayComparisonId,
+  }
 }
 
 const PROPOSER_SYSTEM =
@@ -687,8 +794,14 @@ function parseFailureAnalysis(raw: unknown): FailureAnalysisEntry[] {
  * Throws on LLM/parse/validation failure — an unusable proposal is an error,
  * never a silently-empty "improvement".
  */
-export async function analyzeAndPropose(copilotId: string, triggeredBy: string): Promise<{ proposal: ImprovementProposal; signals: ImprovementSignals }> {
-  const signals = await collectImprovementSignals(copilotId)
+export async function analyzeAndPropose(
+  copilotId: string,
+  triggeredBy: string,
+  evidence?: ImprovementEvidenceLinks,
+): Promise<{ proposal: ImprovementProposal; signals: ImprovementSignals }> {
+  const signals = await collectImprovementSignals(copilotId, {
+    baseVersionId: evidence?.candidateVersionId,
+  })
 
   const totalFailures = signals.suites.reduce((n, s) => n + s.failures.length, 0)
   const hasWeakBenchmark = hasBenchmarkBelowImproveTarget(signals.benchmarks)
@@ -702,10 +815,16 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
   const hasWeakRuntimeTelemetry = hasRuntimeTelemetryBelowImproveTarget(signals.runtimeTelemetry)
   if (totalFailures === 0 && !hasWeakBenchmark) {
     if (hasWeakRuntimeTelemetry) {
+      const telemetry = signals.runtimeTelemetry
+      const failureRate =
+        telemetry?.failureRate !== null && telemetry?.failureRate !== undefined
+          ? `${Math.round(telemetry.failureRate * 100)}%`
+          : 'not measured'
+      const completedRuns = telemetry ? String(telemetry.completedRuns) : 'not measured'
+      const failedRuns = telemetry ? String(telemetry.failedRuns) : 'not measured'
       throw new NotFoundError(
         `deployed runtime telemetry shows a failure rate of ` +
-          `${Math.round(((signals.runtimeTelemetry?.failureRate ?? 0) * 100))}% ` +
-          `over ${signals.runtimeTelemetry?.completedRuns ?? 0}/${signals.runtimeTelemetry?.failedRuns ?? 0} completed/failed runs ` +
+          `${failureRate} over ${completedRuns}/${failedRuns} completed/failed runs ` +
           `(target <= ${Math.round(IMPROVEMENT_MAX_TELEMETRY_FAILURE_RATE * 100)}%), but no failing test case exists to diagnose — ` +
           `the test/benchmark suites do not reproduce the production failures; add or fix a test case that reproduces them before ` +
           `this loop can propose a manifest patch`
@@ -775,6 +894,10 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
     }
   })
 
+  const proposalCostUsd = finiteMeasurement(res.costUsd)
+  if (res.costUsd !== null && res.costUsd !== undefined && proposalCostUsd === null) {
+    throw new Error('improvement proposer returned a non-finite cost')
+  }
   const proposal: ImprovementProposal = {
     id: makeId('improve', `${signals.copilot.slug}-${randomUUID().slice(0, 8)}`),
     copilotId,
@@ -786,7 +909,12 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
     failureAnalysis,
     manifestChanges,
     sources: signals.sources,
-    costUsd: res.costUsd,
+    costUsd: proposalCostUsd,
+    contentHash: evidence?.contentHash ?? null,
+    sourceRunId: evidence?.sourceRunId ?? null,
+    qualificationRunId: evidence?.qualificationRunId ?? null,
+    shadowExperimentId: evidence?.shadowExperimentId ?? null,
+    replayComparisonId: evidence?.replayComparisonId ?? null,
     createdAt: new Date().toISOString(),
     createdBy: triggeredBy,
     decidedBy: null,
@@ -802,7 +930,15 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
     failure_analysis: proposal.failureAnalysis,
     manifest_changes: proposal.manifestChanges,
     sources: proposal.sources,
-    cost_usd: Math.round(proposal.costUsd * 1e6) / 1e6,
+    cost_usd: proposal.costUsd === null ? null : Math.round(proposal.costUsd * 1e6) / 1e6,
+    content_hash: proposal.contentHash,
+    source_run_id: proposal.sourceRunId,
+    qualification_run_id: proposal.qualificationRunId,
+    shadow_experiment_id: proposal.shadowExperimentId,
+    replay_comparison_id: proposal.replayComparisonId,
+    idempotency_key: proposal.qualificationRunId
+      ? `${proposal.qualificationRunId}:improvement:${proposal.baseVersionId}`
+      : null,
     created_at: proposal.createdAt,
     created_by: proposal.createdBy,
   })
@@ -920,7 +1056,7 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
       created_by: 'improvement-loop',
       // Fresh V2: nothing measured yet, so unsafeActionCount is null (unknown),
       // never 0 (measured clean).
-      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: null },
+      scores: { testPassRate: null, benchmarkScore: null, shadowAgreement: null, unsafeActionCount: null },
     })
 
     // 3. The copilot's latest version is now the V2 draft.
@@ -962,47 +1098,54 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
 export interface SuiteComparison {
   suiteId: string
   suiteName: string
-  v1: { runId: string; passRate: number; finishedAt: string | null } | null
-  v2: { runId: string; passRate: number; finishedAt: string | null } | null
+  v1: { runId: string; passRate: number | null; finishedAt: string | null; contentHash: string | null } | null
+  v2: { runId: string; passRate: number | null; finishedAt: string | null; contentHash: string | null } | null
 }
 
 export interface BenchmarkComparison {
   suiteId: string
   suiteName: string
-  v1: { runId: string; score: number } | null
-  v2: { runId: string; score: number } | null
+  v1: { runId: string; score: number | null; contentHash: string | null } | null
+  v2: { runId: string; score: number | null; contentHash: string | null } | null
 }
 
 export interface VersionComparison {
   tests: SuiteComparison[]
   benchmarks: BenchmarkComparison[]
+  corpus: {
+    expectedContentHash: string | null
+    status: 'MATCHED' | 'MISMATCH' | 'INSUFFICIENT_EVIDENCE'
+    reason: string
+  }
 }
 
 async function latestTestRunFor(suiteId: string, versionId: string): Promise<SuiteComparison['v1']> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `test_runs?${eq('suite_id', suiteId)}&${eq('version_id', versionId)}&status=eq.completed&select=id,pass_rate,finished_at&order=started_at.desc&limit=1`
+    `test_runs?${eq('suite_id', suiteId)}&${eq('version_id', versionId)}&status=eq.completed&select=id,pass_rate,finished_at,content_hash&order=started_at.desc&limit=1`
   )
   const r = rows[0]
   if (!r) return null
   return {
     runId: r.id as string,
-    passRate: (r.pass_rate as number) ?? 0,
+    passRate: finiteMeasurement(r.pass_rate),
     finishedAt: (r.finished_at as string | null) ?? null,
+    contentHash: (r.content_hash as string | null) ?? null,
   }
 }
 
 async function latestBenchmarkFor(suiteId: string, versionId: string): Promise<BenchmarkComparison['v1']> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `benchmark_runs?${eq('suite_id', suiteId)}&${eq('version_id', versionId)}&status=eq.completed&select=id&order=started_at.desc&limit=1`
+    `benchmark_runs?${eq('suite_id', suiteId)}&${eq('version_id', versionId)}&status=eq.completed&select=id,content_hash&order=started_at.desc&limit=1`
   )
   if (!rows[0]) return null
   const resultRows = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', rows[0].id as string)}&select=score`)
   if (!resultRows[0]) return null
   return {
     runId: rows[0].id as string,
-    score: (resultRows[0].score as number) ?? 0,
+    score: finiteMeasurement(resultRows[0].score),
+    contentHash: (rows[0].content_hash as string | null) ?? null,
   }
 }
 
@@ -1010,7 +1153,8 @@ async function latestBenchmarkFor(suiteId: string, versionId: string): Promise<B
 export async function compareImprovementVersions(
   copilotId: string,
   baseVersionId: string,
-  v2VersionId: string
+  v2VersionId: string,
+  expectedContentHash: string | null = null,
 ): Promise<VersionComparison> {
   const suiteRows = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=id,name&order=name`)
   const tests: SuiteComparison[] = []
@@ -1032,7 +1176,33 @@ export async function compareImprovementVersions(
       v2: await latestBenchmarkFor(b.id as string, v2VersionId),
     })
   }
-  return { tests, benchmarks }
+  const runHashes = [
+    ...tests.flatMap((item) => [item.v1?.contentHash ?? null, item.v2?.contentHash ?? null]),
+    ...benchmarks.flatMap((item) => [item.v1?.contentHash ?? null, item.v2?.contentHash ?? null]),
+  ]
+  const missingHash = runHashes.length === 0 || runHashes.some((hash) => hash === null)
+  const mismatchedHash =
+    expectedContentHash !== null &&
+    runHashes.some((hash) => hash !== null && hash !== expectedContentHash)
+  const corpus: VersionComparison['corpus'] =
+    expectedContentHash === null || missingHash
+      ? {
+          expectedContentHash,
+          status: 'INSUFFICIENT_EVIDENCE',
+          reason: 'one or more comparison runs have no canonical corpus hash',
+        }
+      : mismatchedHash
+        ? {
+            expectedContentHash,
+            status: 'MISMATCH',
+            reason: 'V1 and V2 evidence was produced from different corpus content',
+          }
+        : {
+            expectedContentHash,
+            status: 'MATCHED',
+            reason: 'all V1 and V2 evidence matches the proposal corpus',
+          }
+  return { tests, benchmarks, corpus }
 }
 
 // ---------------------------------------------------------------------------
@@ -1051,7 +1221,12 @@ function rowToProposal(r: RawRow): ImprovementProposal {
     failureAnalysis: (r.failure_analysis as FailureAnalysisEntry[]) ?? [],
     manifestChanges: (r.manifest_changes as ImprovementManifestChanges) ?? {},
     sources: (r.sources as ImprovementSources) ?? { db: true, langgraph: false, langsmith: false, runtimeTelemetry: false },
-    costUsd: (r.cost_usd as number) ?? 0,
+    costUsd: finiteMeasurement(r.cost_usd),
+    contentHash: (r.content_hash as string | null) ?? null,
+    sourceRunId: (r.source_run_id as string | null) ?? null,
+    qualificationRunId: (r.qualification_run_id as string | null) ?? null,
+    shadowExperimentId: (r.shadow_experiment_id as string | null) ?? null,
+    replayComparisonId: (r.replay_comparison_id as string | null) ?? null,
     createdAt: r.created_at as string,
     createdBy: (r.created_by as string) ?? '',
     decidedBy: (r.decided_by as string | null) ?? null,
@@ -1165,29 +1340,29 @@ export interface AutoImproveEvent {
   detail?: string
 }
 
-/** Aggregate a comparison's V2 side into a single pass rate: the WORST suite
- *  (min). Convergence requires EVERY suite at 1.0, so the min is the honest
- *  headline. No V2 test run at all → 0 (nothing measured passes). */
-function aggregateV2PassRate(cmp: VersionComparison): number {
-  const rates = cmp.tests.map((t) => t.v2?.passRate ?? 0)
-  return rates.length === 0 ? 0 : Math.min(...rates)
+/** Aggregate measured V2 rates only. Missing evidence stays null, never 0%. */
+function aggregateV2PassRate(cmp: VersionComparison): number | null {
+  if (cmp.corpus.status !== 'MATCHED' || cmp.tests.length === 0) return null
+  const rates = cmp.tests.map((t) => t.v2?.passRate).filter((rate): rate is number => finiteMeasurement(rate) !== null)
+  return rates.length === cmp.tests.length ? Math.min(...rates) : null
 }
 
 /** Same aggregate for the V1/base side of a comparison. */
-function aggregateV1PassRate(cmp: VersionComparison): number {
-  const rates = cmp.tests.map((t) => t.v1?.passRate ?? 0)
-  return rates.length === 0 ? 0 : Math.min(...rates)
+function aggregateV1PassRate(cmp: VersionComparison): number | null {
+  if (cmp.corpus.status !== 'MATCHED' || cmp.tests.length === 0) return null
+  const rates = cmp.tests.map((t) => t.v1?.passRate).filter((rate): rate is number => finiteMeasurement(rate) !== null)
+  return rates.length === cmp.tests.length ? Math.min(...rates) : null
 }
 
 /** True when every test suite in the comparison has a V2 run at pass rate 1.0
  *  (and there is at least one suite to converge). */
 function allSuitesConverged(cmp: VersionComparison): boolean {
-  return cmp.tests.length > 0 && cmp.tests.every((t) => (t.v2?.passRate ?? 0) === 1)
+  return cmp.corpus.status === 'MATCHED' && cmp.tests.length > 0 && cmp.tests.every((t) => t.v2?.passRate === 1)
 }
 
 export interface AutoImprovementResult {
   iterations: number
-  finalPassRate: number
+  finalPassRate: number | null
   stoppedBy: 'converged' | 'plateau' | 'max-iterations' | 'budget' | 'nothing-to-improve' | 'blocked'
   lastProposalId: string | null
   lastV2VersionId: string | null
@@ -1221,6 +1396,7 @@ export async function runAutoImprovementCycle(
     maxIterations?: number
     maxCostUsd?: number
     force?: boolean
+    evidence?: ImprovementEvidenceLinks
     onEvent?: (ev: AutoImproveEvent) => void
     signal?: AbortSignal
   } = {}
@@ -1247,7 +1423,7 @@ export async function runAutoImprovementCycle(
   const benchSuiteIds = benchSuiteRows.map((r) => r.id as string)
 
   let cumulativeCostUsd = 0
-  let finalPassRate = 0
+  let finalPassRate: number | null = null
   let lastProposalId: string | null = null
   let lastV2VersionId: string | null = null
   // The proposal from the PREVIOUS iteration that got superseded by a new head;
@@ -1263,12 +1439,17 @@ export async function runAutoImprovementCycle(
     //    copilot has converged — that is a CLEAN STOP, not a failure.
     let proposal: ImprovementProposal
     try {
-      const analysis = await analyzeAndPropose(copilotId, 'auto-improve')
+      const analysis = await analyzeAndPropose(copilotId, 'auto-improve', opts.evidence)
       proposal = analysis.proposal
     } catch (err) {
       if (err instanceof NotFoundError) {
         if (isNothingToImproveReason(err.message)) {
-          emit({ type: 'converged', iteration, passRate: finalPassRate, detail: err.message })
+          emit({
+            type: 'converged',
+            iteration,
+            ...(finalPassRate === null ? {} : { passRate: finalPassRate }),
+            detail: err.message,
+          })
           return { iterations: iteration - 1, finalPassRate, stoppedBy: 'nothing-to-improve', lastProposalId, lastV2VersionId }
         }
         emit({ type: 'error', iteration, detail: err.message })
@@ -1289,9 +1470,14 @@ export async function runAutoImprovementCycle(
     //    total is over budget, stop BEFORE materializing (create-v2 provisions
     //    an assistant + re-runs, we don't spend more on a run we can't afford).
     //    The proposal stays `proposed` for a human to inspect.
+    lastProposalId = proposal.id
+    if (proposal.costUsd === null) {
+      const stopDetail = 'analysis cost was not measured — refusing to continue without an enforceable budget'
+      emit({ type: 'error', iteration, proposalId: proposal.id, detail: stopDetail })
+      return { iterations: iteration, finalPassRate, stoppedBy: 'blocked', lastProposalId, lastV2VersionId, stopDetail }
+    }
     cumulativeCostUsd += proposal.costUsd
     emit({ type: 'analyzed', iteration, proposalId: proposal.id, costUsd: cumulativeCostUsd })
-    lastProposalId = proposal.id
     if (cumulativeCostUsd > maxCostUsd) {
       emit({
         type: 'exhausted',
@@ -1342,7 +1528,9 @@ export async function runAutoImprovementCycle(
       for (const suiteId of testSuiteIds) {
         checkAborted()
         const testRun = await runTestSuite({ copilotId, suiteId, versionId: v2VersionId, triggeredBy: 'auto-improve' })
-        cumulativeCostUsd += testRun.totalCostUsd ?? 0
+        const testCost = finiteMeasurement(testRun.totalCostUsd)
+        if (testCost === null) throw new Error(`test run ${testRun.id} cost was not measured`)
+        cumulativeCostUsd += testCost
       }
       for (const suiteId of benchSuiteIds) {
         checkAborted()
@@ -1352,7 +1540,9 @@ export async function runAutoImprovementCycle(
             'GET',
             `benchmark_results?${eq('id', benchRun.resultId)}&select=total_cost_usd&limit=1`
           )
-          cumulativeCostUsd += Number(rows[0]?.total_cost_usd ?? 0)
+          const benchmarkCost = finiteMeasurement(rows[0]?.total_cost_usd)
+          if (benchmarkCost === null) throw new Error(`benchmark run ${benchRun.id} cost was not measured`)
+          cumulativeCostUsd += benchmarkCost
         }
       }
     } catch (err) {
@@ -1367,7 +1557,12 @@ export async function runAutoImprovementCycle(
     checkAborted()
     let cmp: VersionComparison
     try {
-      cmp = await compareImprovementVersions(copilotId, proposal.baseVersionId, v2VersionId)
+      cmp = await compareImprovementVersions(
+        copilotId,
+        proposal.baseVersionId,
+        v2VersionId,
+        proposal.contentHash,
+      )
     } catch (err) {
       emit({ type: 'error', iteration, proposalId: proposal.id, v2VersionId, detail: err instanceof Error ? err.message : 'compare failed' })
       return { iterations: iteration, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
@@ -1375,6 +1570,18 @@ export async function runAutoImprovementCycle(
 
     const v2PassRate = aggregateV2PassRate(cmp)
     const basePassRate = aggregateV1PassRate(cmp)
+    if (v2PassRate === null || basePassRate === null) {
+      const stopDetail = 'V1/V2 pass-rate evidence is incomplete — comparison is INSUFFICIENT_EVIDENCE'
+      emit({ type: 'error', iteration, proposalId: proposal.id, v2VersionId, detail: stopDetail })
+      return {
+        iterations: iteration,
+        finalPassRate: v2PassRate,
+        stoppedBy: 'blocked',
+        lastProposalId,
+        lastV2VersionId,
+        stopDetail,
+      }
+    }
     finalPassRate = v2PassRate
     emit({ type: 'reran', iteration, proposalId: proposal.id, v2VersionId, passRate: v2PassRate, costUsd: cumulativeCostUsd })
 
@@ -1436,6 +1643,12 @@ export async function runAutoImprovementCycle(
   }
 
   // Ran out of iterations without converging — the head V2 is left open.
-  emit({ type: 'exhausted', iteration: maxIterations, costUsd: cumulativeCostUsd, passRate: finalPassRate, detail: `reached max iterations (${maxIterations})` })
+  emit({
+    type: 'exhausted',
+    iteration: maxIterations,
+    costUsd: cumulativeCostUsd,
+    ...(finalPassRate === null ? {} : { passRate: finalPassRate }),
+    detail: `reached max iterations (${maxIterations})`,
+  })
   return { iterations: maxIterations, finalPassRate, stoppedBy: 'max-iterations', lastProposalId, lastV2VersionId }
 }

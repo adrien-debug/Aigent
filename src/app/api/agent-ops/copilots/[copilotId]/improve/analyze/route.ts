@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 
-import { analyzeAndPropose } from '@/lib/agent-mission-control/improvement-loop'
+import {
+  analyzeAndPropose,
+  resolveImprovementEvidence,
+  runAutoImprovementCycle,
+} from '@/lib/agent-mission-control/improvement-loop'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 
@@ -22,7 +26,13 @@ const inFlightAnalyses = new Set<string>()
  * architect model root-cause the failures and emit a validated manifest
  * proposal, and persist it as an `improvement_proposals` row.
  *
- * Body: { triggeredBy?: string }
+ * Body: {
+ *   triggeredBy?: string,
+ *   qualificationRunId: string,
+ *   mode?: 'proposal' | 'auto-cycle',
+ *   maxIterations?: number,
+ *   maxCostUsd?: number
+ * }
  * Response: { ok: true; proposal; sources }
  *
  * One OPEN cycle at a time: if an undecided proposal (proposed/v2-created)
@@ -37,7 +47,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
   }
 
-  let body: { triggeredBy?: unknown }
+  let body: {
+    triggeredBy?: unknown
+    qualificationRunId?: unknown
+    mode?: unknown
+    maxIterations?: unknown
+    maxCostUsd?: unknown
+  }
   try {
     body = await request.json()
   } catch {
@@ -50,6 +66,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   // Bounded: the value is persisted as `improvement_proposals.created_by`.
   if (body.triggeredBy !== undefined && (typeof body.triggeredBy !== 'string' || body.triggeredBy.length > 200)) {
     return NextResponse.json({ error: 'triggeredBy must be a string of at most 200 characters' }, { status: 400 })
+  }
+  if (typeof body.qualificationRunId !== 'string' || !ID_RE.test(body.qualificationRunId)) {
+    return NextResponse.json({ error: 'qualificationRunId is required' }, { status: 400 })
+  }
+  const mode = body.mode ?? 'proposal'
+  if (mode !== 'proposal' && mode !== 'auto-cycle') {
+    return NextResponse.json({ error: "mode must be 'proposal' or 'auto-cycle'" }, { status: 400 })
+  }
+  if (
+    body.maxIterations !== undefined &&
+    (typeof body.maxIterations !== 'number' ||
+      !Number.isInteger(body.maxIterations) ||
+      body.maxIterations < 1 ||
+      body.maxIterations > 5)
+  ) {
+    return NextResponse.json({ error: 'maxIterations must be an integer from 1 to 5' }, { status: 400 })
+  }
+  if (
+    body.maxCostUsd !== undefined &&
+    (typeof body.maxCostUsd !== 'number' ||
+      !Number.isFinite(body.maxCostUsd) ||
+      body.maxCostUsd <= 0 ||
+      body.maxCostUsd > 10)
+  ) {
+    return NextResponse.json({ error: 'maxCostUsd must be a finite number in (0, 10]' }, { status: 400 })
   }
 
   const base = process.env.AMC_SUPABASE_URL
@@ -85,7 +126,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     }
 
     try {
-      const { proposal, signals } = await analyzeAndPropose(copilotId, body.triggeredBy?.trim() || 'operator')
+      const evidence = await resolveImprovementEvidence(copilotId, body.qualificationRunId)
+      if (mode === 'auto-cycle') {
+        if (body.maxIterations !== undefined && body.maxIterations !== 1) {
+          return NextResponse.json(
+            { error: 'the downstream auto-cycle is limited to one V2 before human decision' },
+            { status: 400 },
+          )
+        }
+        const result = await runAutoImprovementCycle(copilotId, {
+          evidence,
+          maxIterations: 1,
+          maxCostUsd: body.maxCostUsd as number | undefined,
+        })
+        return NextResponse.json({ ok: true, result, evidence })
+      }
+      const { proposal, signals } = await analyzeAndPropose(
+        copilotId,
+        body.triggeredBy?.trim() || 'operator',
+        evidence,
+      )
       return NextResponse.json({ ok: true, proposal, sources: signals.sources })
     } catch (err) {
       if (err instanceof NotFoundError) {

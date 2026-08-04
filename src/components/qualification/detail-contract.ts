@@ -164,6 +164,7 @@ export function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
     openProposalId: openProposalIdFrom(detail.proposal),
     proposalId: detail.proposal?.id ?? null,
     proposalStatus: detail.proposal?.status ?? null,
+    qualificationRunId: detail.qualificationRun?.id ?? null,
     promotable,
     runBlockers,
   }

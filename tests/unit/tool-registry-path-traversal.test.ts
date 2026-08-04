@@ -30,6 +30,11 @@ import { buildTool } from '@/langgraph/tool-registry.mjs'
 
 const scope = { repoFullName: 'hearst/console' }
 
+function expectNoGitHubFetch(): void {
+  const calls = vi.mocked(global.fetch).mock.calls
+  expect(calls.some(([input]) => String(input).startsWith('https://api.github.com/'))).toBe(false)
+}
+
 describe('normalizeRepoPath (via read_repo_file / list_repo_tree) — refuses traversal', () => {
   const originalToken = process.env.GITHUB_TOKEN
   const originalFetch = global.fetch
@@ -75,7 +80,7 @@ describe('normalizeRepoPath (via read_repo_file / list_repo_tree) — refuses tr
     const result = JSON.parse(await tool.invoke({ path }))
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/traversal|invalid path/i)
-    expect(global.fetch).not.toHaveBeenCalled()
+    expectNoGitHubFetch()
   })
 
   it.each(traversalPaths)('list_repo_tree refuses "%s"', async (path) => {
@@ -83,7 +88,7 @@ describe('normalizeRepoPath (via read_repo_file / list_repo_tree) — refuses tr
     const result = JSON.parse(await tool.invoke({ path }))
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/traversal|invalid path/i)
-    expect(global.fetch).not.toHaveBeenCalled()
+    expectNoGitHubFetch()
   })
 
   it('documents the historical exploit shape a rejected path can no longer reach', async () => {

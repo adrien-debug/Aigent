@@ -108,7 +108,7 @@ export async function runVersionInputLive(
 ): Promise<VersionRunResult> {
   const startedAt = Date.now()
   let reply: unknown = null
-  let costUsd: number | null = 0
+  let costUsd: number | null = null
   let error: string | null = null
   let toolCalls: EvidenceToolCall[] = []
   try {
@@ -149,6 +149,9 @@ export async function makeLiveShadowAgent(
 
   const runAgent: ShadowRunAgent = async (input, gate) => {
     const r = await runVersionInputLive(exec, assistantId, candidateVersionId, input, `shadow ${candidateVersionId}`)
+    if (r.error !== null) {
+      throw new Error(`shadow runtime unavailable: ${r.error}`)
+    }
 
     // Classify each attempted tool through the authoritative gate. A mutating tool
     // interrupted at the confirmation checkpoint (status 'blocked') → recorded as
@@ -168,7 +171,7 @@ export async function makeLiveShadowAgent(
       output: r.reply,
       error: r.error,
       latencyMs: r.latencyMs,
-      costUsd: r.costUsd ?? 0,
+      costUsd: r.costUsd,
       toolAttempts,
     }
   }

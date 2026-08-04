@@ -346,7 +346,7 @@ export interface TestRun {
   status: 'queued' | 'running' | 'completed' | 'aborted'
   resultIds: string[]
   passRate: number // 0..1
-  totalCostUsd: UsdAmount
+  totalCostUsd: UsdAmount | null
 }
 
 export interface TestResult {
@@ -358,7 +358,7 @@ export interface TestResult {
   actualToolCalls: string[]
   failureReason: string | null
   latencyMs: DurationMs
-  costUsd: UsdAmount
+  costUsd: UsdAmount | null
   traceUrl: string | null
 }
 

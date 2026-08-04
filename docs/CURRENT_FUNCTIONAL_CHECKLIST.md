@@ -84,7 +84,8 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | **Isolation tenant du runtime** | jeton d'installation scopé : 7 agents rendus sur 14 en flotte ; agent d'un autre projet → **404** (contrôle négatif fait : agent du propre projet → 200) ; jeton valide + mauvaise installation → **401** |
 | **Parcours consommateur de bout en bout** | installation `inst-development-dc635c1eb45f482fbfad` (HTTP 201) → jeton scopé → run réel → persistance |
 | **Run réel via le runtime gouverné** | runId `bff77516-c634-438c-8a9c-e34579e614b4` · `openai` / `gpt-5.4` (`modelUnverified: false`) · **$0.019429** · `completed` 18 410 ms · dispatché sur l'**assistant dédié**, pas le graphe nu |
-| **Zéro exécution de trading** | 5 outils tous `read_*` · `improvement_proposals` reste à 0 · **aucune table d'ordre n'existe** — structurellement impossible, pas seulement non advenu |
+| **Parcours aval réel jusqu’à l’arrêt humain** | `run 57ddfc88…` → `qualification qual-1ea9edc7…` → `shadow cbacd5f9…` → `replay 3ea12074…` → `proposal ef6cff02` → V2 `512c952e` → comparaison `MATCHED` sur `8b3c2a28…`. V1 et V2 restent à **0 % mesuré**, benchmark 29,7 → 29,6 : aucune amélioration inventée, aucune décision ni promotion. |
+| **Zéro exécution de trading sur le parcours aval** | 3 outils source tous `read_*` (`read_project_summary`, `read_copilot_summary`, `read_recent_runs`) · `unsafe_attempt_count=0` mesuré · tables `orders` et `trades` absentes · proposition `v2-created` avec `decided_at=null` |
 | **Filtres Runs réellement consommés** | `parseRunsFilters` branché ; `?agent=` réduit la liste ; alias `copilot` accepté pour les liens déjà partagés |
 | **Surface `/settings` en lecture seule** | posture des providers, runtime, endpoints assainis, plafonds, LangGraph, télémétrie — **aucune valeur de secret**, sondé avec une fuite masquée (préfixe tronqué) |
 
@@ -99,6 +100,10 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | Validation navigateur (Chromium) | **19 captures** + `REVIEW.md` sous `docs/visual-reviews/AIGENT-HARDENING-PRODUCTION-001/` — `/sign-in`, `/`, `/agents`, `/runs` aux **deux** points de rupture ; les 8 pages restantes en 1440×900 |
 | Garde de régression `aria-current` | `tests/unit/sidebar-aria-current.test.ts` — 3 cas, **sondé rouge** quand l'attribut disparaît |
 | Garde « une mesure de sécurité absente n'est pas 0 » | `tests/unit/qualification-orchestrator.test.ts` — 4 cas, **sondés rouges** en restaurant le `?? 0` ; le zéro **mesuré** passe toujours |
+| Migrations aval live | 0047 puis 0048 appliquées explicitement sur GPU1 le 2026-08-04 ; OpenAPI confirme mesures nullables et colonnes `content_hash` / liens présentes |
+| Parcours aval facturé unique complet | source run **$0.009905** · shadow **$0.003765** · replay **$0.00753** · proposition **$0.007176** ; provider `openai`, modèle `gpt-5.4`, hash identique sur toutes les preuves |
+| Comparaison réelle V1/V2 | corpus `MATCHED`; tests **0 % → 0 %** (vrai zéro), benchmark **29,7 → 29,6** ; aucune promotion automatique ni décision |
+| Validation visuelle finale | Chrome 1440×900, `/agents/seed-agent-alpha` : section V1/V2, empreinte et chaîne de preuves présentes, zéro erreur console |
 | `check:secrets` (gitleaks) | propre — **1 209 commits scannés**, aucune fuite |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
 | `npm run health` — pile complète | **NEXT · LANGGRAPH · POSTGREST · STACK tous HEALTHY** (2026-08-04) |
@@ -177,18 +182,15 @@ peut être remplie sans un ordre de déploiement explicite et sa preuve.
 Ce qui est **codé mais pas fonctionnel** — la distinction est le cœur de ce
 fichier.
 
-### Tables à zéro, relues en base le 2026-08-04
+### Tables encore à zéro, relues en base le 2026-08-04
 
 Ces zéros sont **mesurés**, pas supposés : la requête a abouti et la table est
-vide. C'est le tronçon aval du produit — écrit intégralement, inerte
-intégralement.
+vide. Le tronçon aval n’appartient plus à cette liste : après le parcours réel,
+`qualification_runs=2`, `shadow_experiments=2`, `replay_comparisons=2` et
+`improvement_proposals=1`.
 
 | Table | Lignes | Ce que l'absence signifie |
 |---|---|---|
-| `qualification_runs` | **0** | aucune qualification n'a jamais tourné |
-| `shadow_experiments` | **0** | aucun shadow persisté |
-| `replay_comparisons` | **0** | aucun replay persisté |
-| `improvement_proposals` | **0** | aucune V2 proposée — l'écran V1/V2 reste non observable |
 | `agent_drafts` | **0** | aucun brouillon d'agent |
 | `sandbox_reports` | **0** | aucun rapport de bac à sable |
 | `tool_build_missions` | **0** | aucune mission de construction d'outil |
@@ -197,9 +199,6 @@ intégralement.
 
 | Élément | Pourquoi ce n'est pas fonctionnel |
 |---|---|
-| **Qualification aval : shadow, replay, qualification runs** | **Précisé le 2026-08-04 — le moteur existe, il n'est pas appelé.** `shadow-live.ts` (182 l.) et `replay-live.ts` (71 l.) sont des moteurs **réels** sur LangGraph (assistant éphémère, write-safe : un outil mutant tape l'`interrupt()` et n'exécute jamais), et les routes `POST/GET .../versions/[versionId]/shadow` et `.../replay` existent (275 et 269 lignes). Ce qui manque est étroit : **personne n'implémente `ShadowReplayDriver`** (2 méthodes optionnelles) et la route de qualification construit `options = { policy, clientRunId }` — **sans champ `driver`** → les étapes retombent en `NOT_AVAILABLE`. Ce vide est **délibéré** (une fixture ne doit jamais satisfaire un gate), pas un oubli. |
-| **Boucle d'amélioration — la partie AUTONOME seulement** | **Correction du 2026-08-04.** La version antérieure de cette ligne disait « aucune route ni cron ne l'appelle. Moteur sans surface » : **c'est faux**, et l'erreur a été propagée dans un rapport. **Trois routes existent et sont câblées** — `improve/analyze` (`analyzeAndPropose`), `improve/decision` (`decideProposal`), `improve/create-v2` (`createImprovementV2`) — et l'UI les lit. Sur les 7 exports de `improvement-loop.ts`, **6 ont des appelants en production**. Le seul sans appelant est **`runAutoImprovementCycle`**, et **aucun cron n'existe** (pas de `schedule:` en CI, aucun fichier de plateforme). Donc : le parcours **manuel** analyse → décision → V2 est branché ; seule l'**autonomie** manque. `improvement_proposals` est à 0 parce que **personne n'a jamais déclenché le parcours**, pas parce qu'il n'existe pas. |
-| **Écran de comparaison V1/V2 — RENDU, NON PROUVÉ** | le composant existe et est testé (16 cas, dont le garde contre les scores V2 à 0 % qui afficheraient une régression inventée). Mais `improvement_proposals` est **vide en base** : les trois états (V2 disponible / sans V2 / scores non mesurés) n'ont **jamais été observés rendus**. Reste NON PROUVÉ tant qu'aucune proposition réelle n'existe — une absence de donnée ne devient pas un PASS. |
 | **Export autonome d'agent** | capacité **future** (`PRODUCT_DOCTRINE.md` §3), pas l'autorité actuelle. L'artefact généré ne porte pas les outils ni les gardes de l'agent qualifié. |
 | **Canal de retour depuis un artefact autonome** | structurellement inerte : le champ qui déclenche la génération de l'émetteur n'est écrit par aucun chemin, et l'émetteur n'a aucun appelant. |
 | **Filtres autres qu'Agent et Projet** | statut, période, provider, modèle, durée, coût sont consommés **par URL** mais n'ont aucun contrôle d'interface. Le reset ne remet à zéro qu'Agent et Projet — délibérément, pour ne pas effacer en silence un paramètre invisible. |
@@ -272,13 +271,14 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
     ne rend plus `PASS « 0 unsafe actions »` sur une absence — ni ligne
     `benchmark_results` manquante, ni compteur nul — mais `INSUFFICIENT_EVIDENCE`,
     avec garde de régression **sondée dans les deux sens**.
-    **CE QUI RESTE OUVERT, et ce n'est pas petit** : ~18 lectures en
-    `(x as number) ?? 0` subsistent (`improvement-loop.ts`, `agent-health.ts`,
-    `test-runner.ts`). Elles ne mentent pas aujourd'hui — aucun writer n'émet
-    encore `null` — mais elles convertiront une absence en zéro dès qu'un writer
-    le fera. La migration est **habilitante**, pas corrective. Et elle ne peut
-    pas séparer rétroactivement un 0 mesuré d'un 0 par défaut : les lignes
-    antérieures restent ambiguës.
+    **FERMÉE EN REVIEW le 2026-08-04** : les lectures
+    aval identifiées ne rabattent plus pass rate, score, coût, latence ou compteur
+    de sécurité absent vers zéro ; les writers concernés propagent `null`, les
+    agrégations refusent les valeurs non finies, et des tests conservent les vrais
+    zéros mesurés. Les migrations 0047 et 0048 ont été appliquées explicitement
+    sur GPU1 ; OpenAPI confirme ces mesures nullables et le parcours réel a
+    conservé un vrai `pass_rate=0` sans le confondre avec une absence. Les lignes
+    historiques restent ambiguës et ne sont pas réécrites sans preuve.
 13. **Un provider est écrit en dur** sur le chemin d'exécution produit, ce qui
     fausse le coût pour les autres providers.
 14. **La télémétrie ne distingue pas la provenance** à l'agrégation : les runs
@@ -370,15 +370,12 @@ Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
 Les deux premières débloquent le tronçon aval entier — sept tables à zéro et un
 écran non observable tiennent à ces deux gestes.
 
-1. **Injecter un `ShadowReplayDriver` dans la route de qualification** —
-   l'adaptateur relie le seam existant aux moteurs `makeLiveShadowAgent` /
-   `makeLiveReplayRunner` **déjà écrits et déjà câblés à leurs propres routes**.
-   Débloque `qualification_runs`, `shadow_experiments` et `replay_comparisons`.
-2. **Déclencher le parcours d'amélioration existant** — les trois routes
-   (`analyze`, `decision`, `create-v2`) sont câblées ; il manque un appel réel
-   pour créer la première `improvement_proposal`, ce qui **rend du même geste
-   l'écran V1/V2 observable**. L'autonomie (`runAutoImprovementCycle` + cron)
-   est un second geste, distinct et facultatif.
+1. **Faire reviewer le tronçon aval et garder la V2 en attente humaine** —
+   proposition `improve-seed-agent-alpha-ef6cff02` en `v2-created`, sans
+   `decided_at`; la comparaison ne montre aucune amélioration et ne justifie donc
+   ni approbation ni promotion.
+2. **Surveiller la CI de la PR de mission** puis corriger uniquement ses
+   régressions éventuelles ; aucun merge ni déploiement sans ordre séparé.
 3. **Exposer les métadonnées de coût en lecture** (limite 17b) —
    `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
    Un consommateur ne peut pas relire ce qu'il a payé.

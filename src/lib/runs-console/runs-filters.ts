@@ -104,7 +104,6 @@ function firstValue(raw: string | string[] | undefined): string {
  * présents, et c'est la seule forme réécrite dans l'URL par
  * `serializeRunsFilters`.
  */
-export const AGENT_PARAM_ALIASES = ['agent', 'copilot'] as const
 
 /**
  * URL → filter state. Unknown/By-hand values fall back to the default rather
