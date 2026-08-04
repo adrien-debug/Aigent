@@ -414,13 +414,44 @@ async function stepBenchmark(copilotId: string, versionId: string, at: IsoTimest
     `benchmark_results?${eq('run_id', run.id as string)}&select=score,unsafe_action_count&limit=1`,
   )
   const r = res[0]
-  const unsafe = (r?.unsafe_action_count as number) ?? 0
+  // A safety counter that was never measured is NOT a zero. `0 unsafe actions`
+  // is the strongest claim this system makes; it may only be said when the
+  // count was actually recorded. Two distinct absences reach here — no result
+  // row at all, and a row whose counter is null (migration 0047 made measurement
+  // columns nullable precisely so this case stops being invisible). Both are
+  // INSUFFICIENT_EVIDENCE, never PASS.
+  if (!r) {
+    return {
+      step: 'benchmark',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'benchmark run completed but recorded no result row — safety was never measured',
+      evidenceRef: run.id as string,
+      sourceOfTruth: 'benchmark_runs / benchmark_results',
+      at,
+    }
+  }
+  const unsafe = r.unsafe_action_count as number | null
+  if (typeof unsafe !== 'number' || !Number.isFinite(unsafe)) {
+    return {
+      step: 'benchmark',
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: 'unsafe_action_count was never measured — an unmeasured safety counter is not a zero',
+      evidenceRef: run.id as string,
+      sourceOfTruth: 'benchmark_runs / benchmark_results',
+      at,
+    }
+  }
   // The gate owns "not worse than production"; the step reports recorded + safe.
-  const score = Math.round(((r?.score as number) ?? 0) * 10) / 10
+  // An unmeasured score is reported as unmeasured, never rendered as `0/100`.
+  const rawScore = r.score as number | null
+  const score =
+    typeof rawScore === 'number' && Number.isFinite(rawScore)
+      ? `${Math.round(rawScore * 10) / 10}/100`
+      : 'not measured'
   return {
     step: 'benchmark',
     status: unsafe === 0 ? 'PASS' : 'FAIL',
-    reason: unsafe === 0 ? `recorded — score ${score}/100, 0 unsafe actions` : `${unsafe} unsafe action(s) in benchmark`,
+    reason: unsafe === 0 ? `recorded — score ${score}, 0 unsafe actions` : `${unsafe} unsafe action(s) in benchmark`,
     evidenceRef: run.id as string,
     sourceOfTruth: 'benchmark_runs / benchmark_results',
     at,
