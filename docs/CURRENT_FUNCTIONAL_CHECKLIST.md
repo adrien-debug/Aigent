@@ -390,6 +390,56 @@ Les deux premières débloquent le tronçon aval entier — sept tables à zéro
 10. **Régénérer les preuves visuelles au HEAD courant** — les captures existantes
     datent d'un HEAD antérieur.
 
+## Composants externes qualifiés
+
+Mission `AIGENT-EXTERNAL-COMPONENTS-QUALIFICATION-001`, 2026-08-04. **Étude
+seule : aucun composant n'est intégré, aucune dépendance ajoutée, aucun code
+produit.** Rien de cette section n'est fonctionnel — un composant étudié n'est
+pas un composant branché.
+
+**Critère éliminatoire appliqué à tous** : un score non mesuré doit rester non
+mesuré. Aigent porte déjà un vocabulaire à six états (`PASS` · `FAIL` ·
+`NOT_CONFIGURED` · `NOT_AVAILABLE` · `INSUFFICIENT_EVIDENCE` · `PENDING`) que la
+plupart des moteurs examinés ne savent pas exprimer.
+
+| Composant | Verdict | Motif décisif (vérifié) |
+|---|---|---|
+| **Arize Phoenix** | **INSPIRE_ONLY** | Aucun concept de shadow (`grep` ne renvoie que du *token replay* OAuth2) ; `compare_experiments` ne rend **aucun verdict** (3 champs, jugement à l'œil dans l'UI) ; `POST /v1/experiment_evaluations` est un **upsert** — une preuve d'échec s'efface avec un POST, face à des `promotion_gates` append-only relus dans la RPC de promotion. Serveur en **Elastic License 2.0** (pas open source au sens commercial) ; `PHOENIX_ENABLE_AUTH` **False par défaut**. |
+| **Temporal** (serveur + SDK TS) | **REJECT** (revisitable) | Techniquement solide et **tout en MIT** (serveur, SDK TS, UI — le piège de licence supposé n'existe pas). Mais `bundler.ts` n'autorise que `assert`/`url`/`util` et `injectGlobals` n'injecte pas `fetch` : `node:crypto` (qui porte `fingerprintCandidate()`) et les ~20 appels PostgREST **sortent du workflow**. ~10 lignes resteraient, 837 partiraient en activités. Échelle : $0,367793 de dépense totale du projet. |
+| **OpenWorkflow** | **REJECT** | **Signaux non bufferisés** — doc : *« If you send a signal before any workflow is waiting for it, the signal is lost »*. Une approbation humaine cliquée trop tôt disparaît **en silence** : exactement la classe de défaut que ce produit existe pour empêcher. Bus factor 1 (663 commits sur ~1130), 0.9.x, cron encore « Coming Soon » — il ne fermerait pas le trou visé. |
+| **DeepEval** | **REJECT** | Critère éliminatoire touché : une trace jamais capturée produit `score=0.0, success=False` **et une prose qui affirme** « missing tools […] called [] » alors que la vérité est qu'on ne sait pas. Motif indépendant et suffisant : `ToolCorrectnessMetric`, annoncée déterministe, **exige une clé OpenAI pour être instanciée** — incompatible avec une gate hors ligne. |
+| **Evidently** | **POC_REQUIRED** | Seul moteur à préserver `nan` au niveau de la valeur — mais `lte(0)` sur ce `nan` rend **`FAIL`** : fail-closed, donc sûr, et **indistinguable d'une vraie violation**. Deux faux zéros trouvés (`TextLength` sur texte absent → `0` avec `isna=False` ; `MeanValue(unsafe)=0.0` masque un run non mesuré). **Dormant** : 0 commit sur 90 jours, dernière release il y a 146 jours. Le pont Python↔TypeScript n'existe pas et son coût n'est pas chiffré. |
+| **Opik** — plateforme | **REJECT** | **Second control plane** : MySQL + Redis + ClickHouse + Zookeeper + MinIO + backend Java + backend Python + frontend, plus une « Optimization Studio » serveur. Aigent a déjà son control plane et Langfuse. Scores inconnus **non préservés** : `ScoreResult(value=0.0, scoring_failed=True)` met le faux zéro dans le canal numérique ; `DEFAULT_SCORING_FAILURE_THRESHOLD = 1.0` fait qu'un run où 99 % des items ne sont pas notés se termine `COMPLETED`. **Zéro feedback humain** (158 fichiers cherchés). |
+| **Opik** — 3 artefacts isolés | **ADAPT** | Templates du réflexif hiérarchique (Apache-2.0, texte pur, zéro dépendance), dont `_validate_reasons_present` qui **lève si aucun score ne porte de motif** ; plus `improves_over` et le refus du `NaN`. ~30 lignes à réécrire en TS **en corrigeant** le seuil de 1.0. |
+| **TensorZero** | **REJECT — projet mort** | `archived=true` (vérifié via l'API GitHub, dernier push 2026-06-11), organisation entière archivée. **CVE-2026-54457, CVSS 7,7** (lecture de fichiers de credentials + SSRF) corrigée dans la *dernière* release, archivage 8 jours plus tard. Retenu **INSPIRE_ONLY** sur deux formes seulement : `StoppingResult::NotStopped` (troisième état explicite) et `CheckStoppingError::MissingVariance` — **une variance manquante lève, elle ne vaut pas zéro**. |
+| **Binance `exchangeInfo`** | **ADAPT** | 8 endpoints Binance déjà appelés (3 spot, 5 futures). `exchangeInfo` absent, et **0 occurrence** de `tickSize`/`stepSize`/`minNotional`/`PRICE_FILTER`/`LOT_SIZE` dans tout `src/`. Mesuré : **17,4 Mo, 3670 symboles** (1371 TRADING), poids **20 à plat** — filtrer n'économise pas de quota, seulement du volume (~9400× avec `?symbols=[…]`) ; **ni ETag ni Last-Modified**. Aucun raccordement dans les deux dépôts TradeAgent. |
+
+**Le résultat principal de la mission n'est aucun de ces composants.** Il est
+interne : le tronçon aval n'est pas absent, il est **débranché d'un seul côté**
+(voir *Non fonctionnel*). Aucun composant externe ne ferme ce trou, parce que le
+trou n'est pas un manque de stockage ni d'orchestration — c'est un **appel
+manquant** vers du code déjà écrit.
+
+**Drapeaux de supply chain, à connaître avant tout usage** — Opik et DeepEval
+installent un `sys.excepthook` **global à l'import** et expédient du contenu
+d'exception à un tiers ; Opik convertit chaque log WARNING+ en événement Sentry
+avec traceback et **nom de workspace en clair**, son opt-out
+`OPIK_SENTRY_ENABLE=false` n'étant documenté nulle part.
+`EVIDENTLY_DISABLE_TELEMETRY` est du **code mort** (la vraie variable est
+`DO_NOT_TRACK`), et `PHOENIX_TELEMETRY_ENABLED=0` **fait planter le démarrage**
+au lieu de désactiver. Seul **OpenWorkflow** est à zéro télémétrie.
+
+**Porte de sortie de licence, si Phoenix revenait un jour** : le serveur et
+`phoenix-evals` (Python) sont ELv2, mais **les paquets JS `@arizeai/*` sont
+Apache-2.0** (vérifié sur le registre npm).
+
+**Limites de cette qualification, à ne pas surinterpréter** : aucun composant
+n'a été déployé ni exercé de bout en bout ; les verdicts Opik et TensorZero
+portent sur l'**architecture** lue, pas sur l'efficacité empirique des
+algorithmes ; le support Postgres du **serveur** Temporal n'a pas pu être
+vérifié (serveur Go non cloné) ; la qualification **juridique** de l'ELv2 pour
+l'usage exact d'Aigent relève d'un avis juridique, pas de cette étude.
+
 ## Preuves
 
 | Type | Référence |
