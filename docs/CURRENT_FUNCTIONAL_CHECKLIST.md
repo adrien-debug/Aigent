@@ -13,12 +13,13 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence** — `main` = `26dffb01`
-(PR #101, #102, #104 et #105 mergées le 2026-08-04)
-Dernière mise à jour : 2026-08-04 · mission `AIGENT-CHECKLIST-POST-MERGE-TRUTH-001`
+**État de référence avant le commit documentaire** — `main` = `64067aa6` ;
+PR #107 = `f0b71687` après correction du défaut concurrent.
+Dernière mise à jour : 2026-08-04 · mission
+`AIGENT-DOWNSTREAM-IDEMPOTENCE-CONCURRENCY-REWORK-001`
 
-**Aucune PR n'est en attente de merge.** La section *En review* est vide, et
-c'est un état normal, pas un trou.
+**PR #107 est en review et non mergée.** Aucun état de cette PR n'est attribué à
+`main`.
 
 Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
 2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
@@ -93,7 +94,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 
 | Suite | État |
 |---|---|
-| `npm run test` (unitaire, hors ligne) | **2 520 tests passés + 1 échec attendu**, 197 fichiers (2026-08-04) |
+| `npm run test` (unitaire, hors ligne) | **2 541 tests passés + 1 échec attendu**, 199 fichiers (2026-08-04) |
 | `npm run typecheck` | **0 erreur** |
 | `npm run build` | **OK** |
 | `npm run check` | **exit 0** — 19 gates |
@@ -103,8 +104,9 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | Migrations aval live | 0047 puis 0048 appliquées explicitement sur GPU1 le 2026-08-04 ; OpenAPI confirme mesures nullables et colonnes `content_hash` / liens présentes |
 | Parcours aval facturé unique complet | source run **$0.009905** · shadow **$0.003765** · replay **$0.00753** · proposition **$0.007176** ; provider `openai`, modèle `gpt-5.4`, hash identique sur toutes les preuves |
 | Comparaison réelle V1/V2 | corpus `MATCHED`; tests **0 % → 0 %** (vrai zéro), benchmark **29,7 → 29,6** ; aucune promotion automatique ni décision |
+| Idempotence concurrente shadow/replay | **Prouvée hors ligne sur la PR #107** : 2 puis 10 appels simultanés pour chaque moteur donnent exactement 1 acquisition, 1 exécution shadow / 1 comparaison replay (2 runners), 1 ligne, 1 coût cumulé, 1 terminal et 1 télémétrie `completed`. Les 1/9 perdants reçoivent tous `already running`. Panne shadow et replay → `failed`, second appel refusé, aucun retry implicite. |
 | Validation visuelle finale | Chrome 1440×900, `/agents/seed-agent-alpha` : section V1/V2, empreinte et chaîne de preuves présentes, zéro erreur console |
-| `check:secrets` (gitleaks) | propre — **1 209 commits scannés**, aucune fuite |
+| `check:secrets` (gitleaks) | propre — **1 218 commits scannés**, aucune fuite |
 | Suite live (opt-in, facturée) | **hors chaîne** — jamais dans `verify` |
 | `npm run health` — pile complète | **NEXT · LANGGRAPH · POSTGREST · STACK tous HEALTHY** (2026-08-04) |
 | Environnement de dev local | **CPU 0 %** au repos, RSS stable ~809–815 MiB, **0 fichier `.sst` ouvert** — PR #101 **mergée** (`e3e84839`), donc vrai sur `main` |
@@ -160,9 +162,9 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**Vide au 2026-08-04.** Les quatre PR qui figuraient ici sont mergées — voir
-*Mergé*. Une section vide ici est un état sain : elle dit qu'aucun travail
-n'attend une décision.
+| PR | HEAD de départ | État de référence avant ce commit documentaire | État |
+|---|---|---|---|
+| #107 — tronçon aval + rework d'idempotence concurrente | `841b7fda` | `f0b71687` | **EN REVIEW, NON MERGÉE** — CAS PostgREST `queued → running`; `npm run verify` vert ; CI du rework à confirmer après push |
 
 ## Déployé
 
@@ -363,18 +365,25 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
     À lire avec la limite 14 — l'agrégation ne distingue toujours pas la
     provenance.
 
+22. **Aucune reprise automatique d'un `running` ancien.** Le driver traite un
+    `running` comme déjà acquis, sans timeout arbitraire ni réexécution. Une
+    panne moteur termine la ligne en `failed`; une nouvelle tentative exige une
+    nouvelle qualification/clé explicite. Cette politique évite une double
+    facturation mais laisse la récupération d'un processus tué avant son
+    `catch` à une décision opérateur.
+
 ## Prochaines étapes
 
 Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
 
-Les deux premières débloquent le tronçon aval entier — sept tables à zéro et un
-écran non observable tiennent à ces deux gestes.
+Les deux premières maintiennent le tronçon aval en arrêt humain tout en faisant
+reviewer la fermeture du défaut P1 concurrent.
 
-1. **Faire reviewer le tronçon aval et garder la V2 en attente humaine** —
+1. **Faire reviewer le rework concurrent de la PR #107 et garder la V2 en attente humaine** —
    proposition `improve-seed-agent-alpha-ef6cff02` en `v2-created`, sans
    `decided_at`; la comparaison ne montre aucune amélioration et ne justifie donc
    ni approbation ni promotion.
-2. **Surveiller la CI de la PR de mission** puis corriger uniquement ses
+2. **Surveiller la CI du rework de la PR #107** puis corriger uniquement ses
    régressions éventuelles ; aucun merge ni déploiement sans ordre séparé.
 3. **Exposer les métadonnées de coût en lecture** (limite 17b) —
    `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
