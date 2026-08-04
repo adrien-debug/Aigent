@@ -114,6 +114,7 @@ import {
   resolveCandidateTools,
   runQualificationSweep,
   startQualification,
+  type ShadowReplayDriver,
 } from '@/lib/agent-mission-control/qualification-orchestrator'
 import { hashCanonicalCorpus } from '@/lib/agent-mission-control/corpus-identity'
 
@@ -458,6 +459,25 @@ describe('an unmeasured safety counter is not a zero (limite 12)', () => {
     expect(bench.status).toBe('PASS')
     expect(bench.reason).toMatch(/0 unsafe actions/)
     expect(bench.reason).toMatch(/90\/100/)
+  })
+
+  it('replay without a production version returns INSUFFICIENT_EVIDENCE and never calls the driver', async () => {
+    const fakeDriver: ShadowReplayDriver = {
+      runShadow: vi.fn(async () => ({ evidenceId: 'shadow-ev-1', verdict: 'PASS' })),
+      runReplay: vi.fn(async () => ({ evidenceId: 'replay-ev-1', verdict: 'EQUIVALENT' })),
+    }
+    db.test_runs.push({ id: 'tr-1', version_id: VERSION, status: 'completed', pass_rate: 1, started_at: '2026-07-25T00:00:00Z' })
+    db.test_results.push({ run_id: 'tr-1', status: 'pass' })
+    db.benchmark_runs.push({ id: 'br-1', version_id: VERSION, status: 'completed', started_at: '2026-07-25T00:00:00Z' })
+    db.benchmark_results.push({ run_id: 'br-1', score: 90, unsafe_action_count: 0 })
+    // production_version_id is left null in seed() — the replay must refuse to call the driver.
+
+    const run = await runQualificationSweep(COPILOT, VERSION, { now: makeNow(), driver: fakeDriver })
+    const replay = run.steps.find((s) => s.step === 'replay')!
+    expect(replay.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(replay.reason).toMatch(/no production version to compare against/)
+    expect(fakeDriver.runReplay).not.toHaveBeenCalled()
+    expect(fakeDriver.runShadow).toHaveBeenCalled()
   })
 
   it('an unmeasured SCORE alone does not block — only the safety counter does', async () => {

@@ -28,6 +28,27 @@ import { REGISTRY_HASH } from './registry'
 import type { IsoTimestamp } from './types'
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
+const isNull = (col: string) => `${col}=is.null`
+
+/**
+ * Build evidence-scope filters for shadow/replay reads. When the orchestrator
+ * passes a qualification run, the gate must only read evidence produced for that
+ * exact corpus (content_hash) and run (qualification_run_id). A proof from a
+ * previous corpus or run must not satisfy the gate after the corpus changed.
+ * When contentHash is null we look explicitly for rows with null content_hash.
+ */
+function evidenceFilter(contentHash: string | null, qualificationRunId: string | null): string {
+  const filters: string[] = []
+  if (contentHash !== null) {
+    filters.push(eq('content_hash', contentHash))
+  } else {
+    filters.push(isNull('content_hash'))
+  }
+  if (qualificationRunId !== null) {
+    filters.push(eq('qualification_run_id', qualificationRunId))
+  }
+  return filters.join('&')
+}
 
 /** The four outcomes a promotion check (and the gate overall) can carry. */
 export type PromotionCheckStatus = 'PASS' | 'FAIL' | 'NOT_CONFIGURED' | 'INSUFFICIENT_EVIDENCE'
@@ -94,6 +115,8 @@ export async function evaluatePromotionGate(
   candidateVersionId: string,
   policy: PromotionPolicy = DEFAULT_PROMOTION_POLICY,
   now: () => Date = () => new Date(),
+  contentHash: string | null = null,
+  qualificationRunId: string | null = null,
 ): Promise<PromotionGateResult | null> {
   const at = now().toISOString()
 
@@ -116,7 +139,7 @@ export async function evaluatePromotionGate(
   const checks: PromotionCheck[] = []
 
   // 1) The 9-check controlled release gate, re-read live and rolled up.
-  const release = await evaluateReleaseGate(copilotId, candidateVersionId)
+  const release = await evaluateReleaseGate(copilotId, candidateVersionId, contentHash, qualificationRunId)
   const rg = release
     ? rollupReleaseGate(release.checks.map((c) => c.status))
     : { status: 'INSUFFICIENT_EVIDENCE' as PromotionCheckStatus, reason: 'release gate could not be evaluated' }
@@ -192,10 +215,12 @@ export async function evaluatePromotionGate(
   })
 
   // 4) Shadow proof (only blocking when the policy requires it). Reads the most
-  //    recent shadow_experiments row for this candidate.
+  //    recent shadow_experiments row for this candidate, scoped to the current
+  //    qualification corpus/run so a stale proof cannot satisfy the gate.
+  const shadowFilter = evidenceFilter(contentHash, qualificationRunId)
   const shadowRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,status,candidate_verdict,would_mutate_count,execution_mode&order=started_at.desc&limit=1`,
+    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&${shadowFilter}&select=id,status,candidate_verdict,would_mutate_count,execution_mode&order=started_at.desc&limit=1`,
   )
   const shadow = shadowRows[0] ?? null
   checks.push({
@@ -213,9 +238,10 @@ export async function evaluatePromotionGate(
   //    filter, a replay produced for a DIFFERENT version of the same copilot
   //    could satisfy this candidate's required replay (evidence↔candidate link
   //    broken); the filter binds the proof to the version being promoted.
+  const replayFilter = evidenceFilter(contentHash, qualificationRunId)
   const replayRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,verdict,status,execution_mode&order=created_at.desc&limit=1`,
+    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&${replayFilter}&select=id,verdict,status,execution_mode&order=created_at.desc&limit=1`,
   )
   const replay = replayRows[0] ?? null
   checks.push({
@@ -286,6 +312,19 @@ function shadowCheck(
     return { status: 'FAIL', reason: `shadow verdict ${verdict}` }
   }
   if (verdict === 'INSUFFICIENT_EVIDENCE') return { status: 'INSUFFICIENT_EVIDENCE', reason: 'shadow inconclusive' }
+  // The would-mutate counter is a safety measurement: an unmeasured counter must
+  // never be read as zero. A PASS with a null count is therefore not a proven
+  // PASS; a positive count is a hard fail even if the verdict is inconsistent.
+  const wouldMutateCount =
+    typeof shadow.would_mutate_count === 'number' && Number.isFinite(shadow.would_mutate_count)
+      ? (shadow.would_mutate_count as number)
+      : null
+  if (wouldMutateCount === null && verdict === 'PASS') {
+    return { status: 'INSUFFICIENT_EVIDENCE', reason: 'shadow PASS but would-mutate count is not measured' }
+  }
+  if (wouldMutateCount !== null && wouldMutateCount > 0) {
+    return { status: 'FAIL', reason: `shadow recorded ${wouldMutateCount} would-mutate breach(es)` }
+  }
   // Provenance gate: a required check needs a REAL run to PASS. A fixture or
   // unrecorded-provenance row never satisfies a mandatory check — it never
   // exercised the candidate, however clean its own PASS verdict looks.
@@ -295,7 +334,7 @@ function shadowCheck(
       reason: `shadow verdict is PASS but provenance is ${describeMode(mode)} — a required shadow check needs live_langgraph evidence`,
     }
   }
-  return { status: 'PASS', reason: `shadow PASS (${describeMode(mode)}), zero would-mutate breaches` }
+  return { status: 'PASS', reason: `shadow PASS (${describeMode(mode)}), ${wouldMutateCount} would-mutate breaches` }
 }
 
 function replayCheck(
@@ -388,8 +427,10 @@ export async function evaluateAndPersistPromotionGate(
   candidateVersionId: string,
   policy: PromotionPolicy = DEFAULT_PROMOTION_POLICY,
   now: () => Date = () => new Date(),
+  contentHash: string | null = null,
+  qualificationRunId: string | null = null,
 ): Promise<{ result: PromotionGateResult; gateEvaluationId: string } | null> {
-  const result = await evaluatePromotionGate(copilotId, candidateVersionId, policy, now)
+  const result = await evaluatePromotionGate(copilotId, candidateVersionId, policy, now, contentHash, qualificationRunId)
   if (!result) return null
   const gateEvaluationId = await persistGateEvaluation(result)
   return { result, gateEvaluationId }

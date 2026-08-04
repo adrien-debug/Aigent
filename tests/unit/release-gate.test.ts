@@ -46,6 +46,9 @@ interface GateMockConfig {
   prodBenchmarkRun?: { id: string } | null
   prodBenchmarkResult?: Record<string, unknown> | null
   tools?: Record<string, unknown>[]
+  /** Current qualification corpus hash; the gate should only read test/benchmark runs with this hash. */
+  contentHash?: string | null
+  qualificationRunId?: string | null
 }
 
 const defaultCopilot = {
@@ -75,6 +78,14 @@ function installGateMocks(config: GateMockConfig = {}) {
       : { ...defaultCopilot, ...(config.copilotRow as Record<string, unknown> | undefined) }
   const version =
     config.versionRow === 'missing' ? null : { ...defaultVersion, ...(config.versionRow as Record<string, unknown> | undefined) }
+  const contentHash = config.contentHash ?? null
+  const qualificationRunId = config.qualificationRunId ?? null
+
+  function matchesContentHashFilter(path: string): boolean {
+    if (!path.includes('content_hash=')) return true
+    if (contentHash === null) return path.includes('content_hash=is.null')
+    return path.includes(`content_hash=eq.${encodeURIComponent(contentHash)}`)
+  }
 
   pgrestHandler = (_method, path) => {
     if (path.startsWith('copilots?')) {
@@ -87,6 +98,13 @@ function installGateMocks(config: GateMockConfig = {}) {
       return config.proposalRows ?? []
     }
     if (path.startsWith('test_runs?')) {
+      // test_runs only carries content_hash; a mismatched corpus must not satisfy the gate.
+      if (!matchesContentHashFilter(path)) return []
+      if (qualificationRunId !== null && path.includes('qualification_run_id=')) {
+        // test_runs has no qualification_run_id column; such a query would be invalid.
+        // The gate must not emit this filter for test_runs, so treat it as a mismatch.
+        return []
+      }
       if (config.testRun === null) return []
       return [config.testRun ?? { id: TEST_RUN_ID, pass_rate: 1 }]
     }
@@ -96,6 +114,8 @@ function installGateMocks(config: GateMockConfig = {}) {
     if (path.startsWith('benchmark_runs?')) {
       const encodedCandidate = encodeURIComponent(VERSION_ID)
       if (path.includes(`version_id=eq.${encodedCandidate}`)) {
+        if (!matchesContentHashFilter(path)) return []
+        if (qualificationRunId !== null && path.includes('qualification_run_id=')) return []
         if (config.candidateBenchmarkRun === null) return []
         return [config.candidateBenchmarkRun ?? { id: BENCH_RUN_ID }]
       }
@@ -290,5 +310,34 @@ describe('evaluateReleaseGate', () => {
 
     const gate = await evaluateReleaseGate(COPILOT_ID)
     expect(gate).toBeNull()
+  })
+
+  it('I — a test run from a different corpus (content_hash mismatch) blocks promotion', async () => {
+    installGateMocks({ contentHash: 'corpus-v2', testRun: { id: TEST_RUN_ID, pass_rate: 1 } })
+
+    const gate = await evaluateReleaseGate(COPILOT_ID, VERSION_ID, 'corpus-v1', 'run-1')
+    expect(gate).not.toBeNull()
+    expect(gate!.promotable).toBe(false)
+    expect(check(gate!, 'tests-pass').status).toBe('missing')
+    expect(check(gate!, 'no-recursion').status).toBe('missing')
+  })
+
+  it('I2 — a benchmark run from a different corpus (content_hash mismatch) blocks promotion', async () => {
+    installGateMocks({ contentHash: 'corpus-v2' })
+
+    const gate = await evaluateReleaseGate(COPILOT_ID, VERSION_ID, 'corpus-v1', 'run-1')
+    expect(gate).not.toBeNull()
+    expect(gate!.promotable).toBe(false)
+    expect(check(gate!, 'benchmark-exists').status).toBe('missing')
+  })
+
+  it('I3 — release gate queries include content_hash when provided', async () => {
+    installGateMocks({ contentHash: 'corpus-v2', testRun: { id: TEST_RUN_ID, pass_rate: 1 } })
+
+    const gate = await evaluateReleaseGate(COPILOT_ID, VERSION_ID, 'corpus-v2', 'run-2')
+    expect(gate).not.toBeNull()
+    expect(gate!.promotable).toBe(true)
+    expect(check(gate!, 'tests-pass').status).toBe('pass')
+    expect(check(gate!, 'benchmark-exists').status).toBe('pass')
   })
 })

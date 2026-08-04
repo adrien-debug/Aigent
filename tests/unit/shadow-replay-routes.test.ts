@@ -33,8 +33,8 @@ class FakeTable {
         throw err
       }
     }
-    this.rows.push(row)
-    return [row]
+    this.rows.push({ ...row })
+    return [{ ...row }]
   }
   patch(filterId: string, patch: FakeRow) {
     const row = this.rows.find((r) => r.id === filterId)
@@ -201,6 +201,20 @@ describe('shadow route', () => {
     expect(res.status).toBe(200)
     expect(json.verdict).toBe('PASS')
     expect(json.wouldMutateCount).toBe(0)
+  })
+
+  it('reserves the shadow row with unmeasured counters as null, not zero', async () => {
+    const { pgrest } = await import('@/lib/agent-mission-control/postgrest')
+    const mockPgrest = pgrest as unknown as { mock: { calls: unknown[][] } }
+    const res = await shadowPOST(req({}), ctx(COPILOT, CANDIDATE))
+    expect(res.status).toBe(200)
+    const insert = mockPgrest.mock.calls.find((c) => c[0] === 'POST' && c[1] === 'shadow_experiments')
+    expect(insert).toBeDefined()
+    const body = insert![2] as Record<string, unknown>
+    expect(body.sampled_run_count).toBeNull()
+    expect(body.agreement_rate).toBeNull()
+    expect(body.unsafe_proposal_count).toBeNull()
+    expect(body.would_mutate_count).toBeNull()
   })
 
   it('two concurrent shadow POSTs on the same candidate: exactly one succeeds, the other gets a structured 409', async () => {

@@ -585,8 +585,8 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     started_at: startedAt,
     finished_at: null,
     status: 'running',
-    pass_rate: 0,
-    total_cost_usd: 0,
+    pass_rate: null,
+    total_cost_usd: null,
     // Provenance (migration 0037): 'live' for a real billed run, or
     // 'deterministic-fixture' when the injected fixture produced this evidence.
     // The release gate refuses fixture rows for a production promotion.

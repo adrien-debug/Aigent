@@ -70,7 +70,8 @@ describe('proxy — les pages exigent une session', () => {
     try {
       const res = proxy(request('/agents', { headers: { 'x-amc-key': 'automation-key' } }))
       // La clé d'automatisation sert les routes d'opération, pas les écrans.
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(302)
+      expect(new URL(res.headers.get('location') ?? '', ORIGIN).pathname).toBe('/sign-in')
     } finally {
       delete process.env.AMC_API_KEY
     }
@@ -95,6 +96,26 @@ describe('proxy — /api/agent-ops/** répond 401 JSON, jamais une redirection',
     try {
       const res = proxy(request('/api/agent-ops/copilots', { headers: { 'x-amc-key': 'automation-key' } }))
       expect(res.status).toBe(200)
+    } finally {
+      delete process.env.AMC_API_KEY
+    }
+  })
+
+  it('refuse x-amc-key incorrect sur /api/agent-ops', () => {
+    process.env.AMC_API_KEY = 'automation-key'
+    try {
+      const res = proxy(request('/api/agent-ops/copilots', { headers: { 'x-amc-key': 'wrong-key' } }))
+      expect(res.status).toBe(401)
+    } finally {
+      delete process.env.AMC_API_KEY
+    }
+  })
+
+  it('n’accepte pas x-amc-key sur une route API hors /api/agent-ops', () => {
+    process.env.AMC_API_KEY = 'automation-key'
+    try {
+      const res = proxy(request('/api/quelque-chose', { headers: { 'x-amc-key': 'automation-key' } }))
+      expect(res.status).toBe(401)
     } finally {
       delete process.env.AMC_API_KEY
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 
 import { SESSION_COOKIE, decodeSession } from '@/lib/agent-mission-control/auth'
 
@@ -62,7 +63,10 @@ export function proxy(request: NextRequest) {
   // routes d'opération, jamais sur les pages (une page ne se lit pas avec un
   // header d'automatisation).
   const apiKey = process.env.AMC_API_KEY
-  if (apiKey && request.headers.get('x-amc-key') === apiKey) return NextResponse.next()
+  const providedKey = request.headers.get('x-amc-key')
+  if (path.startsWith('/api/agent-ops/') && apiKey && providedKey) {
+    if (constantTimeEqual(providedKey, apiKey)) return NextResponse.next()
+  }
 
   // Toute route d'API refuse en JSON. Renvoyer une redirection HTML à un
   // appelant d'API transformerait un 401 lisible en 200 trompeur.
@@ -81,6 +85,18 @@ export function proxy(request: NextRequest) {
 
 function readSessionCookie(request: NextRequest): string | undefined {
   return request.cookies.get(SESSION_COOKIE)?.value
+}
+
+/** Constant-time comparison of two UTF-8 strings; safe against length mismatches. */
+function constantTimeEqual(a: string, b: string): boolean {
+  try {
+    const aBuf = Buffer.from(a, 'utf8')
+    const bBuf = Buffer.from(b, 'utf8')
+    if (aBuf.length !== bBuf.length) return false
+    return timingSafeEqual(aBuf, bBuf)
+  } catch {
+    return false
+  }
 }
 
 export const config = {
