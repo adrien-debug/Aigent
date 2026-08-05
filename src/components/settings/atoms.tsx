@@ -12,14 +12,21 @@
  * pour agir. C'est la même position que celle déjà tenue, délibérément, par
  * l'onglet Télémétrie de `/runtime`.
  *
- * Les statuts passent par les jetons `--aig-*` via `SeverityChip` : une seule
- * autorité de statut sur l'écran, et la couleur n'est jamais seule à porter le
- * sens — l'état est toujours écrit en toutes lettres.
+ * Les statuts passent par `Badge` Catalyst via `SEVERITY_BADGE_COLOR` : une
+ * seule autorité visuelle de statut, et la couleur n'est jamais seule à porter
+ * le sens — l'état est toujours écrit en toutes lettres.
  */
 import type { ReactNode } from 'react'
 
-import { SeverityChip, type SeverityTone } from '@/components/surface-primitives'
+import { Badge } from '@/components/ui/badge'
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from '@/components/ui/description-list'
+import { Code, Text } from '@/components/ui/text'
 import type { SettingsConfigStatus } from '@/lib/agent-mission-control/settings-posture'
+import { SEVERITY_BADGE_COLOR, type SeverityTone } from '@/lib/ui/severity-badge'
 
 /**
  * Les quatre statuts du contrat, traduits une seule fois.
@@ -52,9 +59,9 @@ const STATUS_MEANING: Record<SettingsConfigStatus, string> = {
 
 export function StatusChip({ status }: Readonly<{ status: SettingsConfigStatus }>) {
   return (
-    <SeverityChip tone={STATUS_TONE[status]} title={STATUS_MEANING[status]}>
+    <Badge color={SEVERITY_BADGE_COLOR[STATUS_TONE[status]]} title={STATUS_MEANING[status]}>
       {STATUS_LABEL[status]}
-    </SeverityChip>
+    </Badge>
   )
 }
 
@@ -79,25 +86,20 @@ export function CapabilityRow({
   children?: ReactNode
 }>) {
   return (
-    // `<dt>` puis `<dd>` en enfants DIRECTS du `<dl>` appelant — c'est la seule
-    // nesting valide, et celle qui permet à un lecteur d'écran d'associer la
-    // capacité à son état. Un `<div>` intercalaire (ou un `<dd>` posé à côté du
-    // `<dt>` comme un frère décoratif) casse cette association : la structure
-    // paraîtrait correcte à l'œil et ne dirait plus rien à l'oreille.
-    <div className="aig-line-soft border-t px-4 py-3 first:border-t-0">
-      <dl className="min-w-0">
-        <dt className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="aig-text min-w-0 truncate font-medium">{label}</span>
+    <div className="border-t border-zinc-950/5 px-4 py-3 first:border-t-0 dark:border-white/5">
+      <DescriptionList className="min-w-0 sm:grid-cols-1">
+        <DescriptionTerm className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-none pt-0 sm:border-none sm:py-0">
+          <span className="min-w-0 truncate font-medium text-zinc-950 dark:text-white">{label}</span>
           <StatusChip status={status} />
-        </dt>
-        <dd className="mt-1 min-w-0">
-          <p className="aig-text-muted text-sm">{message}</p>
+        </DescriptionTerm>
+        <DescriptionDetails className="min-w-0 border-none pt-1 pb-0 sm:border-none sm:py-0">
+          <Text>{message}</Text>
           {children}
-          <p className="aig-text-faint mt-1 text-xs">
-            Source&nbsp;: <code className="aig-text-faint">{provenance}</code>
-          </p>
-        </dd>
-      </dl>
+          <Text className="mt-1 text-xs">
+            Source&nbsp;: <Code>{provenance}</Code>
+          </Text>
+        </DescriptionDetails>
+      </DescriptionList>
     </div>
   )
 }
@@ -113,18 +115,15 @@ export function CapabilityRow({
 export function EndpointLine({ endpoint }: Readonly<{ endpoint: string | null }>) {
   if (endpoint === null) {
     return (
-      <p className="aig-text-faint mt-1 text-xs">
+      <Text className="mt-1 text-xs">
         Aucune cible résolue — l’endpoint n’est pas déterminable dans cet environnement.
-      </p>
+      </Text>
     )
   }
   return (
-    <p className="aig-text-faint mt-1 min-w-0 truncate text-xs">
-      Cible&nbsp;:{' '}
-      <code className="aig-text-muted" title={endpoint}>
-        {endpoint}
-      </code>
-    </p>
+    <Text className="mt-1 min-w-0 truncate text-xs">
+      Cible&nbsp;: <Code title={endpoint}>{endpoint}</Code>
+    </Text>
   )
 }
 
@@ -150,14 +149,12 @@ export function EnvVarNames({ names }: Readonly<{ names: readonly string[] }>) {
     // qui rend la surface inutilisable là où elle est censée dire quoi
     // renseigner.
     <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-      <span className="aig-text-faint text-xs">Variables consultées&nbsp;:</span>
+      <Text className="text-xs">Variables consultées&nbsp;:</Text>
       {names.map((name) => (
-        <code key={name} className="aig-text-muted min-w-0 break-all text-xs" title={ENV_PRESENCE_TITLE}>
+        <Code key={name} className="min-w-0 break-all" title={ENV_PRESENCE_TITLE}>
           {name}
-        </code>
+        </Code>
       ))}
     </div>
   )
 }
-
-

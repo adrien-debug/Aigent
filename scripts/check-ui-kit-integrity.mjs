@@ -55,10 +55,12 @@ const KIT_META = new Set(['README.md', 'index.ts'])
  * consomme. Retirer un export d'ici est une décision de revue, pas un accident.
  */
 const REQUIRED = {
+  'alert.tsx': ['Alert', 'AlertTitle', 'AlertDescription', 'AlertBody', 'AlertActions'],
   'avatar.tsx': ['Avatar'],
   'badge.tsx': ['Badge'],
   'button.tsx': ['Button', 'TouchTarget'],
   'checkbox.tsx': ['Checkbox', 'CheckboxField'],
+  'description-list.tsx': ['DescriptionList', 'DescriptionTerm', 'DescriptionDetails'],
   'dialog.tsx': ['Dialog', 'DialogActions', 'DialogBody', 'DialogDescription', 'DialogTitle'],
   'divider.tsx': ['Divider'],
   'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Label'],
@@ -68,6 +70,9 @@ const REQUIRED = {
   // clair. La gate a signalé l'écart d'elle-même — c'est exactement son rôle.
   'input.tsx': ['Input'],
   'link.tsx': ['Link'],
+  // Déployé 2026-08-06 — Catalyst select amont ; remplace les <select> natifs
+  // de runs-filter-bar et queue-console (DESIGN_DOCTRINE §3).
+  'select.tsx': ['Select'],
   'sidebar.tsx': [
     'Sidebar',
     'SidebarBody',

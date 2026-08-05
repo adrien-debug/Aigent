@@ -119,7 +119,7 @@ export default function SignInForm({ returnTo }: Readonly<{ returnTo: string }>)
 
       <Button
         type="submit"
-        className="aig-btn-accent w-full justify-center"
+        className="w-full justify-center"
         disabled={submitting || password.length === 0}
       >
         {submitting ? 'Connexion…' : 'Ouvrir une session'}

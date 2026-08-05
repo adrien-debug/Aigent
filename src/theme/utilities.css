@@ -57,60 +57,7 @@
   color: var(--aig-accent);
 }
 
-/*
- * BOUTON D'ACTION PRINCIPALE — cuivre.
- *
- * DEUX PIÈGES, tous deux constatés au rendu et non déduits :
- *
- * 1. `--btn-border` PORTE LE FOND en thème clair. Catalyst n'applique
- *    `bg-(--btn-bg)` que sous `dark:` ; en clair l'aplat vient de
- *    `bg-(--btn-border)` plus un `::before` en `--btn-bg`. Les deux variables
- *    doivent donc porter le cuivre.
- *
- * 2. SANS `color=`, `<Button>` retombe sur sa variante `dark/zinc`, qui pose
- *    `[--btn-bg:var(--color-zinc-900)]` — une classe utilitaire de MÊME
- *    spécificité que la nôtre, écrite plus loin dans la feuille, donc gagnante.
- *    Le bouton rendait noir malgré des variables correctes. `.aig-btn-accent`
- *    doublé porte la spécificité à (0,2,0) et reprend la main sans que le kit
- *    soit modifié.
- */
-@utility aig-btn-accent {
-  --btn-hover-overlay: color-mix(in oklab, black 10%, transparent);
-  --btn-icon: white;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.aig-btn-accent.aig-btn-accent {
-  --btn-bg: var(--aig-accent);
-  --btn-border: var(--aig-accent);
-  /* Blanc EXPLICITE : le texte est posé sur l'aplat cuivre, pas sur le canvas
-     du thème — `--aig-text` y serait du graphite sur cuivre (2.4:1). */
-  color: white;
-}
-
-.aig-btn-accent.aig-btn-accent:hover {
-  --btn-bg: color-mix(in oklab, var(--aig-accent) 88%, black);
-  --btn-border: color-mix(in oklab, var(--aig-accent) 88%, black);
-}
-
-/*
- * L'anneau de focus se pose SUR LE CANVAS, pas sur le bouton.
- *
- * L'anneau était un cuivre éclairci, à 2 px d'offset donc entièrement dans le
- * canvas — mais mesuré à 1:1 contre le bouton cuivre au moment où le navigateur
- * le compose. Un anneau doit contraster avec ce qui l'entoure : sur une surface
- * claire, c'est le graphite du texte qui tranche (≈ 12:1), pas une nuance de
- * l'accent. Le liseré blanc intérieur le détache du bouton lui-même, de sorte
- * que l'anneau reste visible quel que soit le fond des deux côtés.
- */
-.aig-btn-accent.aig-btn-accent:focus-visible {
-  outline: 2px solid var(--aig-text);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--aig-base);
-}
+/* aig-btn-accent retiré (2026-08-06) — CTA = Button Catalyst natif, sans fork couleur. */
 
 @utility aig-link-accent {
   color: var(--aig-accent);
@@ -263,51 +210,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-@utility aig-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-radius: var(--radius-md);
-  padding: 0.125rem 0.375rem;
-  font-size: 0.75rem;
-  line-height: 1.25rem;
-  font-weight: 500;
-}
-
-/* Tons de sévérité sur fond clair — le texte est descendu à 52 % de la teinte
- * pure. Les teintes de `--aig-severity-*` sont calibrées pour ÉMETTRE sur du
- * graphite ; posées telles quelles sur un pastel clair, l'ambre tombait à
- * 4.48:1. Le fond garde la teinte à 12 %, le texte porte le contraste.
- */
-@utility aig-chip-good {
-  background-color: color-mix(in oklab, var(--aig-severity-good) 12%, transparent);
-  color: color-mix(in oklab, var(--aig-severity-good) 52%, black);
-}
-
-@utility aig-chip-running {
-  background-color: color-mix(in oklab, var(--aig-severity-running) 12%, transparent);
-  color: color-mix(in oklab, var(--aig-severity-running) 52%, black);
-}
-
-@utility aig-chip-warn {
-  background-color: color-mix(in oklab, var(--aig-severity-warn) 12%, transparent);
-  color: color-mix(in oklab, var(--aig-severity-warn) 52%, black);
-}
-
-@utility aig-chip-blocked {
-  background-color: color-mix(in oklab, var(--aig-severity-blocked) 12%, transparent);
-  color: color-mix(in oklab, var(--aig-severity-blocked) 52%, black);
-}
-
-@utility aig-chip-bad {
-  background-color: color-mix(in oklab, var(--aig-severity-bad) 12%, transparent);
-  color: color-mix(in oklab, var(--aig-severity-bad) 52%, black);
-}
-
-@utility aig-chip-neutral {
-  background-color: var(--aig-line-soft);
-  color: var(--aig-text-muted);
-}
+/* aig-chip* retiré (2026-08-06) — sévérité = Badge Catalyst via
+ * `src/lib/ui/severity-badge.ts`. Ne pas réintroduire une 2ᵉ grammaire. */
 
 @utility aig-callout {
   border-left: var(--border-width-default) solid var(--aig-line);

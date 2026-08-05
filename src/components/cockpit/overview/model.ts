@@ -3,7 +3,7 @@
  */
 import type { ActionItem, ActionItemKind, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import { QUEUE_KIND_LABEL } from '@/lib/agent-mission-control/operator-queue'
-import type { SeverityTone } from '@/components/surface-primitives'
+import type { SeverityTone } from '@/lib/ui/severity-badge'
 
 const ACTION_ITEM_TONE: Record<ActionItemKind, SeverityTone> = {
   architect_approval: 'warn',

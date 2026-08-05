@@ -3,10 +3,22 @@
  * Les écrans continuent d'importer les fichiers individuels ; ce barrel
  * sert à vérifier que l'inventaire des exports reste complet.
  */
+export {
+  Alert,
+  AlertActions,
+  AlertBody,
+  AlertDescription,
+  AlertTitle,
+} from './alert'
 export { Avatar } from './avatar'
 export { Badge } from './badge'
 export { Button, TouchTarget } from './button'
 export { Checkbox, CheckboxField } from './checkbox'
+export {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from './description-list'
 export {
   Dialog,
   DialogActions,
@@ -19,6 +31,7 @@ export { Description, ErrorMessage, Field, Label } from './fieldset'
 export { Heading, Subheading } from './heading'
 export { Input } from './input'
 export { Link } from './link'
+export { Select } from './select'
 export {
   Sidebar,
   SidebarBody,

@@ -1,24 +1,23 @@
 /**
- * Primitives de rendu produit — grammaire `aig-*` uniquement.
+ * Compositions Catalyst pour les surfaces produit — pas de grammaire `aig-chip`.
  *
- * À utiliser DANS `aig-inset` : pas de `Text`/`Strong`/`Badge` Catalyst ici.
- * Le kit reste pour le chrome (dialogs, forms) ; la donnée parle `--aig-*`
- * et `--aig-severity-*`.
+ * Une seule autorité visuelle de statut : `Badge`. `SeverityChip` n’est qu’un
+ * alias mince (blast radius) qui rend `Badge` via `SEVERITY_BADGE_COLOR`.
  */
-import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
-export type SeverityTone = 'good' | 'running' | 'warn' | 'blocked' | 'bad' | 'neutral'
+import { Badge } from '@/components/ui/badge'
+import { Divider } from '@/components/ui/divider'
+import { Subheading } from '@/components/ui/heading'
+import { Code, Strong, Text } from '@/components/ui/text'
+import {
+  SEVERITY_BADGE_COLOR,
+  type SeverityTone,
+} from '@/lib/ui/severity-badge'
 
-const CHIP_TONE: Record<SeverityTone, string> = {
-  good: 'aig-chip-good',
-  running: 'aig-chip-running',
-  warn: 'aig-chip-warn',
-  blocked: 'aig-chip-blocked',
-  bad: 'aig-chip-bad',
-  neutral: 'aig-chip-neutral',
-}
+export type { SeverityTone }
 
+/** Alias temporaire — rend `Badge` Catalyst, pas `aig-chip`. */
 export function SeverityChip({
   tone,
   title,
@@ -31,9 +30,9 @@ export function SeverityChip({
   className?: string
 }>) {
   return (
-    <span title={title} className={clsx('aig-chip', CHIP_TONE[tone], className)}>
+    <Badge color={SEVERITY_BADGE_COLOR[tone]} title={title} className={className}>
       {children}
-    </span>
+    </Badge>
   )
 }
 
@@ -44,9 +43,9 @@ export function SurfaceStat({
 }: Readonly<{ label: string; value: ReactNode; hint?: string }>) {
   return (
     <div className="min-w-0">
-      <p className="aig-text-faint truncate text-xs">{label}</p>
-      <p className="aig-text mt-0.5 truncate tabular-nums font-medium">{value}</p>
-      {hint ? <p className="aig-text-faint mt-0.5 truncate text-xs">{hint}</p> : null}
+      <Text className="truncate text-xs">{label}</Text>
+      <Strong className="mt-0.5 block truncate tabular-nums">{value}</Strong>
+      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
     </div>
   )
 }
@@ -67,11 +66,13 @@ export function SurfaceSection({
   return (
     <section className={className}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="aig-h3 truncate">{title}</h3>
-        {hint ? <p className="aig-text-faint truncate text-3xs">{hint}</p> : null}
+        <Subheading level={3} className="truncate">
+          {title}
+        </Subheading>
+        {hint ? <Text className="truncate text-xs">{hint}</Text> : null}
         {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
       </div>
-      <div className="aig-hairline my-2" />
+      <Divider soft className="my-2" />
       {children}
     </section>
   )
@@ -79,8 +80,8 @@ export function SurfaceSection({
 
 export function SurfaceCallout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <div className="aig-callout">
-      <p className="aig-text-muted text-sm">{children}</p>
+    <div className="rounded-lg border border-zinc-950/10 p-3 dark:border-white/10">
+      <Text>{children}</Text>
     </div>
   )
 }
@@ -99,10 +100,10 @@ export function SurfaceMetaRow({
 }>) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className="aig-text min-w-0 truncate font-medium">{label}</span>
-      {id ? <code className="aig-text-muted text-xs">{id}</code> : null}
+      <Text className="min-w-0 truncate font-medium text-zinc-950 dark:text-white">{label}</Text>
+      {id ? <Code>{id}</Code> : null}
       {chips}
-      {meta ? <span className="aig-text-faint text-xs">{meta}</span> : null}
+      {meta ? <Text className="text-xs">{meta}</Text> : null}
     </div>
   )
 }

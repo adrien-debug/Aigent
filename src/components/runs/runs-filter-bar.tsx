@@ -4,12 +4,11 @@
  * Barre de filtres de `/runs` — Agent, Projet, et le geste de remise à zéro.
  *
  * POURQUOI CE COMPOSANT EST CLIENT, alors que tout le reste de l'écran est
- * serveur. Le kit rend un `<a>` NU (`ui/link.tsx` porte encore le TODO
- * d'intégration au routeur Catalyst) : un changement de filtre passé par un lien
- * du kit provoquerait une navigation document complète — écran blanc, scroll
- * perdu, sélection de run perdue. `useRouter().push()` fait la même navigation
- * côté client, en conservant l'arbre React monté. Le kit n'est pas modifié : il
- * est hors périmètre, et le contourner ICI est local et réversible.
+ * serveur. Un changement de filtre passé par un lien provoquerait une
+ * navigation document complète — écran blanc, scroll perdu, sélection de run
+ * perdue. `useRouter().push()` fait la même navigation côté client, en
+ * conservant l'arbre React monté. Le `Link` kit est branché sur `next/link`
+ * (soft nav) ; ici on pousse l'URL pour préserver l'état client local.
  *
  * CE QU'IL NE FAIT PAS. Il ne filtre rien. Il n'a aucune copie de la liste de
  * runs, aucun `useState` de résultats, aucun second `applyRunsFilters`. Il écrit
@@ -26,6 +25,8 @@
 import { useId } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import {
   buildRunsHref,
   hasActiveFilters,
@@ -36,14 +37,7 @@ import {
 export type FilterOption = Readonly<{ id: string; name: string }>
 
 /**
- * Un `<select>` natif plutôt qu'un `Listbox` du kit.
- *
- * Le kit n'exporte aucune primitive de sélection (`ui/index.ts` : Avatar, Badge,
- * Button, Checkbox, Dialog, Divider, Fieldset, Heading, Input, Link, Sidebar,
- * Table, Text, Textarea). L'ordre de préemption de `DESIGN_DOCTRINE.md` §3
- * demande de réutiliser AVANT de créer — ici il n'y a rien à réutiliser, et un
- * `<select>` natif reste supérieur à un faux menu maison : clavier, lecteur
- * d'écran et sélecteur natif mobile fonctionnent sans code.
+ * Select Catalyst (`ui/select`) — ordre DESIGN_DOCTRINE §3.
  *
  * Le `<label>` est réel et lié par `htmlFor` : un `placeholder` disparaît à la
  * frappe et ne nomme pas un champ (`DESIGN_DOCTRINE.md` §7).
@@ -80,11 +74,11 @@ function FilterSelect({
       <label htmlFor={id} className="aig-text-faint shrink-0 text-2xs tracking-[0.14em] uppercase">
         {label}
       </label>
-      <select
+      <Select
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="aig-raised aig-text min-w-0 max-w-[16ch] truncate rounded-md border border-(--aig-line-soft) px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--aig-accent)"
+        className="min-w-0 max-w-[16ch]"
       >
         <option value="">{emptyLabel}</option>
         {orphan ? <option value={value}>{value} (hors fenêtre)</option> : null}
@@ -93,7 +87,7 @@ function FilterSelect({
             {option.name}
           </option>
         ))}
-      </select>
+      </Select>
     </span>
   )
 }
@@ -147,13 +141,14 @@ export default function RunsFilterBar({
         refuse déjà par ailleurs (aucun bouton de mutation inerte).
       */}
       {active ? (
-        <button
+        <Button
           type="button"
+          plain
           onClick={() => router.push(buildRunsHref({ ...filters, agent: '', project: '' }, selectedRunId))}
-          className="aig-accent rounded-md px-2 py-1 text-xs font-medium transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--aig-accent)"
+          className="aig-accent text-xs font-medium"
         >
           Voir tous les runs
-        </button>
+        </Button>
       ) : null}
     </div>
   )

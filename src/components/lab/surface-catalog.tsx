@@ -193,10 +193,10 @@ export default function SurfaceCatalog() {
 
         <Row title="Actions" hint="hover et focus au clavier">
           <div className="aig-surface-elevated flex flex-wrap items-center gap-3 rounded-lg p-4">
-            <Button className="aig-btn-accent">Action principale</Button>
+            <Button>Action principale</Button>
             <Button outline>Secondaire</Button>
             <Button plain>Tertiaire</Button>
-            <Button disabled className="aig-btn-accent">
+            <Button disabled>
               Désactivée
             </Button>
             <a href="#surface-catalog" className="aig-link-accent text-sm">
@@ -412,7 +412,7 @@ export default function SurfaceCatalog() {
                   une vraie ombre.
                 </p>
                 <div className="mt-1 flex gap-2">
-                  <Button className="aig-btn-accent">Promouvoir</Button>
+                  <Button>Promouvoir</Button>
                   <Button outline>Annuler</Button>
                 </div>
               </div>

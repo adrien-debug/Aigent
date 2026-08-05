@@ -10,8 +10,10 @@ import {
   SurfaceMetaRow,
   SurfaceSection,
   SurfaceStat,
-  type SeverityTone,
 } from '@/components/surface-primitives'
+import { Badge } from '@/components/ui/badge'
+import { Code, Text } from '@/components/ui/text'
+import { SEVERITY_BADGE_COLOR, type SeverityTone } from '@/lib/ui/severity-badge'
 import {
   PROVIDER_WIRING_LABEL,
   PROVIDER_WIRING_MEANING,
@@ -36,9 +38,12 @@ const WIRING_TONE: Record<ProviderWiring, SeverityTone> = {
 
 export function ProviderWiringChip({ wiring }: Readonly<{ wiring: ProviderWiring }>) {
   return (
-    <SeverityChip tone={WIRING_TONE[wiring]} title={PROVIDER_WIRING_MEANING[wiring]}>
+    <Badge
+      color={SEVERITY_BADGE_COLOR[WIRING_TONE[wiring]]}
+      title={PROVIDER_WIRING_MEANING[wiring]}
+    >
       {PROVIDER_WIRING_LABEL[wiring]}
-    </SeverityChip>
+    </Badge>
   )
 }
 
@@ -58,9 +63,9 @@ export function SurfaceLoaded<T>({
           reason="unread"
           detail={`${what} n’a pas pu être lu. Rien n’est listé : une liste vide se lirait comme « il n’y a rien », ce qui n’est pas ce qui est su.`}
         />
-        <p className="aig-text-faint truncate text-center text-xs" title={loaded.reason}>
+        <Text className="truncate text-center text-xs" title={loaded.reason}>
           {loaded.reason}
-        </p>
+        </Text>
       </div>
     )
   }
@@ -73,18 +78,18 @@ const ENV_PRESENCE_TITLE =
 export function EnvVarList({ names }: Readonly<{ names: readonly string[] }>) {
   if (names.length === 0) {
     return (
-      <p className="aig-text-faint mt-1.5 text-xs">
+      <Text className="mt-1.5 text-xs">
         Aucune variable d’environnement — il n’y a rien à configurer, il faudrait du code.
-      </p>
+      </Text>
     )
   }
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      <span className="aig-text-faint text-xs">Variables consultées :</span>
+      <Text className="text-xs">Variables consultées :</Text>
       {names.map((name) => (
-        <code key={name} className="aig-text-muted text-xs" title={ENV_PRESENCE_TITLE}>
+        <Code key={name} title={ENV_PRESENCE_TITLE}>
           {name}
-        </code>
+        </Code>
       ))}
     </div>
   )

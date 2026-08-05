@@ -53,29 +53,6 @@ type NoteProps = {
   children?: ReactNode
 }
 
-/**
- * Le liseré et le fond d'un encadré, par ton.
- *
- * Les trois tons PORTEURS DE SENS gardent leur teinte — et `structural` en
- * particulier : le bleu de l'inconnue structurelle est la décision documentée en
- * tête de ce fichier, pas une couleur de surface. Le ton NEUTRE, lui, n'affirmait
- * rien : sa paire claire/sombre était une décision de surface que la grammaire
- * nomme mieux (`aig-raised` = ce qui ressort du fond, `aig-line` = son liseré).
- * Le scope `dark:` local disparaît : le document est sombre depuis `layout.tsx`.
- */
-function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
-  // La teinte « bloque » vient du canon (`SEVERITY.bad`), plus d'une copie en
-  // dur : elle etait recopiee a l'identique dans DEUX fichiers d'atomes, ce qui
-  // fait deux endroits a corriger le jour ou le canon bouge — et deux chances
-  // de n'en corriger qu'un.
-  if (tone === 'blocked')
-    return 'border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_5%,transparent)]'
-  if (tone === 'warn')
-    return 'border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_5%,transparent)]'
-  if (tone === 'structural') return 'border-[color-mix(in_oklab,var(--aig-severity-running)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-running)_5%,transparent)]'
-  return 'aig-raised aig-line'
-}
-
 function sandboxCheckTitle(status: SandboxCheckStatus, reason?: string): string | undefined {
   if (status !== 'skipped') return reason
   const suffix = reason ? ' (' + reason + ')' : ''
@@ -276,13 +253,12 @@ export function DimensionBadge({ status }: Readonly<DimensionBadgeProps>) {
 /**
  * Un encadré d'information — ni erreur ni succès.
  *
- * Le ton `structural` est propre à cette surface : il porte les deux inconnues
- * du produit. Il n'est ni `warn` ni `blocked`, parce qu'il n'y a rien à corriger.
+ * Surface zinc Catalyst uniquement — le `tone` (y compris `structural`) reste
+ * accepté pour compat API mais ne colore plus l'encadré.
  */
-export function Note({ tone = 'info', title, children }: Readonly<NoteProps>) {
-  const ring = noteRingClass(tone)
+export function Note({ title, children }: Readonly<NoteProps>) {
   return (
-    <div className={'rounded-md border px-3 py-2 ' + ring}>
+    <div className="rounded-lg border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/5">
       <Strong className="block">{title}</Strong>
       {children ? <Text className="mt-0.5">{children}</Text> : null}
     </div>

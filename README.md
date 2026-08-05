@@ -54,9 +54,9 @@ partir du **2026-07-31**.
 | Élément | État |
 |---|---|
 | Shell | `src/components/app-shell.tsx` — graphite continu (`--aig-*`), rail creux + zone de travail un palier au-dessus |
-| CTA / liens accent | `aig-btn-accent` et `aig-link-accent` dans `src/theme/utilities.css` — posés sur `Button` / `Link` Catalyst, pas de fork `ui/` |
+| CTA / liens accent | `Button` Catalyst natif ; `aig-link-accent` pour les liens texte (pas de fork `ui/`) |
 | `/agents` | Page pilote recomposée en liste produit + détail éditorial, sans grille de panneaux |
-| Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; `Link` branché sur `next/link` (Catalyst + App Router) ; code du repo, linté (`src/components/ui/README.md`) |
+| Kit UI | `src/components/ui/` — **17 primitives** Catalyst (dont `Select`, `Alert`, `DescriptionList`), toutes consommées ; `Link` branché sur `next/link` (App Router) ; sévérité produit → `Badge` via `src/lib/ui/severity-badge.ts` (plus de `aig-chip`) ; code du repo, linté (`src/components/ui/README.md`) |
 | Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
 | Console `/admin` | **Absente** et interdite de retour |
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
@@ -83,8 +83,8 @@ Trois gates encadrent le front, avec responsabilités séparées :
   structurante, pas de couleur littérale hors thème dans les écrans produit.
   Exclusions explicites : `Composer`/`Lab`, prototypes, visualisations externes,
   fichiers globaux de tokens.
-- `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
-  primitives et leurs 43 exports consommés, la cible tactile de 44 px en
+- `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 17
+  primitives et leurs exports consommés, la cible tactile de 44 px en
   contexte tactile, les marqueurs d'accessibilité, zéro couleur Tailwind brute,
   et depuis **AIGENT-DS-REFACTOR-002** l'usage des jetons DS (radius 4/8/16,
   `shadow-(--shadow-*)`, pas d'`oklch()` littéral). Barrel `ui/index.ts` vérifié
@@ -132,8 +132,8 @@ State the restriction, not the headline:
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
 - **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons, `@xyflow/react`
   (graphe runtime), `motion` (animations ; graphes cockpit en SVG maison), `clsx`.
-  Kit `src/components/ui/` : 14 primitives maison, issues d'un
-  fork Catalyst mais **plus réalignées sur l'amont** — c'est du code du repo,
+  Kit `src/components/ui/` : 17 primitives Catalyst (copie sélective depuis
+  `vendor/catalyst-ui-kit/`), `Link` Next.js, **sans** recolor `--aig-*` —
   linté et typé comme le reste.
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
   official LangGraph Agent Server. Mandatory runtime for every agent.
@@ -200,7 +200,7 @@ qu'elle mesure.
 | Je veux toucher… | Ça vit dans… |
 |---|---|
 | Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
-| Une primitive UI | `src/components/ui/` — couleurs en jetons `--aig-*`, puis regarder un écran qui la consomme |
+| Une primitive UI | `src/components/ui/` — **ne pas recolorer** (zinc Catalyst) ; jetons `--aig-*` sur les écrans |
 | La navigation | `src/components/navigation.ts` (source de vérité unique) |
 | La logique métier | `src/lib/agent-mission-control/` |
 | Une route API | `src/app/api/**` — server-only, fail-closed |
