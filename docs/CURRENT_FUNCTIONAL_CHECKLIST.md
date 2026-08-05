@@ -141,6 +141,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | PR #107 — tronçon aval + idempotence concurrente shadow/replay | `1ea80b91` | mergée — V2 créée, mesurée et laissée sans décision |
 | PR #108 — convergence post-merge : idempotence, sécurité, vérité des mesures | `b4eb8dd8` | mergée — corrections P0/P1 sans déploiement |
 | PR #109 — stabilisation documentaire (REPOSITORY_MAP, GLOSSARY, règle Cursor, decisions, corrections README) | `e6ff7abf` | mergée — documentaire, aucun delta fonctionnel |
+| PR #110 — Catalyst `Link` → `next/link` (soft nav App Router) | `9ca55169` | mergée — soft-nav prouvée localement ; CI `check + build` SUCCESS |
 
 **#103 est CLOSED, pas abandonnée.** Elle portait le même contenu que #105 mais
 visait `chore/aigent-checklist-refresh-001` ; GitHub l'a fermée
@@ -167,9 +168,7 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-| Mission | Branche | État |
-|---|---|---|
-| Catalyst `Link` → `next/link` (soft nav App Router) + fin des bypass `next/link` dans builder/projects | `mission/catalyst-next-link` | **En review** — PR [#110](https://github.com/adrien-debug/Aigent/pull/110) (`98455b1f`) ; `npm run check` PASS ; soft-nav Playwright `:3987` PASS (`/projects`, `/builder`) |
+**Vide après le merge de la PR #110.**
 
 ## Déployé
 
