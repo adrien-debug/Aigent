@@ -169,7 +169,7 @@ acquis : rien de cette section n'est vrai sur `main`.
 
 | Mission | Branche | État |
 |---|---|---|
-| Catalyst `Link` → `next/link` (soft nav App Router) + fin des bypass `next/link` dans builder/projects | `mission/catalyst-next-link` | **Preuve locale** — `npm run check` PASS, `tests/unit/catalyst-next-link.test.ts` PASS (2) ; soft-nav Playwright `:3987` PASS (`/projects`→détail, `/builder`→détail, 0 documentNav, marker JS survivant) ; captures `tmp/soft-nav-proof/` (gitignored) ; commit/push/PR en cours |
+| Catalyst `Link` → `next/link` (soft nav App Router) + fin des bypass `next/link` dans builder/projects | `mission/catalyst-next-link` | **En review** — PR [#110](https://github.com/adrien-debug/Aigent/pull/110) (`98455b1f`) ; `npm run check` PASS ; soft-nav Playwright `:3987` PASS (`/projects`, `/builder`) |
 
 ## Déployé
 
