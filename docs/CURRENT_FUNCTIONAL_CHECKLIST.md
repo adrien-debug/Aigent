@@ -168,15 +168,15 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**Branche locale `mission/catalyst-ds-audit-select` (2026-08-06)** — audit
+**Branche `mission/catalyst-ds-audit-select` → [PR #111](https://github.com/adrien-debug/Aigent/pull/111)** (`1c9b1ece`, 2026-08-06) — audit
 Catalyst : deps OK ; `Select`, `Alert`, `DescriptionList` déployés depuis
 `vendor/` → `ui/` (17 primitives) ; filtres `/runs` + `/actions` et burger
 mobile branchés sur le kit ; Heroicons sidebar en `/20/solid` ; CTA sans
 `aig-btn-accent` (Button Catalyst natif) ; `Note` qualification/delivery en zinc
 Catalyst ; `SeverityChip` / `aig-chip` remplacés par `Badge` via
 `SEVERITY_BADGE_COLOR` (`src/lib/ui/severity-badge.ts`) ; `surface-state`
-texte-only (plus d’art SVG/motion). **Codé ; pas encore de PR ni de preuve
-visuelle navigateur.**
+texte-only (plus d’art SVG/motion). **Codé + PR ouverte ; pas de preuve
+visuelle navigateur ni de merge.**
 
 ## Déployé
 
