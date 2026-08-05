@@ -167,7 +167,9 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**Vide après le merge de la PR #109.**
+| Mission | Branche | État |
+|---|---|---|
+| Catalyst `Link` → `next/link` (soft nav App Router) + fin des bypass `next/link` dans builder/projects | `mission/catalyst-next-link` | **Preuve locale** — `npm run check` PASS, `tests/unit/catalyst-next-link.test.ts` PASS (2) ; soft-nav Playwright `:3987` PASS (`/projects`→détail, `/builder`→détail, 0 documentNav, marker JS survivant) ; captures `tmp/soft-nav-proof/` (gitignored) ; commit/push/PR en cours |
 
 ## Déployé
 

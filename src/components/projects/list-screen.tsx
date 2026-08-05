@@ -5,11 +5,11 @@
  * rend. Aucune lecture ici.
  */
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Divider } from '@/components/ui/divider'
+import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import {
   AbsentMark,
