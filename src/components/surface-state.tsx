@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 
 import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
 export type SurfaceStateKind = 'loading' | 'empty' | 'not-configured' | 'unavailable' | 'error'
 
@@ -15,7 +16,7 @@ const LABEL: Record<SurfaceStateKind, string> = {
   loading: 'Chargement',
   empty: 'Rien à afficher',
   'not-configured': 'Surface non configurée',
-  unavailable: 'Indisponible',
+  unavailable: UNAVAILABLE_LABEL,
   error: 'Erreur',
 }
 
