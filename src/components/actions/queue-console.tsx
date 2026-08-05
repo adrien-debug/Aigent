@@ -47,6 +47,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Description, Label } from '@/components/ui/fieldset'
+import { Select } from '@/components/ui/select'
 import { Strong, Text } from '@/components/ui/text'
 import { Unavailable } from '@/components/cockpit/primitives'
 import {
@@ -124,14 +125,11 @@ function FilterSelect({
   if (!isDiscriminating(values)) return null
 
   return (
-    // Le `<select>` est natif — le kit n'en fournit pas. `aig-panel` lui donne
-    // le fond, le liseré et le rayon du produit ; `aig-line` monte le trait
-    // d'un cran parce qu'un contrôle cliquable doit se distinguer d'un panneau
-    // passif. La paire claire/sombre codée en dur a disparu : le document est
-    // sombre au niveau de `<html>`, la branche claire ne servait plus.
-    <select
+    // Select Catalyst (`ui/select`) — DESIGN_DOCTRINE §3. Densité compacte
+    // via className sur le contrôle ; pas de fork du kit.
+    <Select
       aria-label={label}
-      className="aig-panel aig-line px-3 py-1.5 text-sm"
+      className="min-w-[12ch] max-w-[24ch]"
       value={selected ?? ''}
       onChange={(event) => onSelect(event.target.value || null)}
     >
@@ -141,7 +139,7 @@ function FilterSelect({
           {resolveLabel(value)}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 

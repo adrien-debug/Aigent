@@ -48,7 +48,7 @@ import {
   SignalIcon,
   Squares2X2Icon,
   WrenchScrewdriverIcon,
-} from '@heroicons/react/24/outline'
+} from '@heroicons/react/20/solid'
 
 export type NavEntry = {
   /** Libellé affiché dans la sidebar ET titre de la surface. Un seul mot d'ordre. */

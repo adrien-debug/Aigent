@@ -12,30 +12,32 @@ classes `aig-*` sur les écrans.
 La nav pose `dark aig-dark` en îlot (`app-shell.tsx`) ; le document reste clair
 (`layout.tsx`).
 
-## Primitives consommées par le produit (14)
+## Primitives consommées par le produit (17)
 
 | Fichier | Exports utilisés |
 |---|---|
 | `text` | `Text`, `Strong`, `TextLink`, `Code` |
-| `badge` | `Badge`, `BadgeButton` |
+| `badge` | `Badge` |
 | `heading` | `Heading`, `Subheading` |
 | `divider` | `Divider` |
 | `link` | `Link` (branché sur `next/link` — soft nav App Router) |
 | `avatar` | `Avatar` |
 | `button` | `Button`, `TouchTarget` |
 | `dialog` | `Dialog`, `DialogActions`, `DialogBody`, `DialogDescription`, `DialogTitle` |
+| `alert` | `Alert`, `AlertTitle`, `AlertDescription`, `AlertBody`, `AlertActions` |
 | `textarea` | `Textarea` |
 | `input` | `Input` |
-| `fieldset` | `Field`, `Label`, `Description`, … |
-| `checkbox` | `Checkbox`, `CheckboxField`, `CheckboxGroup` |
+| `select` | `Select` |
+| `fieldset` | `Field`, `Label`, `Description`, `ErrorMessage` |
+| `checkbox` | `Checkbox`, `CheckboxField` |
 | `table` | `Table`, … |
 | `sidebar` | `Sidebar`, `SidebarItem`, … |
+| `description-list` | `DescriptionList`, `DescriptionTerm`, `DescriptionDetails` |
 
 ## Primitives Catalyst additionnelles (dans `vendor/`, non déployées dans `ui/`)
 
-`alert`, `combobox`, `dropdown`, `listbox`, `navbar`, `pagination`, `radio`,
-`select`, `switch`, `description-list`, `auth-layout`, `sidebar-layout`,
-`stacked-layout`.
+`combobox`, `dropdown`, `listbox`, `navbar`, `pagination`, `radio`,
+`switch`, `auth-layout`, `sidebar-layout`, `stacked-layout`.
 
 ## Mise à jour depuis l'amont
 

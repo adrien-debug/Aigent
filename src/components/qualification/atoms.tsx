@@ -29,30 +29,6 @@ type NoteProps = {
   children?: ReactNode
 }
 
-/**
- * Le liseré et le fond d'un encadré, par ton.
- *
- * Les deux tons PORTEURS DE SENS (`blocked`, `warn`) gardent leur teinte : ici la
- * couleur double le mot, elle ne le remplace pas — c'est la règle de tête de
- * fichier. Le ton NEUTRE, lui, ne portait aucun sens : sa paire claire/sombre
- * (`bg-zinc-950/2.5 dark:bg-white/2.5`) était une décision de surface, et la
- * grammaire `aig-*` la nomme mieux — `aig-raised` est le rôle « ce qui ressort
- * du fond » et `aig-line` son liseré franc. Le scope `dark:` local est retiré :
- * le document entier est sombre depuis `layout.tsx`, la moitié claire ne se
- * rendait plus jamais.
- */
-function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
-  // La teinte « bloque » vient du canon (`SEVERITY.bad`), plus d'une copie en
-  // dur : elle etait recopiee a l'identique dans DEUX fichiers d'atomes, ce qui
-  // fait deux endroits a corriger le jour ou le canon bouge — et deux chances
-  // de n'en corriger qu'un.
-  if (tone === 'blocked')
-    return 'border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_5%,transparent)]'
-  if (tone === 'warn')
-    return 'border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_5%,transparent)]'
-  return 'aig-raised aig-line'
-}
-
 /* ─────────────────── Gate de release — trois états ─────────────────── */
 
 /* ─────────────────── Gate de promotion — quatre états ─────────────────── */
@@ -87,11 +63,12 @@ export function RunStatusBadge({ status }: Readonly<RunStatusBadgeProps>) {
  * Sert notamment à « une boucle est déjà ouverte » : c'est un FAIT du système,
  * garanti en base, pas une panne. Le rendre en rouge apprendrait à l'opérateur
  * qu'il a fait une bêtise alors qu'il a simplement rencontré un invariant.
+ * Surface zinc Catalyst uniquement — le `tone` reste accepté pour compat API
+ * mais ne colore plus l'encadré.
  */
-export function Note({ tone = 'info', title, children }: Readonly<NoteProps>) {
-  const ring = noteRingClass(tone)
+export function Note({ title, children }: Readonly<NoteProps>) {
   return (
-    <div className={'rounded-md border px-3 py-2 ' + ring}>
+    <div className="rounded-lg border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/5">
       <Strong className="block">{title}</Strong>
       {children ? <Text className="mt-0.5">{children}</Text> : null}
     </div>

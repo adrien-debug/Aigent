@@ -29,6 +29,7 @@ import clsx from 'clsx'
 
 import { MAIN_NAV_ENTRIES, activeNavHref } from '@/components/navigation'
 import { Avatar } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import {
   Sidebar,
   SidebarBody,
@@ -252,17 +253,18 @@ export function PageBody({
 
 function MobileNavButton({ onOpen }: Readonly<{ onOpen: () => void }>) {
   return (
-    <button
+    <Button
       type="button"
+      plain
       onClick={onOpen}
       aria-label="Ouvrir la navigation"
       // `aig-overlay` et non `aig-panel-raised` : le bouton flotte AU-DESSUS du
       // contenu qui défile dessous. Un panneau opaque s'y confondait avec une
       // carte de la page ; l'overlay est le seul rôle qui dit « je surnage ».
-      className="aig-overlay aig-line-soft fixed left-4 top-3 z-30 inline-flex size-10 items-center justify-center rounded-lg border lg:hidden"
+      className="aig-overlay aig-line-soft fixed left-4 top-3 z-30 size-10 !p-0 lg:hidden"
     >
       <OpenMenuIcon />
-    </button>
+    </Button>
   )
 }
 

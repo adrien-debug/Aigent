@@ -12,11 +12,11 @@ couches**, chacune avec un rôle écrit en commentaire dans son propre fichier.
 Le bug le plus fréquent n'est pas visuel, c'est un **mélange de couche** : un
 écran qui prend un composant de la mauvaise couche pour un usage qui en
 demandait une autre. Exemple réel trouvé sur `/` (Aperçu) le 2026-08-02 :
-`KpiStrip` et `blocks.tsx` utilisaient `Badge` (couche 1, Catalyst officiel,
-palette zinc neutre) pour afficher un état de sévérité produit ("Bloqué",
-"Attente"), alors que `SeverityChip` (couche 3, palette `--aig-severity-*`)
-existe précisément pour ça. Résultat : tous les badges de la page rendaient
-le même gris, l'information de gravité avait disparu du rendu.
+`KpiStrip` et `blocks.tsx` utilisaient `Badge` (palette zinc neutre) pour un
+état de sévérité sans map de ton — tous les badges rendaient le même gris.
+**Corrigé 2026-08-06** : une seule autorité visuelle = `Badge` Catalyst via
+`SEVERITY_BADGE_COLOR` (`src/lib/ui/severity-badge.ts`). La couche `aig-chip*` /
+`SeverityChip` art a été retirée.
 
 Ce guide donne l'arbre de décision pour ne pas refaire cette erreur.
 
@@ -41,11 +41,9 @@ modale, d'une table générique, d'un lien. Ne le modifie pas à la légère —
 cible tactile 44px, ou de marqueur d'accessibilité (focus ring,
 `forced-colors:`, `data-disabled:`).
 
-**Piège** : `Badge` fait partie de cette couche et sa palette (`red`,
-`amber`, `zinc`, `violet`...) est *disponible* — mais l'utiliser pour un
-statut produit court-circuite l'autorité de sévérité de la couche 3. Réserve
-`Badge`/`BadgeButton` à du contenu neutre non-métier (compteurs, tags
-génériques sans charge de gravité).
+**Piège** : ne pas inventer une 2ᵉ grammaire de pastilles (`aig-chip*`). Pour
+un statut produit, utiliser `Badge` avec `SEVERITY_BADGE_COLOR[tone]` — jamais
+une classe maison parallèle.
 
 ### Couche 2 — `src/theme/tokens.css` — les tokens, source de vérité des couleurs
 
@@ -69,29 +67,19 @@ en JS parce qu'elles voyagent hors CSS (props, SVG, `style` inline).
 `tokens.css` en garde un miroir CSS (`--aig-severity-*`) pour les cas CSS
 pur. **`status.ts` reste la source ; toute modification part de là.**
 
-### Couche 3 — `src/theme/utilities.css` + `src/components/surface-primitives.tsx` — la composition
+### Couche 3 — compositions de surface (Catalyst only)
 
-**Ce que c'est** : deux fichiers jumeaux.
-- `utilities.css` déclare les classes `@utility aig-*` (surfaces, textes,
-  hairlines, chips, boutons d'accent) qui consomment les tokens de la
-  couche 2.
-- `surface-primitives.tsx` expose les composants React qui portent cette
-  grammaire : `SeverityChip`, `SurfaceStat`, `SurfaceSection`,
-  `SurfaceCallout`, `SurfaceMetaRow`.
+**Ce que c'est (2026-08-06)** : `surface-primitives.tsx` compose **uniquement**
+des primitives Catalyst (`Badge`, `Text`, `Subheading`, `Divider`, `Code`).
+Le map `SeverityTone` → couleur Badge vit dans `src/lib/ui/severity-badge.ts`
+(données, pas un composant UI).
 
-**Règle d'or, écrite en tête de `surface-primitives.tsx`** : à utiliser
-**dans** `aig-inset` / la donnée produit — jamais de `Text`/`Strong`/`Badge`
-Catalyst mélangé ici. Le kit reste pour le chrome ; la donnée parle
-`--aig-*`/`--aig-severity-*`.
+**Retiré** : `aig-chip*`, `aig-btn-accent`, art SVG/motion de `surface-state`.
 
-**Quand l'utiliser** : dès qu'un élément porte une information de **sévérité
-ou de statut produit** (succès, en cours, attention, bloqué, échec) →
-`SeverityChip tone="good|running|warn|blocked|bad|neutral"`, jamais `Badge`.
-
-**Piège actif en ce moment** : `aig-chip-good`, `aig-chip-running`,
-`aig-chip-warn`, `aig-chip-blocked`, `aig-chip-bad` sont censés porter les 5
-teintes de `SEVERITY` mais rendent actuellement tous la même couleur
-d'accent dans `utilities.css` — écart ouvert, voir § Contrôles.
+**Quand l'utiliser** : `SeverityChip` n’est plus qu’un alias mince de `Badge`
+(blast radius) ; préférer `Badge color={SEVERITY_BADGE_COLOR[tone]}` à terme.
+`SurfaceStat` / `SurfaceSection` / `SurfaceCallout` / `SurfaceMetaRow` =
+compositions Catalyst, pas une 2ᵉ grammaire visuelle.
 
 ### Couche 4 — `src/components/cockpit/primitives.tsx` — le métier que Catalyst n'a pas
 
@@ -122,8 +110,8 @@ la charge de l'appelant.
    composant — la gate `check:production-visual-authority` le bloque.
 
 3. **C'est un statut/sévérité produit (run terminé, bloqué, échoué...) ?**
-   → Couche 3, `SeverityChip` avec le bon `tone`. Ne jamais utiliser `Badge`
-   Catalyst pour ça — sa palette n'est pas connectée à `SEVERITY`.
+   → `Badge color={SEVERITY_BADGE_COLOR[tone]}` (`src/lib/ui/severity-badge.ts`).
+   Pas de 2ᵉ grammaire `aig-chip*`.
 
 4. **La valeur peut être absente (`null`, pas encore mesurée) ?**
    → Couche 4, `NotMeasured`/`Unavailable`/`Fact`. Jamais un `0` ou une
@@ -131,10 +119,8 @@ la charge de l'appelant.
    données.
 
 5. **Rien de tout ça n'existe déjà dans les 4 couches ?**
-   → Composer avec ce qui existe (couche 1 + couche 3) dans le fichier
-   d'écran. Ne pas créer une 5e couche générique "juste pour cette page" :
-   si le besoin se répète sur un 2e écran, c'est le signal pour le monter en
-   primitive partagée (couche 3 ou 4 selon la nature), pas avant.
+   → Composer avec Catalyst (`src/components/ui/`) dans le fichier d'écran.
+   Ne pas créer une 5e couche générique "juste pour cette page".
 
 ## Contrôles réellement branchés — ce qu'ils vérifient et ce qu'ils ratent
 
@@ -142,23 +128,16 @@ Trois gates touchent ces couches, toutes dans `npm run check` :
 
 | Gate | Vérifie | Ne garantit PAS |
 |---|---|---|
-| `check:production-visual-authority` | Aucune couleur littérale hors `var(--aig-…)` sur les surfaces de production ; pas de redéfinition locale de `RUN_STATUS_COLOR` | Que deux mécanismes de couleur (ex. `aig-chip-*` vs `RUN_STATUS_COLOR`) restent synchronisés entre eux — c'est un point mort actuel, voir plus bas |
-| `check:ui-kit-integrity` | Les 14 primitives Catalyst existent avec leurs exports ; cible tactile 44px ; marqueurs a11y (focus ring, `forced-colors:`, `data-disabled:`) ; le kit n'est pas recoloré en `--aig-*` | Que les écrans utilisent le kit correctement, ni que les primitives fonctionnent visuellement — lit du texte, pas un rendu |
-| `check:no-legacy-design-governance` | L'ancienne doctrine démantelée (zéro-scroll, viewport lock, `check:ds`/`check:catalyst`) ne revient pas | Rien sur la cohérence des 4 couches actuelles |
+| `check:production-visual-authority` | Aucune couleur littérale hors `var(--aig-…)` sur les surfaces de production ; pas de redéfinition locale de `RUN_STATUS_COLOR` | Le rendu réel des Badge Catalyst vs tokens `--aig-severity-*` restants (SVG) |
+| `check:ui-kit-integrity` | Les 17 primitives Catalyst existent avec leurs exports ; cible tactile 44px ; marqueurs a11y ; le kit n'est pas recoloré en `--aig-*` | Que les écrans utilisent le kit correctement — lit du texte, pas un rendu |
+| `check:no-legacy-design-governance` | L'ancienne doctrine démantelée ne revient pas | Rien sur la cohérence des couches actuelles |
 
 **Aucune gate ne mesure le rendu.** Après avoir touché une de ces couches,
 ouvrir l'écran consommateur dans un navigateur reste le seul moyen de
 vérifier que ça se voit correctement.
 
-**Écart connu, non couvert par une gate** (constaté le 2026-08-02 sur `/`) :
-`aig-chip-good/running/warn/blocked/bad` dans `utilities.css` rendent tous la
-même couleur au lieu des 5 teintes de `SEVERITY` (`status.ts`), et
-`KpiStrip`/`blocks.tsx` utilisent `Badge color="zinc"` au lieu de
-`SeverityChip`. Aucune des trois gates ci-dessus ne l'attrape : la première
-ne vérifie pas la cohérence inter-mécanismes, la deuxième ne concerne que le
-kit Catalyst lui-même. Ce guide documente le problème ; sa correction est un
-choix produit distinct (bronze-only vs statuts multicolores), pas encore
-tranché.
+**Écart fermé (2026-08-06)** : `aig-chip*` et `aig-btn-accent` retirés ;
+sévérité = `Badge` + `SEVERITY_BADGE_COLOR` ; `surface-state` texte-only.
 
 ## Ce que ce guide n'est pas
 

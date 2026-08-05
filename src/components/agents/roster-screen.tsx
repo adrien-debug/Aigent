@@ -283,7 +283,7 @@ export default function AgentRosterScreen({
         title="Agents"
         description="La flotte en tête, la liste en dessous : l’essentiel pour décider quoi ouvrir, pas tout ce que le contrat sait."
         actions={
-          <Button className="aig-btn-accent" href="/builder">
+          <Button href="/builder">
             Nouveau copilot
           </Button>
         }

@@ -58,7 +58,7 @@ export default function CockpitOverview({
             <Button plain href="/runs">
               Voir les runs
             </Button>
-            <Button href="/actions" className="aig-btn-accent">
+            <Button href="/actions">
               File d’action
             </Button>
           </>

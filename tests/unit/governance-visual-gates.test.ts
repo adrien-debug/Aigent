@@ -100,6 +100,12 @@ function seedUiKitBase(root: string) {
   // lacune du décor et non sur le comportement qu'il prétend vérifier.
   put(root, 'src/components/ui/input.tsx', 'export function Input(){return <input className="focus-visible:ring-2"/>}\n')
   put(root, 'src/components/ui/link.tsx', 'export function Link(){return null}\n')
+  put(root, 'src/components/ui/select.tsx', 'export function Select(){return null}\n')
+  put(
+    root,
+    'src/components/ui/alert.tsx',
+    'export function Alert(){return null}\nexport function AlertActions(){return null}\nexport function AlertBody(){return null}\nexport function AlertDescription(){return null}\nexport function AlertTitle(){return null}\n',
+  )
   put(root, 'src/components/ui/navbar.tsx', 'export function Navbar(){return null}\n')
   put(root, 'src/components/ui/sidebar.tsx', 'export function Sidebar(){return null}\nexport function SidebarBody(){return null}\nexport function SidebarFooter(){return null}\nexport function SidebarHeader(){return null}\nexport function SidebarHeading(){return null}\nexport function SidebarItem(){return null}\nexport function SidebarLabel(){return null}\nexport function SidebarSection(){return null}\n')
   put(
