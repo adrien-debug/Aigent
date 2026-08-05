@@ -167,7 +167,9 @@ Erreur de séquencement, pas de perte de contenu.
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
 acquis : rien de cette section n'est vrai sur `main`.
 
-**Vide après le merge de la PR #109.**
+| Mission | Branche | État |
+|---|---|---|
+| Catalyst `Link` → `next/link` (soft nav App Router) + fin des bypass `next/link` dans builder/projects | `mission/catalyst-next-link` | **En review** — PR [#110](https://github.com/adrien-debug/Aigent/pull/110) (`98455b1f`) ; `npm run check` PASS ; soft-nav Playwright `:3987` PASS (`/projects`, `/builder`) |
 
 ## Déployé
 

@@ -9,7 +9,8 @@
 le graphite produit vit dans `src/theme/tokens.css`, `utilities.css` et les
 classes `aig-*` sur les écrans.
 
-`<html class="dark">` dans `layout.tsx` active le mode sombre natif de Catalyst.
+La nav pose `dark aig-dark` en îlot (`app-shell.tsx`) ; le document reste clair
+(`layout.tsx`).
 
 ## Primitives consommées par le produit (14)
 
@@ -19,31 +20,32 @@ classes `aig-*` sur les écrans.
 | `badge` | `Badge`, `BadgeButton` |
 | `heading` | `Heading`, `Subheading` |
 | `divider` | `Divider` |
-| `link` | `Link` |
+| `link` | `Link` (branché sur `next/link` — soft nav App Router) |
 | `avatar` | `Avatar` |
 | `button` | `Button`, `TouchTarget` |
 | `dialog` | `Dialog`, `DialogActions`, `DialogBody`, `DialogDescription`, `DialogTitle` |
 | `textarea` | `Textarea` |
-| `navbar` | `Navbar` |
+| `input` | `Input` |
 | `fieldset` | `Field`, `Label`, `Description`, … |
 | `checkbox` | `Checkbox`, `CheckboxField`, `CheckboxGroup` |
 | `table` | `Table`, … |
 | `sidebar` | `Sidebar`, `SidebarItem`, … |
 
-## Primitives Catalyst additionnelles (disponibles, non consommées)
+## Primitives Catalyst additionnelles (dans `vendor/`, non déployées dans `ui/`)
 
-`alert`, `combobox`, `dropdown`, `input`, `listbox`, `pagination`, `radio`,
+`alert`, `combobox`, `dropdown`, `listbox`, `navbar`, `pagination`, `radio`,
 `select`, `switch`, `description-list`, `auth-layout`, `sidebar-layout`,
 `stacked-layout`.
 
 ## Mise à jour depuis l'amont
 
 1. Décompresser le zip Tailwind Plus Catalyst
-2. Copier `catalyst-ui-kit/typescript/*.tsx` → `src/components/ui/`
-3. Ne pas toucher aux couleurs — `npm run check:ui-kit-integrity` refuse `--aig-*`
-4. Ouvrir un écran consommateur et vérifier le rendu (aucune gate ne mesure les pixels)
+2. Copier `catalyst-ui-kit/typescript/*.tsx` → `src/components/ui/` (sous-ensemble consommé)
+3. **Rebrancher `link.tsx` sur `next/link`** (le zip amont rend un `<a>` brut — voir
+   [docs Catalyst](https://catalyst.tailwindui.com/docs#client-side-router-integration))
+4. Ne pas toucher aux couleurs — `npm run check:ui-kit-integrity` refuse `--aig-*`
+5. Ouvrir un écran consommateur et vérifier le rendu (aucune gate ne mesure les pixels)
 
 ## Hors périmètre Catalyst dans ce dossier
 
 - `index.ts` — barrel de gouvernance
-- `ui-kit-catalog.tsx` — capture dev-only (Aigent)

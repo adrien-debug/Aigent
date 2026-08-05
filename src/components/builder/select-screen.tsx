@@ -4,12 +4,11 @@
  * Server Component : il reçoit des lignes déjà qualifiées par `./model` et les
  * rend. Aucune lecture ici, aucune mutation.
  */
-import Link from 'next/link'
-
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
+import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { projectCountLabel, type ProjectChoice } from './model'

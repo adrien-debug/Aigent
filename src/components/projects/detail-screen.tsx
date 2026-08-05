@@ -13,7 +13,6 @@
  *  · lecture réussie, 0 entrée → « dépôt vide » (une vraie mesure).
  * Ces trois-là ne partagent jamais le même rendu.
  */
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { Avatar } from '@/components/ui/avatar'
@@ -23,6 +22,7 @@ import ContextTabs from '@/components/context-tabs'
 import { projectTabs } from '@/components/object-tabs'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
+import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import {
   AbsentMark,
