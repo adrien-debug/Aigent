@@ -30,9 +30,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
   }
 
   try {
+    // Only real `agent_runs` columns are selected. `fallback_used` and
+    // `interrupted` are NOT persisted columns (no migration defines them — the
+    // runner tracks `interrupted` in-memory only and never writes it, and there
+    // is no fallback column at all). Requesting them made PostgREST reject the
+    // whole select with 42703 "column does not exist" → the catch below turned
+    // every real read into a 502. They are reported as null in the response
+    // (unmeasured → null), which is the honest value until a column exists.
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,copilot_id,project_id,status,input_summary,output_summary,started_at,finished_at,latency_ms,cost_usd,resolved_provider,resolved_model,model_unverified,fallback_used,interrupted&limit=1`
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,copilot_id,project_id,status,input_summary,output_summary,started_at,finished_at,latency_ms,cost_usd,resolved_provider,resolved_model,model_unverified&limit=1`
     )
     const run = rows[0]
     if (!run) {

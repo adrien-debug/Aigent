@@ -69,7 +69,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 | Release gate à 9 checks, avec preuve exigée | 6 lignes `promotion_gates` : 2 PASS, 3 FAIL, 1 INSUFFICIENT_EVIDENCE |
 | Promotion transactionnelle avec verrous anti-bypass | RPC `SECURITY DEFINER` + index unique partiel + lockdown des écritures directes |
 | Garde d'exécution fail-closed à trois conditions | refus 409 avec raisons concrètes |
-| API runtime consommateur — exécution réelle d'un agent gouverné | contrat `1.1.0` ; run réel observé le 2026-08-03 (`openai` / `gpt-5.4`, coût mesuré) |
+| API runtime consommateur — exécution réelle d'un agent gouverné | contrat `1.2.0` ; run réel observé le 2026-08-03 (`openai` / `gpt-5.4`, coût mesuré) |
 | Multi-provider : plusieurs providers câblés, le non-câblé lève une erreur typée | aucun fallback muet |
 | Registre canonique outils + runtimes, à parité avec le registre exécutable | 22 = 22, gate `check:registry-integrity` |
 | Fail-closed sans backend ni credentials (`503`, aucun chemin mock) | constaté sur les chemins d'authoring et de run |
@@ -318,6 +318,16 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
     étranger au lieu de 404 — **sans fuite** (un projet fictif donne la réponse
     identique, donc pas d'énumération possible), mais asymétrique avec le 404
     de `/agents/{agentId}`.
+    **RÉSOLU le 2026-08-06 (mission `fix-runs-metadata-502`).** La v1.2.0 a bien
+    ajouté le mapping provider/modèle/coût/latence — mais le `select` PostgREST
+    demandait aussi deux colonnes **inexistantes** (`fallback_used`,
+    `interrupted`), ce qui faisait échouer la requête (42703) et renvoyait **502
+    sur chaque appel réel** ; le test unitaire les mockait, donc la suite restait
+    verte sur un endpoint mort. Colonnes fantômes retirées du `select`. Preuve
+    runtime (gpu1, jeton runtime) : `GET /runs/bff77516-…` → **200** avec
+    `costUsd 0.019429` / `resolvedProvider openai` / `resolvedModel gpt-5.4` /
+    `latencyMs 18410` ; un runId inconnu → **404** (avant le fix : **502**).
+    `fallbackUsed`/`interrupted` non persistés → renvoyés `null`.
 
 17c. **`/runtime` affiche le NOM d'une variable d'environnement** dans un
     diagnostic de configuration (`AIGENT_RUNTIME_TELEMETRY_TOKEN est absent…`).
@@ -371,9 +381,14 @@ Ordonnées par rapport valeur / risque, révisées le 2026-08-06 (mission
 
 1. **Garder la V2 en attente humaine** — inchangé ; proposition
    `improve-seed-agent-alpha-ef6cff02` toujours sans `decided_at`.
-2. ~~**Exposer les métadonnées de coût en lecture**~~ — **FERMÉ** : `GET
-   `/api/runtime/v1/runs/{runId}` rend désormais provider, modèle, coût,
-   latence ; contrat **1.2.0**.
+2. ~~**Exposer les métadonnées de coût en lecture**~~ — **FERMÉ (corrigé
+   2026-08-06)** : le mapping provider/modèle/coût/latence a été livré en
+   contrat **1.2.0**, mais l'endpoint renvoyait **502 sur chaque appel réel** —
+   son `select` demandait deux colonnes inexistantes (`fallback_used`,
+   `interrupted`), défaut masqué par un test qui les mockait. Colonnes fantômes
+   retirées (branche `fix-runs-metadata-502`) ; prouvé au runtime :
+   `GET /runs/bff77516-…` → **200** (coût/provider/modèle réels), runId inconnu
+   → **404** (avant : 502). Voir limite **17b**.
 3. **Déployer** — en cours (docker-compose `deploy/app` sur gpu1).
 4. ~~**Provider hardcodé** (limite 13)~~ — **FERMÉ** : plus de `?? 'openai'` sur
    le chemin runtime consommateur ; `model_provider` absent → 409.
