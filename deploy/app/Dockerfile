@@ -36,6 +36,12 @@ WORKDIR /app
 
 # Install dependencies first (better layer caching).
 COPY package.json package-lock.json ./
+# Motion+ registry auth — pass at build time only (never commit tokens).
+# docker compose: build.args.NPM_TOKEN from deploy/app/.env or shell env.
+ARG NPM_TOKEN
+RUN if [ -n "$NPM_TOKEN" ]; then \
+      printf '@motionplus:registry=https://api.motion.dev/npm/\n//api.motion.dev/:_authToken=%s\n' "$NPM_TOKEN" > .npmrc; \
+    fi
 RUN npm ci
 
 # Copy the rest of the repo needed to build (.dockerignore already strips

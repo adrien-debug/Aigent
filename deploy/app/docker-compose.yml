@@ -19,6 +19,8 @@ services:
       # Build context = repo root (two levels up from this file).
       context: ../..
       dockerfile: deploy/app/Dockerfile
+      args:
+        NPM_TOKEN: ${NPM_TOKEN:-}
     image: aigent-app:local
     container_name: aigent-app
     restart: always
@@ -139,14 +141,9 @@ services:
     build:
       context: ../..
       dockerfile: deploy/app/Dockerfile
-      # Target the `builder` stage, not `runner`: it's the only stage that
-      # still has scripts/, src/, and full node_modules (incl. tsx, a
-      # devDependency `npm ci` installs) — exactly what `npm run reprovision`
-      # needs. The `runner` stage is a pruned standalone build and does not
-      # carry scripts/ at all. Reuses the SAME cached layers as the `app`
-      # build (identical context + Dockerfile up to this stage), so this
-      # costs nothing extra beyond the first build.
       target: builder
+      args:
+        NPM_TOKEN: ${NPM_TOKEN:-}
     image: aigent-app-builder:local
     container_name: aigent-reprovision
     restart: always
