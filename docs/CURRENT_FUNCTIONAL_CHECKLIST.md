@@ -14,7 +14,8 @@
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
 **État de référence** — `main` =
-`6a8e6f00496bccd536a74513eb5535e146e8959a`, après le merge de la PR #111.
+`6b4cd04192bc3015d06cfb28b447c0d989c39e42`, après le merge de la PR #112
+(fix 502 `GET /runs/{runId}` — colonnes fantômes ; voir limite 17b).
 Dernière mise à jour : 2026-08-06
 
 **PR #110 et #111 sont mergées.** PR #110 remplace les `Link` Catalyst par
@@ -386,7 +387,7 @@ Ordonnées par rapport valeur / risque, révisées le 2026-08-06 (mission
    contrat **1.2.0**, mais l'endpoint renvoyait **502 sur chaque appel réel** —
    son `select` demandait deux colonnes inexistantes (`fallback_used`,
    `interrupted`), défaut masqué par un test qui les mockait. Colonnes fantômes
-   retirées (branche `fix-runs-metadata-502`) ; prouvé au runtime :
+   retirées (PR #112, mergée dans `main` `6b4cd041`) ; prouvé au runtime :
    `GET /runs/bff77516-…` → **200** (coût/provider/modèle réels), runId inconnu
    → **404** (avant : 502). Voir limite **17b**.
 3. **Déployer** — en cours (docker-compose `deploy/app` sur gpu1).
