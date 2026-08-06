@@ -30,6 +30,10 @@ import { Select } from '@/components/ui/select'
 import {
   buildRunsHref,
   hasActiveFilters,
+  RUN_STATUSES,
+  RUNS_COSTS,
+  RUNS_DURATIONS,
+  RUNS_PERIODS,
   type RunsFilterState,
 } from '@/lib/runs-console/runs-filters'
 
@@ -140,11 +144,58 @@ export default function RunsFilterBar({
         une affordance qui ne fait rien — le défaut d'affordance que cet écran
         refuse déjà par ailleurs (aucun bouton de mutation inerte).
       */}
+      <FilterSelect
+        label="Statut"
+        value={filters.status}
+        options={RUN_STATUSES.map((id) => ({ id, name: id }))}
+        emptyLabel="Tous les statuts"
+        onChange={(status) => go({ status })}
+      />
+      <FilterSelect
+        label="Période"
+        value={filters.period}
+        options={RUNS_PERIODS.map((id) => ({ id, name: id }))}
+        emptyLabel="24h"
+        onChange={(period) => go({ period: (period || '24h') as RunsFilterState['period'] })}
+      />
+      <FilterSelect
+        label="Durée"
+        value={filters.duration}
+        options={RUNS_DURATIONS.map((id) => ({ id, name: id }))}
+        emptyLabel="Toutes"
+        onChange={(duration) => go({ duration: duration as RunsFilterState['duration'] })}
+      />
+      <FilterSelect
+        label="Coût"
+        value={filters.cost}
+        options={RUNS_COSTS.map((id) => ({ id, name: id === 'measured' ? 'Mesuré' : 'Non mesuré' }))}
+        emptyLabel="Tous"
+        onChange={(cost) => go({ cost: cost as RunsFilterState['cost'] })}
+      />
+
       {active ? (
         <Button
           type="button"
           plain
-          onClick={() => router.push(buildRunsHref({ ...filters, agent: '', project: '' }, selectedRunId))}
+          onClick={() =>
+            router.push(
+              buildRunsHref(
+                {
+                  ...filters,
+                  q: '',
+                  agent: '',
+                  project: '',
+                  status: '',
+                  period: '24h',
+                  provider: '',
+                  model: '',
+                  duration: '',
+                  cost: '',
+                },
+                selectedRunId
+              )
+            )
+          }
           className="aig-accent text-xs font-medium"
         >
           Voir tous les runs

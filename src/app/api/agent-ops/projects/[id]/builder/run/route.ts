@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-run'
+import { isConflict, withInFlightGuard } from '@/lib/agent-mission-control/request-in-flight-guard'
 
 // NOT-WIRED au front (volontaire, à garder) : chemin HITL GRANULAIRE (run puis
 // resume séparés). Le front utilise `builder/create-draft`, qui appelle les
@@ -153,17 +154,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let repoContext = scan ? repoScanToContext(scan) : undefined
   repoContext = await appendAgentsWantedToContext(repoContext, project.repoFullName)
 
+  // Double-submit guard: one concurrent builder run per project per process.
+  let runResult: Awaited<ReturnType<typeof startAgentBuilderRun>> | { conflict: true }
   try {
-    const state = await startAgentBuilderRun({
-      copilotId: builderCopilotId,
-      userInput: body.userInput,
-      projectId: id,
-      repoContext,
-      repoScan: scan ? { repo: scan.repo, branch: scan.branch, scripts: scan.scripts } : null,
-    })
-    return NextResponse.json({ ...state, scan: scan ?? null })
+    runResult = await withInFlightGuard(`builder-run:${id}`, () =>
+      startAgentBuilderRun({
+        copilotId: builderCopilotId,
+        userInput: body.userInput as string,
+        projectId: id,
+        repoContext,
+        repoScan: scan ? { repo: scan.repo, branch: scan.branch, scripts: scan.scripts } : null,
+      })
+    )
   } catch (err) {
     console.error('[agent-ops/projects/builder/run] run failed', err)
     return NextResponse.json({ error: 'Agent Builder run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
+  if (isConflict(runResult)) {
+    return NextResponse.json({ error: 'request already in progress' }, { status: 409 })
+  }
+  return NextResponse.json({ ...runResult, scan: scan ?? null })
 }

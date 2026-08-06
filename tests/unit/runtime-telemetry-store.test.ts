@@ -29,6 +29,8 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
 import {
   emitInternalRunTelemetry,
   insertRuntimeTelemetryEvent,
+  isInternalTelemetryRow,
+  INTERNAL_TELEMETRY_SOURCES,
   listRecentRuntimeTelemetryEvents,
   summarizeFleetRuntimeTelemetry,
   summarizeRuntimeTelemetry,
@@ -296,6 +298,74 @@ describe('runtime-telemetry-store', () => {
       await listRecentRuntimeTelemetryEvents(5)
       expect(pgrestCalls).toHaveLength(1)
     })
+  })
+})
+
+describe('INTERNAL_TELEMETRY_SOURCES / isInternalTelemetryRow', () => {
+  it('covers all four internal sources', () => {
+    expect(INTERNAL_TELEMETRY_SOURCES).toContain('aigent-internal-runner')
+    expect(INTERNAL_TELEMETRY_SOURCES).toContain('aigent-promotion')
+    expect(INTERNAL_TELEMETRY_SOURCES).toContain('aigent-shadow')
+    expect(INTERNAL_TELEMETRY_SOURCES).toContain('aigent-replay')
+  })
+
+  it('returns true for a row whose environment.source is an internal source', () => {
+    for (const source of INTERNAL_TELEMETRY_SOURCES) {
+      expect(isInternalTelemetryRow({ environment: { source } })).toBe(true)
+    }
+  })
+
+  it('returns false for a consumer row (no source or unknown source)', () => {
+    expect(isInternalTelemetryRow({ environment: {} })).toBe(false)
+    expect(isInternalTelemetryRow({ environment: { source: 'consumer-app' } })).toBe(false)
+    expect(isInternalTelemetryRow({ environment: null })).toBe(false)
+    expect(isInternalTelemetryRow({})).toBe(false)
+  })
+})
+
+describe('summarizeFleetRuntimeTelemetry — excludeInternal', () => {
+  beforeEach(() => {
+    pgrestCalls.length = 0
+  })
+
+  it('excludeInternal:true — internal events do not inflate consumer fleet KPIs', async () => {
+    // 1 real consumer run + 4 internal runs (one per internal source)
+    const consumerRow = rawRow({ id: 'consumer-1', project_id: 'proj-consumer', agent_id: 'agent-consumer', status: 'completed', latency_ms: 100, environment: {} })
+    const internalRows = INTERNAL_TELEMETRY_SOURCES.map((source, i) =>
+      rawRow({ id: `internal-${i}`, project_id: 'aigent', agent_id: `internal-agent-${i}`, status: 'completed', latency_ms: 9999, environment: { source } })
+    )
+
+    pgrestHandler = () => [consumerRow, ...internalRows]
+
+    const consumer = await summarizeFleetRuntimeTelemetry({ excludeInternal: true })
+    expect(consumer.totalRuns).toBe(1)
+    expect(consumer.reportingAgents).toBe(1)
+    expect(consumer.byAgent).toHaveLength(1)
+    expect(consumer.byAgent[0].agentId).toBe('agent-consumer')
+  })
+
+  it('excludeInternal:false (default) — internal events ARE counted', async () => {
+    const consumerRow = rawRow({ id: 'consumer-1', project_id: 'proj-consumer', agent_id: 'agent-consumer', status: 'completed', latency_ms: 100, environment: {} })
+    const internalRow = rawRow({ id: 'internal-1', project_id: 'aigent', agent_id: 'internal-agent', status: 'completed', latency_ms: 9999, environment: { source: 'aigent-internal-runner' } })
+
+    pgrestHandler = () => [consumerRow, internalRow]
+
+    const all = await summarizeFleetRuntimeTelemetry({ excludeInternal: false })
+    expect(all.totalRuns).toBe(2)
+    expect(all.reportingAgents).toBe(2)
+  })
+
+  it('all-internal fleet returns zero consumer metrics when excludeInternal:true', async () => {
+    pgrestHandler = () =>
+      INTERNAL_TELEMETRY_SOURCES.map((source, i) =>
+        rawRow({ id: `int-${i}`, status: 'completed', environment: { source } })
+      )
+
+    const result = await summarizeFleetRuntimeTelemetry({ excludeInternal: true })
+    expect(result.totalRuns).toBe(0)
+    expect(result.reportingAgents).toBe(0)
+    expect(result.successRate).toBeNull()
+    expect(result.byAgent).toHaveLength(0)
   })
 })
 

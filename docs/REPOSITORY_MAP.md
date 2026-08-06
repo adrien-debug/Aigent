@@ -227,8 +227,8 @@ sont donc listées, pas réécrites ici.
 
 | # | Écart | Dit par | Vérité (code) |
 |---|---|---|---|
-| 1 | Portée du proxy | `AGENTS.md`, `docs/architecture.md` : « garde uniquement `/api/agent-ops/**` », « les pages ne sont pas couvertes » | `src/proxy.ts` garde **tout** sauf une allowlist ; pages sans session → 302 `/sign-in`. `agent-ops` est seulement la seule à accepter aussi `x-amc-key` |
-| 2 | Nombre de frontières | `docs/architecture.md` : **trois** | **Quatre** (la 4ᵉ = `/api/runtime-telemetry/consumer`, jeton par installation). `AGENTS.md` dit correctement quatre |
+| 1 | Portée du proxy | ~~`AGENTS.md`, `docs/architecture.md` : ancienne doctrine agent-ops only~~ | **Corrigé 2026-08-06** — les deux docs alignés sur `src/proxy.ts` (allowlist, pages 302, runtime jeton propre) |
+| 2 | Nombre de frontières | ~~`docs/architecture.md` : trois~~ | **Corrigé 2026-08-06** — quatre frontières documentées partout, incl. `/api/runtime-telemetry/consumer` |
 | 3 | Credential runtime/v1 | `docs/architecture.md` : jeton unique `AIGENT_RUNTIME_API_TOKEN` | deux formes : jeton **par installation** OU jeton legacy (`resolveRuntimeTenant`) |
 | 4 | Liste des gates | `README.md`, `scripts/README-gates.md`, `docs/current-capabilities.md` : 15–17 gates | **19** (`check:theme-foundation` et `check:governance` manquent aux listes) |
 | 5 | Librairie de graphes | `README.md` + `current-capabilities.md` + `cockpit-catalyst-migration.md` + `scripts/README-gates.md` : « Recharts » | **absent du dépôt** ; graphes cockpit = SVG maison (`motion`), graphe runtime = `@xyflow/react` |

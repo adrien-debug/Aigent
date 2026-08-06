@@ -110,3 +110,6 @@ tmp/
 # croire sur parole une correction qu'aucune gate ne mesure (aucune gate de ce
 # dépôt ne lit un pixel). Le reste de `docs/visual-reviews/` reste ignoré.
 !docs/visual-reviews/SETTINGS-MOBILE-OVERFLOW/
+
+# EXCEPTION CIBLÉE — FULL-DELIVERY-ORCHESTRATION (11 pages × 2 viewports).
+!docs/visual-reviews/AIGENT-FULL-DELIVERY-001/

@@ -13,15 +13,14 @@
 > **Périmètre : Aigent uniquement.** TradeAgent est un autre repository et
 > n'appartient pas à cette checklist, même quand une mission touche les deux.
 
-**État de référence avant le commit documentaire** — `main` =
-`b4eb8dd89f1afd284fe392ab4f1c6aa222303948`, merge commit de la PR #108.
-Dernière mise à jour : 2026-08-04 · merge de la mission
-`AIGENT-SUPERVISED-CONVERGENCE-001`
+**État de référence** — `main` =
+`6a8e6f00496bccd536a74513eb5535e146e8959a`, après le merge de la PR #111.
+Dernière mise à jour : 2026-08-06
 
-**PR #107 et #108 sont mergées.** Le tronçon aval et son acquisition concurrente
-atomique sont présents sur `main`; la PR #108 ferme les P0/P1 post-merge
-(idempotence `client_run_id`, proxy constant-time, corpus des gates, replay sans
-prod, migration 0049). Aucun déploiement ni promotion n'en découle.
+**PR #110 et #111 sont mergées.** PR #110 remplace les `Link` Catalyst par
+`next/link` (soft navigation App Router) ; PR #111 passe le kit Catalyst 17
+(Select/Alert/DescriptionList, Badge sévérité, surface-state texte-only, suppression
+du composant `aig-chip` art). Aucun déploiement ni promotion n'en découle.
 
 Les chiffres de la section *Fonctionnel* ci-dessous ont été **relus en base le
 2026-08-04** (PostgREST `HEALTHY`, lecture seule). Ils remplacent des chiffres
@@ -96,7 +95,7 @@ constaté est un volume de laboratoire, pas un trafic de production.
 
 | Suite | État |
 |---|---|
-| `npm run test` (unitaire, hors ligne) | **2 541 tests passés + 1 échec attendu**, 199 fichiers (2026-08-04) |
+| `npm run test` (unitaire, hors ligne) | **2 559 tests passés + 1 échec attendu**, 201 fichiers (2026-08-06) |
 | `npm run typecheck` | **0 erreur** |
 | `npm run build` | **OK** |
 | `npm run check` | **exit 0** — 19 gates |
@@ -150,20 +149,6 @@ automatiquement quand cette branche de base a été supprimée au merge de #102.
 #105 la recrée à l'identique depuis la même branche de travail, vers `main`.
 Erreur de séquencement, pas de perte de contenu.
 
-États relus via `gh pr view` le 2026-08-04 : #97, #98, #99 et #100 sont
-`MERGED`, #101 est `OPEN` et `draft`. La tête de `main` est `d2e27758` et non
-`6b0225cf` — ce fichier a déjà cité deux fois une tête de `main` périmée.
-
-**Écarts de suivi du 2026-08-03 — tous refermés, relus le 2026-08-04 :**
-
-- ~~L'issue #93 est encore OUVERTE~~ → **#93 est `CLOSED`** (`gh issue view`),
-  comme #94. Plus aucun écart de suivi sur ces deux issues. #93 et #94 sont des
-  **issues**, pas des PR — la confusion des deux numérotations a déjà produit un
-  rapport d'état inexact, la distinction reste utile.
-- ~~`main` a avancé vers `6b0225cf`~~ → `main` a avancé **depuis** `6b0225cf`
-  jusqu'à **`d2e27758`** (PR #97 → #100). Toute citation de `6b0225cf`,
-  `ff7e6e17` ou `b4675d35` comme tête de `main` est périmée.
-
 ## En review
 
 Ce qui est poussé, ouvert, et **non mergé**. Une PR en review n'est pas un
@@ -173,7 +158,7 @@ acquis : rien de cette section n'est vrai sur `main`.
 
 ## Déployé
 
-**Rien n'est déclaré déployé.** Le merge de la PR #107 n'a déclenché aucun
+**Rien n'est déclaré déployé.** Aucun merge récent (#107–#111) n'a déclenché de
 déploiement.
 
 Vérifié le 2026-08-03 : `.github/workflows/ci.yml` ne contient que deux jobs
@@ -379,31 +364,27 @@ Relevé de l'audit du 2026-08-03 (10 périmètres). Chaque ligne est vérifiée.
 
 ## Prochaines étapes
 
-Ordonnées par rapport valeur / risque, révisées le 2026-08-04.
+Ordonnées par rapport valeur / risque, révisées le 2026-08-06 (mission
+`full-delivery-orchestration-001`).
 
-1. **Garder la V2 en attente humaine** —
-   proposition `improve-seed-agent-alpha-ef6cff02` en `v2-created`, sans
-   `decided_at`; la comparaison ne montre aucune amélioration et ne justifie donc
-   ni approbation ni promotion.
-2. **Exposer les métadonnées de coût en lecture** (limite 17b) —
-   `GET /api/runtime/v1/runs/{runId}` ne rend ni provider, ni modèle, ni coût.
-   Un consommateur ne peut pas relire ce qu'il a payé.
-3. **Décider du déploiement** — tout existe côté `deploy/` en `docker-compose`
-   lancés à la main. C'est une décision, pas un chantier ; exige un ordre
-   explicite (`CLAUDE.md` §6).
-4. **Fermer les faux verts de mesure** (limites 12, 13, 14) — un compteur de
-   sécurité non mesuré coercé en 0, un provider écrit en dur, une télémétrie qui
-   ne distingue pas la provenance.
-5. **Réentrance des POST coûteux** (limite 15) — dont un qui crée deux PR
-   distantes sur un double-clic.
-6. **Instruire l'écart shadow** (limite 19) — 8 événements shadow pour 0 ligne
-   persistée.
-7. **Couvrir les 8 pages restantes en 390 px** — seules `/sign-in`, `/`,
-   `/agents`, `/runs` ont été vérifiées aux deux points de rupture.
-8. **Appliquer `DESIGN_DOCTRINE.md`** aux écrans de production (limite 18), avec
-   preuves visuelles.
-9. **Régénérer les preuves visuelles au HEAD courant** — les captures existantes
-    datent d'un HEAD antérieur.
+1. **Garder la V2 en attente humaine** — inchangé ; proposition
+   `improve-seed-agent-alpha-ef6cff02` toujours sans `decided_at`.
+2. ~~**Exposer les métadonnées de coût en lecture**~~ — **FERMÉ** : `GET
+   `/api/runtime/v1/runs/{runId}` rend désormais provider, modèle, coût,
+   latence ; contrat **1.2.0**.
+3. **Déployer** — en cours (docker-compose `deploy/app` sur gpu1).
+4. ~~**Provider hardcodé** (limite 13)~~ — **FERMÉ** : plus de `?? 'openai'` sur
+   le chemin runtime consommateur ; `model_provider` absent → 409.
+5. ~~**Provenance télémétrie** (limite 14)~~ — **FERMÉ partiellement** :
+   `summarizeFleetRuntimeTelemetry({ excludeInternal: true })` sur le dashboard ;
+   agrégations agent-detail à aligner si besoin.
+6. ~~**Réentrance POST coûteux** (limite 15)~~ — **PARTIEL** : guard sur 4
+   routes à plus haut risque ; 15 autres sans garde.
+7. **Instruire l'écart shadow** (limite 19) — **ouvert**.
+8. ~~**390 px sur 11 pages**~~ — **FERMÉ** : captures
+   `docs/visual-reviews/AIGENT-FULL-DELIVERY-001/` (2026-08-06).
+9. **Autorité statut visuel** (limite 18) — **ouvert**.
+10. ~~**Preuves visuelles HEAD courant**~~ — **FERMÉ** (même dossier).
 
 ## Composants externes qualifiés
 
@@ -459,9 +440,9 @@ l'usage exact d'Aigent relève d'un avis juridique, pas de cette étude.
 
 | Type | Référence |
 |---|---|
-| `main` | `26dffb01` (2026-08-04, après #101 · #102 · #104 · #105) |
-| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` · #101 `e3e84839` · #104 `f4569ed8` · #102 `374c78b2` · #105 `26dffb01` · #107 `1ea80b91` · #108 `b4eb8dd8` |
-| PR ouverte, **non mergée** | **aucune** au 2026-08-04 |
+| `main` | `6a8e6f00496bccd536a74513eb5535e146e8959a` (2026-08-06, après #109 · #110 · #111) |
+| PR mergées | #92 `9ef6b3c8` · #95 `9da3823c` · #96 `ff7e6e17` · #97 `5ffb22e1` · #98 `885aef92` · #99 `b4675d35` · #100 `d2e27758` · #101 `e3e84839` · #104 `f4569ed8` · #102 `374c78b2` · #105 `26dffb01` · #107 `1ea80b91` · #108 `b4eb8dd8` · #109 `e6ff7abf` · #110 `9ca55169` · #111 `5d9071be` |
+| PR ouverte, **non mergée** | **aucune** au 2026-08-06 |
 | Relecture des chiffres en base | 2026-08-04 — PostgREST `HEALTHY`, lecture seule, 29 tables comptées, arbre inchangé |
 | Pile locale | `npm run health` — NEXT · LANGGRAPH · POSTGREST · STACK **HEALTHY** (2026-08-04) ; dev server pid 22899 sur `127.0.0.1:3987` |
 | Issues | #93 **fermée** (livrée par #96) · #94 fermée (livrée par #95) — relu le 2026-08-04 |

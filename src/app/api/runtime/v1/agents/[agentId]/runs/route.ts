@@ -200,6 +200,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
     return NextResponse.json({ error: 'failed to load version or manifest' }, { status: upstreamFailureStatus(err) })
   }
 
+  const modelProvider = copilotRow.model_provider as string | null
+  if (!modelProvider) {
+    return NextResponse.json(
+      {
+        error: 'agent is not executable',
+        agentId,
+        status: agent.status,
+        reasons: ['model provider not resolved'],
+      },
+      { status: 409 }
+    )
+  }
+
   // --- Execute --------------------------------------------------------------
   try {
     const result = await executeCopilotRun({
@@ -207,7 +220,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
       versionId,
       projectId,
       model: (copilotRow.model as string | null) ?? '',
-      modelProvider: ((copilotRow.model_provider as string | null) ?? 'openai') as ModelProvider,
+      modelProvider: modelProvider as ModelProvider,
       systemPromptSummary,
       userInput: input,
       maxSteps,

@@ -34,7 +34,7 @@ import type { AgentRunStatus } from './types'
 // ---------------------------------------------------------------------------
 
 /** Contract version. Consumers pin this; a breaking change bumps the major. */
-export const RUNTIME_CONTRACT_VERSION = '1.1.0'
+export const RUNTIME_CONTRACT_VERSION = '1.2.0'
 
 /**
  * One agent as published to a consumer runtime.

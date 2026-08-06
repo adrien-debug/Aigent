@@ -75,6 +75,6 @@ le rendu**. Si une surface de production bouge, ouvrir l'écran et regarder
   `/sign-in`), pas seulement `/api/agent-ops/**` ; `AGENTS.md` / `docs/architecture.md`
   décrivent encore l'ancien matcher.
 - Il y a **quatre** frontières de confiance (la 4ᵉ = `/api/runtime-telemetry/consumer`,
-  jeton par installation) ; `docs/architecture.md` en liste encore trois.
+  jeton par installation) ; `docs/architecture.md` et `AGENTS.md` sont alignés.
 
 Voir `docs/REPOSITORY_MAP.md` § « Dérives doc↔code » pour la liste complète.

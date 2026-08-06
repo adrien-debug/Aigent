@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import {
+  RUNTIME_CONTRACT_VERSION,
   isValidRunId,
   resolveRuntimeTenant,
   tenantCanSeeProject,
@@ -31,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
   try {
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,copilot_id,project_id,status,input_summary,output_summary,started_at,finished_at&limit=1`
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id,copilot_id,project_id,status,input_summary,output_summary,started_at,finished_at,latency_ms,cost_usd,resolved_provider,resolved_model,model_unverified,fallback_used,interrupted&limit=1`
     )
     const run = rows[0]
     if (!run) {
@@ -44,6 +45,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
       return NextResponse.json({ error: 'run not found' }, { status: 404 })
     }
     return NextResponse.json({
+      contractVersion: RUNTIME_CONTRACT_VERSION,
       id: run.id as string,
       agentId: run.copilot_id as string,
       projectKey: (run.project_id as string | null) ?? null,
@@ -52,6 +54,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
       output: (run.output_summary as string | null) ?? null,
       createdAt: (run.started_at as string | null) ?? null,
       updatedAt: (run.finished_at as string | null) ?? (run.started_at as string | null) ?? null,
+      latencyMs: (run.latency_ms as number | null) ?? null,
+      costUsd: (run.cost_usd as number | null) ?? null,
+      resolvedProvider: (run.resolved_provider as string | null) ?? null,
+      resolvedModel: (run.resolved_model as string | null) ?? null,
+      modelUnverified: (run.model_unverified as boolean | null) ?? null,
+      fallbackUsed: (run.fallback_used as boolean | null) ?? null,
+      interrupted: (run.interrupted as boolean | null) ?? null,
     })
   } catch (err) {
     console.error('[runtime/v1/runs/:runId] read failed', err)

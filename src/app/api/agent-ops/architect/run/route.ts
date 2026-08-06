@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-run'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isConflict, withInFlightGuard } from '@/lib/agent-mission-control/request-in-flight-guard'
 
 /**
  * POST /api/agent-ops/architect/run — start a REAL Agent Builder run.
@@ -71,12 +72,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
+  // Double-submit guard: one concurrent run per process on the global
+  // Agent Builder key (it has a single copilotId, so keying on the slug is
+  // equivalent and avoids an extra read).
+  let runResult: Awaited<ReturnType<typeof startAgentBuilderRun>> | { conflict: true }
   try {
-    const state = await startAgentBuilderRun({ copilotId, userInput })
-    return NextResponse.json(state)
+    runResult = await withInFlightGuard(`architect-run:${copilotId}`, () =>
+      startAgentBuilderRun({ copilotId, userInput })
+    )
   } catch (err) {
     // The Agent Server / OpenAI errors can carry internal detail — never forward.
     console.error('[agent-ops/architect/run] run failed', err)
     return NextResponse.json({ error: 'Agent Builder run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
+  if (isConflict(runResult)) {
+    return NextResponse.json({ error: 'request already in progress' }, { status: 409 })
+  }
+  return NextResponse.json(runResult)
 }

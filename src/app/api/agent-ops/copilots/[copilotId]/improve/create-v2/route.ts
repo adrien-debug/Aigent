@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { createImprovementV2 } from '@/lib/agent-mission-control/improvement-loop'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
+import { isConflict, withInFlightGuard } from '@/lib/agent-mission-control/request-in-flight-guard'
 import { NotFoundError } from '@/lib/agent-mission-control/runner-errors'
 
 const ID_RE = /^[a-z0-9-]{1,200}$/
@@ -43,9 +44,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
+  // Double-submit guard: one concurrent V2 creation per copilot+proposal per
+  // process. createImprovementV2 provisions a new assistant and writes multiple
+  // rows — a concurrent duplicate would produce orphaned manifests/versions.
+  let result: Awaited<ReturnType<typeof createImprovementV2>> | { conflict: true }
   try {
-    const created = await createImprovementV2(copilotId, body.proposalId)
-    return NextResponse.json({ ok: true, ...created })
+    const proposalId = body.proposalId as string
+    result = await withInFlightGuard(`create-v2:${copilotId}:${proposalId}`, () =>
+      createImprovementV2(copilotId, proposalId)
+    )
   } catch (err) {
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
@@ -58,4 +65,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     // any other upstream failure stays a generic 502. Same body either way.
     return NextResponse.json({ error: 'V2 creation failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
+  if (isConflict(result)) {
+    return NextResponse.json({ error: 'request already in progress' }, { status: 409 })
+  }
+  return NextResponse.json({ ok: true, ...result })
 }

@@ -66,6 +66,41 @@ export function normalizeTelemetryProviderToModelProvider(provider?: string | nu
   }
 }
 
+/**
+ * Sources that identify Aigent's own internal infrastructure runs — as opposed
+ * to runs emitted by agents deployed in consumer repos. Used to distinguish
+ * "internal plumbing" from "real production traffic" when computing fleet KPIs
+ * that should reflect the consumer experience only.
+ *
+ * These match the `environment.source` values set by the four internal emitters:
+ *  · `emitInternalRunTelemetry`  → 'aigent-internal-runner'
+ *  · `emitPromotionTelemetry`    → 'aigent-promotion'
+ *  · `emitShadowTelemetry`       → 'aigent-shadow'
+ *  · `emitReplayTelemetry`       → 'aigent-replay'
+ */
+export const INTERNAL_TELEMETRY_SOURCES: ReadonlyArray<string> = [
+  'aigent-internal-runner',
+  'aigent-promotion',
+  'aigent-shadow',
+  'aigent-replay',
+]
+
+/**
+ * Returns true when a raw telemetry row was emitted by Aigent's own internal
+ * infrastructure (runner, promotion, shadow, replay) rather than by a consumer-
+ * deployed agent.
+ *
+ * Reads `environment->>'source'` (the PostgREST snake_case column) OR
+ * `environment.source` (the camelCase shape used in unit tests / in-memory rows)
+ * so the helper works uniformly across both read paths.
+ */
+export function isInternalTelemetryRow(row: RawRow): boolean {
+  const env = row.environment as Record<string, unknown> | null | undefined
+  if (!env) return false
+  const source = env['source']
+  return typeof source === 'string' && (INTERNAL_TELEMETRY_SOURCES as string[]).includes(source)
+}
+
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 
 export type RuntimeTelemetryStatus = 'started' | 'completed' | 'failed'
@@ -576,12 +611,19 @@ export async function listRecentRuntimeTelemetryEvents(limit = 50): Promise<Runt
  * fleet-wide without an unbounded scan). Throws on a hard PostgREST error;
  * callers wrap this in their own fail-soft try/catch (same pattern as
  * summarizeRuntimeTelemetry / improvement-loop.ts).
+ *
+ * `excludeInternal` (default `false`): when `true`, rows whose
+ * `environment.source` is one of `INTERNAL_TELEMETRY_SOURCES` are filtered out
+ * before aggregation so that fleet KPIs reflect consumer traffic only.
  */
-export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetryFleetSummary> {
-  const rows = await pgrest<RawRow[]>(
+export async function summarizeFleetRuntimeTelemetry(
+  options: { excludeInternal?: boolean } = {}
+): Promise<RuntimeTelemetryFleetSummary> {
+  const rawRows = await pgrest<RawRow[]>(
     'GET',
-    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,output_shape,received_at,provider,model&order=received_at.desc&limit=2000'
+    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,output_shape,received_at,provider,model,environment&order=received_at.desc&limit=2000'
   )
+  const rows = options.excludeInternal ? rawRows.filter((r) => !isInternalTelemetryRow(r)) : rawRows
 
   const byProjectAgent = new Map<string, RawRow[]>()
   for (const r of rows) {

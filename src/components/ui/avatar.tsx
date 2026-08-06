@@ -42,7 +42,11 @@ export function Avatar({
           </text>
         </svg>
       )}
-      {src && <img className="size-full" src={src} alt={alt} />}
+      {src && (
+        // Catalyst Avatar keeps a plain img — external avatar URLs are untrusted/third-party.
+        // eslint-disable-next-line @next/next/no-img-element -- kit primitive, not a local asset
+        <img className="size-full" src={src} alt={alt} />
+      )}
     </span>
   )
 }

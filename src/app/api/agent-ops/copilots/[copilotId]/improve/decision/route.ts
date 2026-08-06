@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { decideProposal } from '@/lib/agent-mission-control/improvement-loop'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
+import { isConflict, withInFlightGuard } from '@/lib/agent-mission-control/request-in-flight-guard'
 import { NotFoundError } from '@/lib/agent-mission-control/runner-errors'
 
 const ID_RE = /^[a-z0-9-]{1,200}$/
@@ -48,19 +49,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  try {
-    await decideProposal(copilotId, body.proposalId, body.decision, body.decidedBy?.trim() || 'operator')
-    return NextResponse.json({ ok: true, status: body.decision })
-  } catch (err) {
-    if (err instanceof NotFoundError) {
-      return NextResponse.json({ error: err.message }, { status: 404 })
+  // Double-submit guard: one concurrent decision per copilot+proposal per
+  // process. decideProposal writes to the DB; a duplicate concurrent call
+  // would race on the state-machine check and could double-write.
+  const proposalId = body.proposalId as string
+  const decision = body.decision as 'approved' | 'rejected'
+  const result = await withInFlightGuard(
+    `decide-proposal:${copilotId}:${proposalId}`,
+    async () => {
+      try {
+        await decideProposal(copilotId, proposalId, decision, body.decidedBy?.trim() || 'operator')
+        return { ok: true as const, status: decision }
+      } catch (err) {
+        if (err instanceof NotFoundError) {
+          return { routeError: err.message, routeStatus: 404 as const }
+        }
+        if (err instanceof Error && /already decided|only be approved/.test(err.message)) {
+          return { routeError: err.message, routeStatus: 409 as const }
+        }
+        console.error('[agent-ops/improve/decision] decision failed', err)
+        return { routeError: 'decision failed', routeStatus: (isPgrestTimeout(err) ? 504 : 502) as 504 | 502 }
+      }
     }
-    if (err instanceof Error && /already decided|only be approved/.test(err.message)) {
-      return NextResponse.json({ error: err.message }, { status: 409 })
-    }
-    console.error('[agent-ops/improve/decision] decision failed', err)
-    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
-    // any other upstream failure stays a generic 502. Same body either way.
-    return NextResponse.json({ error: 'decision failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  ).catch((err) => {
+    // withInFlightGuard itself does not throw (fn errors bubble here only if
+    // the outer try/catch above re-throws — belt-and-suspenders for linter).
+    console.error('[agent-ops/improve/decision] unexpected error', err)
+    return { routeError: 'decision failed', routeStatus: 502 as const }
+  })
+
+  if (isConflict(result)) {
+    return NextResponse.json({ error: 'request already in progress' }, { status: 409 })
   }
+  if ('routeError' in result) {
+    return NextResponse.json({ error: result.routeError }, { status: result.routeStatus })
+  }
+  return NextResponse.json({ ok: true, status: result.status })
 }

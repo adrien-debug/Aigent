@@ -14,14 +14,15 @@ appelant HTTP  (opérateur · automatisation · agent déployé chez un consomma
   │                            front en reconstruction — cf. AGENTS.md § Frontend
   │
   ▼
-src/proxy.ts                   garde d'identité — matcher : /api/agent-ops/** UNIQUEMENT
+src/proxy.ts                   garde d'identité — tout gardé sauf allowlist explicite
+  │                            (pages → 302 /sign-in ; runtime → jeton propre)
   │                            (convention Next `proxy` ; il n'y a PAS de middleware.ts)
   ▼
 src/app/api/**                 route handlers — les SEULS points d'écriture
-  │                            · /api/agent-ops/**      gardé par le proxy
-  │                            · /api/runtime-telemetry  jeton propre, hors matcher
-  │                            · /api/runtime/v1/**      jeton propre, hors matcher
-  │                            · /api/auth/login         frappe la session, hors matcher
+  │                            · /api/agent-ops/**      cookie session ou x-amc-key
+  │                            · /api/runtime-telemetry/**  jeton propre (allowlist)
+  │                            · /api/runtime/v1/**      jeton propre (allowlist)
+  │                            · /api/auth/login         allowlist proxy
   ▼
 src/lib/**                     data layer, runner, model router, registre, lifecycle
   │                            (server-only)
@@ -29,13 +30,14 @@ src/lib/**                     data layer, runner, model router, registre, lifec
   └──► LangGraph Agent Server (127.0.0.1:2024 en dev)
 ```
 
-## Frontières de confiance — trois, séparées exprès
+## Frontières de confiance — quatre, séparées exprès
 
 | Surface | Appelant | Credential |
 |---|---|---|
 | `/api/agent-ops/**` | opérateur ou automatisation d'Aigent | cookie de session HMAC (`auth.ts`) **ou** `x-amc-key` |
-| `/api/runtime-telemetry` | un agent déployé dans un repo **consommateur** | son propre jeton `AIGENT_RUNTIME_TELEMETRY_TOKEN` — **jamais** `AMC_API_KEY` |
 | `/api/runtime/v1/**` | un produit consommateur lisant ses agents | son propre jeton `AIGENT_RUNTIME_API_TOKEN` (`bearer-token-auth.ts`) |
+| `/api/runtime-telemetry` | un agent déployé dans un repo **consommateur** | son propre jeton `AIGENT_RUNTIME_TELEMETRY_TOKEN` — **jamais** `AMC_API_KEY` |
+| `/api/runtime-telemetry/consumer` | une **installation** consommateur identifiée | un jeton **par installation**, haché au repos, révocable |
 
 L'endpoint de télémétrie est monté **hors** de `/api/agent-ops/**` volontairement :
 le handler déployé chez un consommateur est un appelant plus étroit et moins
@@ -46,10 +48,9 @@ sur erreur.
 
 Deux points à ne pas arrondir :
 
-- **Le proxy ne garde que `/api/agent-ops/**`.** Une route mutante posée ailleurs
-  n'est gardée par rien : soit elle reste sous ce préfixe, soit elle apporte sa
-  propre authentification explicite — c'est ce que font, délibérément, les deux
-  surfaces runtime ci-dessus.
+- **`src/proxy.ts` garde tout sauf une allowlist courte et fermée** (`/_next/`,
+  `/api/auth/`, `/api/runtime/v1`, `/api/runtime-telemetry`, `/favicon.ico`,
+  `/logout`, `/sign-in`). Oublier une exclusion protège la route, ne l'expose pas.
 - **Le fail-closed est total, dans tous les environnements.** `auth.ts` ne porte
   **aucun** secret de session par défaut, **aucun** mot de passe admin de repli,
   **aucun** bypass — ni en dev, ni en test, ni en production. Sans secret
@@ -59,9 +60,13 @@ Deux points à ne pas arrondir :
   > n'existent plus : la doctrine annonçait une posture **plus faible** que le
   > code réel. Invariant propriétaire : `AGENTS.md` § Authentification.
 
-- **Les pages ne sont pas couvertes par le proxy.** Une surface qui lit des
-  données sans passer par une route API doit porter sa propre vérification de
-  session.
+- **Pages sans session** → 302 vers `/sign-in?next=…` (hardening PR #98).
+  **`/api/agent-ops/**` sans session** → 401 JSON, ou passage avec un `x-amc-key`
+  valide. **`/api/runtime/v1/**` et `/api/runtime-telemetry/**` ne sont pas soumises
+  au garde de session** : elles portent leur propre jeton (voir tableau ci-dessus).
+  Toute autre route API hors surfaces runtime : le proxy impose la session (401 JSON
+  pour une API, 302 pour une page) — une auth métier supplémentaire dans le handler
+  reste obligatoire si le contrat l'exige.
 
 ## Carte des répertoires
 

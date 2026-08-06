@@ -56,12 +56,17 @@ listener qu'il ne peut pas prouver être son propre serveur (double preuve : `cw
 
 Règles dures :
 
-- **`src/proxy.ts` ne garde que `/api/agent-ops/**`.** Une route mutante posée
-  ailleurs n'est gardée par **rien** : soit elle reste sous ce préfixe, soit elle
-  apporte sa propre authentification explicite.
-- **Les pages ne sont pas couvertes par le proxy.** Une surface qui lit des
-  données sans passer par une route API doit porter sa propre vérification de
-  session. Ne jamais supposer que le proxy protège un écran.
+- **`src/proxy.ts` garde tout sauf une allowlist courte et fermée** (`/_next/`,
+  `/api/auth/`, `/api/runtime/v1`, `/api/runtime-telemetry`, `/favicon.ico`,
+  `/logout`, `/sign-in`). Oublier une exclusion protège la route, ne l'expose pas.
+- **Pages sans session** → 302 vers `/sign-in?next=…`. **`/api/agent-ops/**`
+  sans session** → 401 JSON, ou passage avec un `x-amc-key` valide.
+  **`/api/runtime/v1/**` et `/api/runtime-telemetry/**` ne sont pas soumises au
+  garde de session** : elles portent leur propre jeton (voir tableau ci-dessus).
+- **Route mutante hors `/api/agent-ops/**` et hors surfaces runtime** : le proxy
+  impose quand même la session (401 JSON pour une API, 302 pour une page) — une
+  auth métier supplémentaire dans le handler reste obligatoire si le contrat
+  l'exige.
 - **Les valeurs de jetons ne sont jamais partagées** entre ces surfaces. Seules
   la mécanique d'extraction et la comparaison constant-time sont mutualisées.
 - **Toute comparaison de secret est constant-time.** Sans exception.

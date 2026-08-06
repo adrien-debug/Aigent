@@ -1076,7 +1076,9 @@ export async function getDashboardOverview(
     // already does for a would-be dedicated telemetry surface) — added to THIS wave instead
     // of a second round trip. A failed read reports itself via `lookupFailed`,
     // never a fabricated "no events" for a channel that could not be checked.
-    summarizeFleetRuntimeTelemetry()
+    // `excludeInternal: true` — fleet KPIs here reflect consumer traffic only;
+    // internal runs (runner, promotion, shadow, replay) are not consumer signal.
+    summarizeFleetRuntimeTelemetry({ excludeInternal: true })
       .then((summary) => ({ summary, lookupFailed: false }))
       .catch(() => ({ summary: null, lookupFailed: true })),
     listPendingArchitectApprovals()
