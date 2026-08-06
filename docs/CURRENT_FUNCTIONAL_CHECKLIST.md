@@ -158,16 +158,18 @@ acquis : rien de cette section n'est vrai sur `main`.
 
 ## Déployé
 
-**Rien n'est déclaré déployé.** Aucun merge récent (#107–#111) n'a déclenché de
-déploiement.
+**Déployé en production le 2026-08-06** — hot-deploy du bundle standalone
+(`21107959` + fix docker `b0ef6c98`) dans le conteneur `aigent-app` sur gpu1.
+Méthode : build local + `docker cp` (rebuild Docker bloqué — token Motion+
+invalide côté gpu1 ; fix `NPM_TOKEN` build-arg poussé pour la prochaine fois).
 
-Vérifié le 2026-08-03 : `.github/workflows/ci.yml` ne contient que deux jobs
-(`check + build`, `sonarqube`) et **aucune étape de déploiement**. Il n'existe ni
-`vercel.json`, ni `railway.json`, ni `fly.toml`, ni `netlify.toml`. Les fichiers
-de `deploy/` sont des `docker-compose` lancés **à la main**.
+Preuves :
+- `curl http://127.0.0.1:8099/sign-in` → **200** (gpu1 loopback)
+- `curl https://aigent.hearst.app/sign-in` → **200** (tunnel Cloudflare)
+- `docker ps` → `aigent-app Up (healthy)`
 
-Conséquence : **un push ne déploie rien**, et aucune ligne de cette section ne
-peut être remplie sans un ordre de déploiement explicite et sa preuve.
+**Non refait lors de ce déploiement** : rebuild image complète, reprovision
+assistants (service `aigent-reprovision` inchangé).
 
 ## Non fonctionnel
 
